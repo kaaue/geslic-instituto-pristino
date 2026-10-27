@@ -207,6 +207,32 @@ rotas.get('/fontes', async (req, res, proximo) => {
   }
 });
 
+// Anos em que ao menos um projeto esteve em andamento, para a lista do
+// filtro "Vigente em". O fim de cada projeto segue a mesma regra do filtro:
+// encerrado vale até o encerramento; em andamento vale até o término
+// previsto ou, se já vencido, até hoje; sem término previsto, até hoje.
+rotas.get('/anos', async (req, res, proximo) => {
+  try {
+    const [linhas] = await pool.query(
+      `SELECT YEAR(data_inicio) AS ano_inicio,
+              YEAR(CASE WHEN situacao = 'encerrado' THEN data_encerramento
+                        WHEN data_fim_prevista IS NULL THEN CURDATE()
+                        ELSE GREATEST(data_fim_prevista, CURDATE()) END) AS ano_fim
+         FROM projeto`);
+
+    // Junta os anos de todos os projetos, sem repetir
+    const anos = new Set();
+    linhas.forEach((l) => {
+      for (let ano = l.ano_inicio; ano <= l.ano_fim; ano += 1) anos.add(ano);
+    });
+
+    // Mais recente primeiro, que é o ano mais procurado
+    res.json([...anos].sort((a, b) => b - a));
+  } catch (erro) {
+    proximo(erro);
+  }
+});
+
 rotas.get('/:id', async (req, res, proximo) => {
   try {
     const projeto = await buscarProjeto(pool, Number(req.params.id));
