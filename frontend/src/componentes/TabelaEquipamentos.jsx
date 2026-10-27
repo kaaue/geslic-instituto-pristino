@@ -2,8 +2,6 @@
 // Mostra as duas etiquetas, o tipo, o setor, o responsável e a situação,
 // além de indicar quando o equipamento tem licença alocada.
 
-import { numeroParaMoeda } from '../mascaras';
-
 export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, carregando }) {
   if (carregando) {
     return <p className="estado-vazio">Carregando equipamentos...</p>;
@@ -29,7 +27,6 @@ export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, 
             <th>Tipo</th>
             <th>Setor</th>
             <th>Responsável</th>
-            <th>Valor</th>
             <th>Situação</th>
             <th aria-label="Ações"></th>
           </tr>
@@ -47,9 +44,6 @@ export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, 
                 {eq.uso_geral
                   ? <span className="etiqueta-uso-geral">uso geral</span>
                   : (eq.nome_responsavel || <span className="vazio">—</span>)}
-              </td>
-              <td className="col-valor">
-                {eq.valor !== null ? `R$ ${numeroParaMoeda(eq.valor)}` : <span className="vazio">—</span>}
               </td>
               <td>
                 <span className={`situacao situacao-${eq.situacao}`}>{eq.situacao}</span>
