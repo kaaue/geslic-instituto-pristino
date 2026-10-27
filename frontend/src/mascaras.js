@@ -42,6 +42,40 @@ export function moedaParaNumero(texto) {
   return Number.isNaN(numero) ? null : numero;
 }
 
+// ---------------------------------------------------------------
+// Máscaras da tela de projetos (RF_B6)
+// ---------------------------------------------------------------
+
+// Código do projeto: exatamente quatro dígitos (RN19)
+export function mascaraCodigoProjeto(valor) {
+  return String(valor).replace(/[^0-9]/g, '').slice(0, 4);
+}
+
+// Data no padrão brasileiro: a pessoa digita só números e a máscara põe as barras.
+// Digitar 31122026 mostra 31/12/2026.
+export function mascaraData(valor) {
+  const d = String(valor).replace(/[^0-9]/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
+// DD/MM/AAAA -> AAAA-MM-DD (formato da API). Incompleta vira o próprio texto,
+// para a API devolver "data inválida" no campo certo.
+export function dataParaApi(texto) {
+  if (!texto) return null;
+  const partes = String(texto).split('/');
+  if (partes.length !== 3 || partes[2].length !== 4) return String(texto);
+  return `${partes[2]}-${partes[1]}-${partes[0]}`;
+}
+
+// AAAA-MM-DD -> DD/MM/AAAA
+export function dataDaApi(iso) {
+  if (!iso) return '';
+  const [ano, mes, dia] = String(iso).slice(0, 10).split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
 // Converte o número vindo da API para o texto da máscara
 export function numeroParaMoeda(numero) {
   if (numero === null || numero === undefined || numero === '') return '';
