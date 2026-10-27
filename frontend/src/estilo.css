@@ -413,9 +413,6 @@ small.dica { color: var(--cinza-texto); font-size: 11.5px; }
 }
 .tabela td .situacao { white-space: nowrap; }
 
-/* Filtro de vigência por ano */
-.campo-ano input { width: 76px; }
-
 /* Colaboradores participantes do projeto */
 .lista-participantes {
   list-style: none;
