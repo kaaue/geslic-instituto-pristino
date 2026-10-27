@@ -18,7 +18,8 @@ function normalizarTexto(valor) {
   return limpo === '' ? null : limpo;
 }
 
-const FORMATO_ETIQUETA_INSTITUTO = /^PRI-\d{4}$/;
+// IP de Instituto Prístino, seguido de exatamente quatro dígitos
+const FORMATO_ETIQUETA_INSTITUTO = /^IP\d{4}$/;
 const FORMATO_ETIQUETA_NETSCANNER = /^NS-\d{6}$/;
 
 const CATEGORIAS = ['veiculo', 'imovel', 'drone', 'equipamento', 'outro'];
@@ -33,13 +34,12 @@ function validarEquipamento(corpo) {
   const etiquetaNetscanner = normalizarEtiqueta(corpo.etiqueta_netscanner);
   const identificacao = normalizarTexto(corpo.identificacao);
   const tipo = normalizarTexto(corpo.tipo);
-  const patrimonio = normalizarTexto(corpo.patrimonio);
 
   // Etiqueta do Instituto: obrigatória e com formato fixo (RN20)
   if (!etiquetaInstituto) {
     erros.etiqueta_instituto = 'A etiqueta do Instituto é obrigatória.';
   } else if (!FORMATO_ETIQUETA_INSTITUTO.test(etiquetaInstituto)) {
-    erros.etiqueta_instituto = 'Use o formato PRI-0000.';
+    erros.etiqueta_instituto = 'Use o formato IP0000.';
   }
 
   // Etiqueta NetScanner: opcional, mas se vier precisa estar no formato (RN20)
@@ -79,27 +79,15 @@ function validarEquipamento(corpo) {
     erros.categoria = 'Categoria inválida.';
   }
 
-  // Valor: aceita vazio, mas se vier precisa ser número não negativo
-  let valor = null;
-  if (corpo.valor !== null && corpo.valor !== undefined && String(corpo.valor).trim() !== '') {
-    valor = Number(corpo.valor);
-    if (Number.isNaN(valor) || valor < 0) {
-      erros.valor = 'Informe um valor válido.';
-    }
-  }
-
-  // Patrimônio: opcional, só dígitos quando preenchido
-  if (patrimonio && !/^\d{1,20}$/.test(patrimonio)) {
-    erros.patrimonio = 'O patrimônio aceita apenas números.';
-  }
+  // O equipamento não guarda patrimônio nem valor: a etiqueta do Instituto
+  // já é o identificador patrimonial dele, e o valor de aquisição interessa
+  // ao bem segurável, não ao controle de licenças.
 
   return {
     erros,
     dados: {
       categoria,
       identificacao,
-      patrimonio,
-      valor,
       id_setor: idSetor,
       situacao,
       etiqueta_instituto: etiquetaInstituto,

@@ -2,12 +2,13 @@
 // Cada função recebe o que o usuário digitou e devolve o texto já formatado,
 // para o campo mostrar o formato certo enquanto a pessoa digita.
 
-// Etiqueta do Instituto: PRI-0000
-// Deixo o prefixo fixo e aceito só quatro dígitos depois dele.
+// Etiqueta do Instituto: IP0000
+// IP de Instituto Prístino. O prefixo é fixo e aceito só quatro dígitos
+// depois dele, então a pessoa digita apenas os números.
 export function mascaraEtiquetaInstituto(valor) {
   const digitos = String(valor).toUpperCase().replace(/[^0-9]/g, '').slice(0, 4);
   if (digitos === '') return '';
-  return `PRI-${digitos}`;
+  return `IP${digitos}`;
 }
 
 // Etiqueta NetScanner: NS-000000
@@ -17,12 +18,9 @@ export function mascaraEtiquetaNetscanner(valor) {
   return `NS-${digitos}`;
 }
 
-// Patrimônio: só números, até 20 dígitos
-export function mascaraPatrimonio(valor) {
-  return String(valor).replace(/[^0-9]/g, '').slice(0, 20);
-}
-
 // Valor em reais: a pessoa digita só números e a máscara monta os centavos.
+// Não é usada no cadastro de equipamentos, que não guarda valor, mas serve
+// aos bens seguráveis e às vigências, que têm valor contratado.
 // Digitar 480000 mostra 4.800,00.
 export function mascaraMoeda(valor) {
   const digitos = String(valor).replace(/[^0-9]/g, '').slice(0, 12);

@@ -5,11 +5,7 @@
 import { useEffect, useState } from 'react';
 import {
   mascaraEtiquetaInstituto,
-  mascaraEtiquetaNetscanner,
-  mascaraPatrimonio,
-  mascaraMoeda,
-  moedaParaNumero,
-  numeroParaMoeda
+  mascaraEtiquetaNetscanner
 } from '../mascaras';
 
 const VAZIO = {
@@ -17,8 +13,6 @@ const VAZIO = {
   etiqueta_netscanner: '',
   tipo: '',
   identificacao: '',
-  patrimonio: '',
-  valor: '',
   id_setor: '',
   id_responsavel: '',
   uso_geral: false,
@@ -42,8 +36,6 @@ export default function FormularioEquipamento({
         etiqueta_netscanner: edicao.etiqueta_netscanner || '',
         tipo: edicao.tipo || '',
         identificacao: edicao.identificacao || '',
-        patrimonio: edicao.patrimonio || '',
-        valor: numeroParaMoeda(edicao.valor),
         id_setor: edicao.id_setor || '',
         id_responsavel: edicao.id_responsavel || '',
         uso_geral: Boolean(edicao.uso_geral),
@@ -73,7 +65,6 @@ export default function FormularioEquipamento({
     evento.preventDefault();
     aoSalvar({
       ...form,
-      valor: moedaParaNumero(form.valor),
       id_responsavel: form.id_responsavel || null
     });
   }
@@ -99,7 +90,7 @@ export default function FormularioEquipamento({
           <input
             type="text"
             value={form.etiqueta_instituto}
-            placeholder="PRI-0000"
+            placeholder="IP0000"
             onChange={(e) => mudar('etiqueta_instituto', mascaraEtiquetaInstituto(e.target.value))}
             className={erros.etiqueta_instituto ? 'com-erro' : ''}
           />
@@ -147,20 +138,6 @@ export default function FormularioEquipamento({
           </label>
 
           <label className="campo">
-            <span>Patrimônio</span>
-            <input
-              type="text"
-              value={form.patrimonio}
-              placeholder="000000"
-              onChange={(e) => mudar('patrimonio', mascaraPatrimonio(e.target.value))}
-              className={erros.patrimonio ? 'com-erro' : ''}
-            />
-            {erros.patrimonio && <small className="erro">{erros.patrimonio}</small>}
-          </label>
-        </div>
-
-        <div className="dupla">
-          <label className="campo">
             <span>Setor *</span>
             <select
               value={form.id_setor}
@@ -173,18 +150,6 @@ export default function FormularioEquipamento({
               ))}
             </select>
             {erros.id_setor && <small className="erro">{erros.id_setor}</small>}
-          </label>
-
-          <label className="campo">
-            <span>Valor (R$)</span>
-            <input
-              type="text"
-              value={form.valor}
-              placeholder="0,00"
-              onChange={(e) => mudar('valor', mascaraMoeda(e.target.value))}
-              className={erros.valor ? 'com-erro' : ''}
-            />
-            {erros.valor && <small className="erro">{erros.valor}</small>}
           </label>
         </div>
 

@@ -21,8 +21,6 @@ const COLUNAS = `
     c.nome AS nome_responsavel,
     b.categoria,
     b.identificacao,
-    b.patrimonio,
-    b.valor,
     b.situacao,
     b.id_setor,
     s.nome AS nome_setor,
@@ -149,10 +147,11 @@ rotas.post('/', async (req, res, proximo) => {
 
     // Grava primeiro o bem, depois o equipamento com o mesmo id gerado
     const [resultadoBem] = await conexao.query(
-      `INSERT INTO bem (categoria, identificacao, patrimonio, valor, id_setor, situacao)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [dados.categoria, dados.identificacao, dados.patrimonio,
-       dados.valor, dados.id_setor, dados.situacao]
+      // patrimonio e valor ficam nulos: a etiqueta do Instituto já identifica
+      // o patrimônio do equipamento, e o valor só interessa ao bem segurável
+      `INSERT INTO bem (categoria, identificacao, id_setor, situacao)
+       VALUES (?, ?, ?, ?)`,
+      [dados.categoria, dados.identificacao, dados.id_setor, dados.situacao]
     );
     const novoId = resultadoBem.insertId;
 
@@ -210,11 +209,9 @@ rotas.put('/:id', async (req, res, proximo) => {
 
     await conexao.query(
       `UPDATE bem
-          SET categoria = ?, identificacao = ?, patrimonio = ?,
-              valor = ?, id_setor = ?, situacao = ?
+          SET categoria = ?, identificacao = ?, id_setor = ?, situacao = ?
         WHERE id_bem = ?`,
-      [dados.categoria, dados.identificacao, dados.patrimonio,
-       dados.valor, dados.id_setor, dados.situacao, id]
+      [dados.categoria, dados.identificacao, dados.id_setor, dados.situacao, id]
     );
 
     await conexao.query(
