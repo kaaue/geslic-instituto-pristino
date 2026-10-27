@@ -22,7 +22,8 @@ CREATE TABLE projeto (
   codigo              CHAR(4)      NOT NULL,
   nome                VARCHAR(120) NOT NULL,
   fonte_financiadora  VARCHAR(120) NOT NULL,
-  id_responsavel      INT,
+  -- responsável obrigatório: um colaborador ativo no momento do cadastro
+  id_responsavel      INT          NOT NULL,
   data_inicio         DATE         NOT NULL,
   -- término previsto: opcional, gera avisos e pode ser prorrogado
   data_fim_prevista   DATE,

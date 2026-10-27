@@ -42,7 +42,15 @@ Com o MySQL já instalado e rodando, abra o terminal na pasta `backend` e execut
 mysql -u root -p --default-character-set=utf8mb4 < sql/01_schema.sql
 mysql -u root -p --default-character-set=utf8mb4 < sql/02_carga.sql
 mysql -u root -p --default-character-set=utf8mb4 < sql/03_projetos.sql
+mysql -u root -p --default-character-set=utf8mb4 < sql/04_modelo_completo.sql
 ```
+
+O `04_modelo_completo.sql` completa o banco conforme o modelo relacional da
+ERS 2.4 (28 tabelas): cria as tabelas das funções que ainda não foram
+implementadas (fornecedores, softwares, vigências, utilizações, apólices,
+contas de acesso, documentos, notificações e auditoria), acrescenta às tabelas
+existentes as colunas e restrições que faltavam e cadastra os perfis
+Administrador e Operador com suas permissões.
 
 No Windows, se o comando `mysql` não for reconhecido, use o caminho completo:
 
@@ -142,6 +150,7 @@ RN19, RN21, RN22 e protótipo 10).
 
 ```
 backend/sql/03_projetos.sql          tabela projeto, colaborador_projeto e carga
+backend/sql/04_modelo_completo.sql   restante do modelo relacional da ERS 2.4
 backend/src/rotas/projetos.js        endpoints
 backend/src/validacaoProjeto.js      regras de validação
 backend/src/permissoes.js            perfis Administrador e Operador (RN21)
@@ -157,9 +166,9 @@ barra superior, as abas e o seletor de perfil.
 
 | Método | Caminho | Perfil |
 |---|---|---|
-| GET | `/api/projetos` (filtros: busca, situacao, id_responsavel, fonte, prazo) | ambos |
+| GET | `/api/projetos` (filtros: busca, situacao, id_responsavel, fonte, prazo, ano, semestre) | ambos |
 | GET | `/api/projetos/fontes` | ambos |
-| GET | `/api/projetos/:id` | ambos |
+| GET | `/api/projetos/:id` (com a lista de participantes) | ambos |
 | POST | `/api/projetos` | ambos |
 | PUT | `/api/projetos/:id` | Administrador |
 | POST | `/api/projetos/:id/prorrogacao` | ambos |
@@ -184,7 +193,8 @@ perfil.
 | Fonte financiadora e início obrigatórios | RF_B6 |
 | Datas válidas (31/02 é recusado) | — |
 | Término previsto não anterior ao início | 3.3.1 |
-| Responsável, quando informado, deve ser colaborador ativo | RF_B6 |
+| Responsável obrigatório, colaborador ativo | RF_B6 |
+| Participantes: colaboradores já cadastrados; desligado não entra como novo participante | RF_B4, RF_B6 |
 | Prorrogação só para projeto em andamento e para data posterior ao término atual | RF_B6 |
 | Encerramento manual, com data não anterior ao início e não futura | RN17 |
 | Encerrar não transfere, renova nem cancela licenças e instâncias | RN18 |
@@ -200,8 +210,11 @@ perfil.
 ## Filtros
 
 Busca por código, nome ou fonte, combinada com situação, prazo do término
-(termina nos próximos 6 meses, vencido, sem término), responsável e fonte
-financiadora. A listagem mostra o aviso de prazo no término previsto (antecedência
+(termina nos próximos 6 meses, vencido, sem término), responsável, fonte
+financiadora e período de vigência: **Vigente em** um ano, inteiro ou por
+semestre, traz os projetos que estiveram em andamento em ao menos um dia do
+período (o encerrado conta até o encerramento; o em andamento, até o término
+previsto ou, se vencido, até hoje). A listagem mostra o aviso de prazo no término previsto (antecedência
 padrão de 6 meses, RN24) e os recursos vinculados de cada projeto.
 
 ## Dados de demonstração

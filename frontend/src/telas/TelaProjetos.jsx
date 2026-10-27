@@ -12,12 +12,14 @@ import TabelaProjetos from '../componentes/projetos/TabelaProjetos.jsx';
 import FormularioProjeto from '../componentes/projetos/FormularioProjeto.jsx';
 import PainelAcaoProjeto from '../componentes/projetos/PainelAcaoProjeto.jsx';
 import {
-  listarProjetos, listarFontesFinanciadoras, incluirProjeto, alterarProjeto,
+  listarProjetos, buscarProjeto, listarFontesFinanciadoras, incluirProjeto, alterarProjeto,
   excluirProjeto, encerrarProjeto, prorrogarProjeto, listarColaboradores
 } from '../api';
 import { dataDaApi } from '../mascaras';
 
-const FILTROS_VAZIOS = { busca: '', situacao: '', id_responsavel: '', fonte: '', prazo: '' };
+const FILTROS_VAZIOS = {
+  busca: '', situacao: '', id_responsavel: '', fonte: '', prazo: '', ano: '', semestre: ''
+};
 
 export default function TelaProjetos({ perfil }) {
   const administrador = perfil === 'administrador';
@@ -73,10 +75,15 @@ export default function TelaProjetos({ perfil }) {
     setPainelAberto(true);
   }
 
-  function abrirEdicao(projeto) {
-    setEdicao(projeto);
-    setErros({});
-    setPainelAberto(true);
+  // A listagem não traz os participantes; o painel abre com o projeto completo
+  async function abrirEdicao(projeto) {
+    try {
+      setEdicao(await buscarProjeto(projeto.id_projeto));
+      setErros({});
+      setPainelAberto(true);
+    } catch (erro) {
+      mostrarMensagem('erro', erro.corpo?.mensagem || 'Não foi possível abrir o projeto.');
+    }
   }
 
   function fecharPainel() {

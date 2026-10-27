@@ -13,7 +13,8 @@ const VAZIO = {
   fonte_financiadora: '',
   id_responsavel: '',
   data_inicio: '',
-  data_fim_prevista: ''
+  data_fim_prevista: '',
+  participantes: []
 };
 
 export default function FormularioProjeto({
@@ -29,7 +30,8 @@ export default function FormularioProjeto({
         fonte_financiadora: edicao.fonte_financiadora || '',
         id_responsavel: edicao.id_responsavel || '',
         data_inicio: dataDaApi(edicao.data_inicio),
-        data_fim_prevista: dataDaApi(edicao.data_fim_prevista)
+        data_fim_prevista: dataDaApi(edicao.data_fim_prevista),
+        participantes: (edicao.lista_participantes || []).map((c) => c.id_colaborador)
       });
     } else {
       setForm(VAZIO);
@@ -51,12 +53,27 @@ export default function FormularioProjeto({
     });
   }
 
+  function adicionarParticipante(id) {
+    if (!id) return;
+    setForm((atual) => ({ ...atual, participantes: [...atual.participantes, Number(id)] }));
+  }
+
+  function removerParticipante(id) {
+    setForm((atual) => ({ ...atual, participantes: atual.participantes.filter((p) => p !== id) }));
+  }
+
   const encerrado = edicao && edicao.situacao === 'encerrado';
   const titulo = !edicao ? 'Novo projeto' : somenteLeitura ? 'Projeto' : 'Editar projeto';
 
   // Responsável atual pode estar inativo; nesse caso ainda aparece na lista
   const responsavelForaDaLista = edicao && edicao.id_responsavel
     && !colaboradores.some((c) => c.id_colaborador === edicao.id_responsavel);
+
+  // Nomes dos participantes: colaboradores ativos e, na edição, também os que
+  // já participavam e foram desligados depois (continuam no projeto)
+  const colaboradorPorId = new Map(
+    [...(edicao?.lista_participantes || []), ...colaboradores].map((c) => [c.id_colaborador, c]));
+  const disponiveis = colaboradores.filter((c) => !form.participantes.includes(c.id_colaborador));
 
   return (
     <form className="painel" onSubmit={enviar}>
@@ -126,14 +143,14 @@ export default function FormularioProjeto({
         </label>
 
         <label className="campo">
-          <span>Responsável</span>
+          <span>Responsável *</span>
           <select
             value={form.id_responsavel}
             disabled={somenteLeitura}
             onChange={(e) => mudar('id_responsavel', e.target.value)}
             className={erros.id_responsavel ? 'com-erro' : ''}
           >
-            <option value="">Sem responsável</option>
+            <option value="">Selecione o colaborador responsável</option>
             {responsavelForaDaLista && (
               <option value={edicao.id_responsavel}>{edicao.nome_responsavel} (inativo)</option>
             )}
@@ -178,6 +195,56 @@ export default function FormularioProjeto({
           </label>
         </div>
 
+        <div className="campo">
+          <span>Colaboradores participantes</span>
+          {!somenteLeitura && (
+            <select
+              value=""
+              onChange={(e) => adicionarParticipante(e.target.value)}
+              className={erros.participantes ? 'com-erro' : ''}
+              disabled={disponiveis.length === 0}
+            >
+              <option value="">
+                {disponiveis.length ? 'Adicionar colaborador cadastrado...' : 'Todos os colaboradores ativos já foram incluídos'}
+              </option>
+              {disponiveis.map((c) => (
+                <option key={c.id_colaborador} value={c.id_colaborador}>
+                  {c.nome} — {c.nome_setor}
+                </option>
+              ))}
+            </select>
+          )}
+          {form.participantes.length > 0 ? (
+            <ul className="lista-participantes">
+              {form.participantes.map((id) => {
+                const c = colaboradorPorId.get(id);
+                return (
+                  <li key={id}>
+                    <span>
+                      {c ? c.nome : `Colaborador ${id}`}
+                      <small>
+                        {c ? [c.cargo, c.nome_setor].filter(Boolean).join(' · ') : ''}
+                        {c && c.ativo === false ? ' · desligado' : ''}
+                      </small>
+                    </span>
+                    {!somenteLeitura && (
+                      <button type="button" className="botao-texto" onClick={() => removerParticipante(id)}>
+                        Remover
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <small className="dica">
+              Nenhum participante. Vincule colaboradores já cadastrados; o cadastro de
+              colaboradores é feito na tela própria (RF_B4).
+            </small>
+          )}
+          {erros.participantes && <small className="erro">{erros.participantes}</small>}
+        </div>
+
         {edicao && (
           <div className="resumo-projeto">
             <div>
@@ -187,7 +254,7 @@ export default function FormularioProjeto({
             <div>
               <span>Recursos vinculados</span>
               <strong>
-                {edicao.licencas_adquiridas} licença(s) · {edicao.instancias_responsavel} instância(s) · {edicao.participantes} participante(s)
+                {edicao.licencas_adquiridas} licença(s) · {edicao.instancias_responsavel} instância(s)
               </strong>
             </div>
           </div>

@@ -90,6 +90,11 @@ export function listarProjetos(filtros) {
   return requisicao(`/api/projetos${consultaFiltros(filtros)}`);
 }
 
+// Um projeto, com a lista dos colaboradores participantes
+export function buscarProjeto(id) {
+  return requisicao(`/api/projetos/${id}`);
+}
+
 export function listarFontesFinanciadoras() {
   return requisicao('/api/projetos/fontes');
 }

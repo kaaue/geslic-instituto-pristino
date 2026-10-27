@@ -1,9 +1,16 @@
 // Filtros da consulta de projetos. Combináveis entre si: busca livre,
-// situação, responsável, fonte financiadora e prazo do término previsto.
+// situação, responsável, fonte financiadora, prazo do término previsto e
+// período de vigência (ano inteiro ou semestre).
 
 export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaboradores, fontes, total }) {
   function mudar(campo, valor) {
     aoMudar({ ...filtros, [campo]: valor });
+  }
+
+  // Ano: só dígitos, até 4. Sem ano, o semestre não se aplica.
+  function mudarAno(valor) {
+    const ano = valor.replace(/\D/g, '').slice(0, 4);
+    aoMudar({ ...filtros, ano, semestre: ano ? filtros.semestre : '' });
   }
 
   const temFiltro = Object.values(filtros).some((v) => v !== '');
@@ -35,8 +42,32 @@ export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaborado
           <select value={filtros.prazo} onChange={(e) => mudar('prazo', e.target.value)}>
             <option value="">Todos</option>
             <option value="proximo">Termina nos próximos 6 meses</option>
-            <option value="vencido">Término previsto vencido</option>
+            <option value="vencido">Vencido</option>
             <option value="sem_termino">Sem término previsto</option>
+          </select>
+        </label>
+
+        <label className="campo campo-ano">
+          <span>Vigente em</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="aaaa"
+            value={filtros.ano}
+            onChange={(e) => mudarAno(e.target.value)}
+          />
+        </label>
+
+        <label className="campo">
+          <span>Período</span>
+          <select
+            value={filtros.semestre}
+            disabled={filtros.ano.length !== 4}
+            onChange={(e) => mudar('semestre', e.target.value)}
+          >
+            <option value="">Ano inteiro</option>
+            <option value="1">1º semestre</option>
+            <option value="2">2º semestre</option>
           </select>
         </label>
 

@@ -44,6 +44,15 @@ const TABELAS = `
     FROM projeto p
     LEFT JOIN colaborador c ON c.id_colaborador = p.id_responsavel`;
 
+// Ano com quatro dígitos e, opcionalmente, o semestre (1 ou 2).
+// Sem ano válido, o filtro de período não é aplicado.
+function periodoDoFiltro(ano, semestre) {
+  if (!/^\d{4}$/.test(ano || '')) return null;
+  if (semestre === '1') return { inicio: `${ano}-01-01`, fim: `${ano}-06-30` };
+  if (semestre === '2') return { inicio: `${ano}-07-01`, fim: `${ano}-12-31` };
+  return { inicio: `${ano}-01-01`, fim: `${ano}-12-31` };
+}
+
 function montarConsulta(filtros) {
   const condicoes = [];
   const valores = [];
@@ -81,6 +90,19 @@ function montarConsulta(filtros) {
     condicoes.push('p.data_fim_prevista IS NULL');
   }
 
+  // Vigente no período: o projeto esteve em andamento em ao menos um dia do
+  // ano ou do semestre escolhido. Projeto encerrado vale até o encerramento;
+  // em andamento vale até o término previsto ou, se já vencido, até hoje;
+  // sem término previsto, não tem fim.
+  const periodo = periodoDoFiltro(filtros.ano, filtros.semestre);
+  if (periodo) {
+    condicoes.push(`p.data_inicio <= ? AND
+      CASE WHEN p.situacao = 'encerrado' THEN p.data_encerramento
+           WHEN p.data_fim_prevista IS NULL THEN DATE('9999-12-31')
+           ELSE GREATEST(p.data_fim_prevista, CURDATE()) END >= ?`);
+    valores.push(periodo.fim, periodo.inicio);
+  }
+
   const sql = `SELECT ${COLUNAS} ${TABELAS}
     ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''}
     ORDER BY p.codigo`;
@@ -106,7 +128,7 @@ async function conferirDuplicidade(conexao, dados, idAtual) {
   return erros;
 }
 
-// O responsável, quando informado, precisa ser um colaborador ativo
+// O responsável (obrigatório) precisa ser um colaborador ativo
 async function conferirResponsavel(conexao, idResponsavel) {
   if (!idResponsavel) return {};
   const [linhas] = await conexao.query(
@@ -115,6 +137,50 @@ async function conferirResponsavel(conexao, idResponsavel) {
     return { id_responsavel: 'Selecione um colaborador ativo.' };
   }
   return {};
+}
+
+// Participantes: colaboradores já cadastrados. Um colaborador desligado não
+// entra como novo participante, mas continua no projeto se já participava.
+async function conferirParticipantes(conexao, ids, idProjeto) {
+  if (!ids || !ids.length) return {};
+  const [linhas] = await conexao.query(
+    `SELECT c.id_colaborador, c.nome, c.ativo,
+            EXISTS (SELECT 1 FROM colaborador_projeto cp
+                     WHERE cp.id_colaborador = c.id_colaborador AND cp.id_projeto = ?) AS ja_participa
+       FROM colaborador c
+      WHERE c.id_colaborador IN (?)`,
+    [idProjeto || 0, ids]);
+  if (linhas.length !== ids.length) {
+    return { participantes: 'Selecione somente colaboradores cadastrados.' };
+  }
+  const desligados = linhas.filter((l) => !l.ativo && !l.ja_participa);
+  if (desligados.length) {
+    return {
+      participantes: `Colaborador desligado não pode ser incluído: ${desligados.map((l) => l.nome).join(', ')}.`
+    };
+  }
+  return {};
+}
+
+// Substitui as participações do projeto pela lista recebida
+async function gravarParticipantes(conexao, idProjeto, ids) {
+  await conexao.query('DELETE FROM colaborador_projeto WHERE id_projeto = ?', [idProjeto]);
+  if (ids.length) {
+    await conexao.query(
+      'INSERT INTO colaborador_projeto (id_colaborador, id_projeto) VALUES ?',
+      [ids.map((id) => [id, idProjeto])]);
+  }
+}
+
+async function listarParticipantes(conexao, idProjeto) {
+  const [linhas] = await conexao.query(
+    `SELECT c.id_colaborador, c.nome, c.cargo, c.ativo, s.nome AS nome_setor
+       FROM colaborador_projeto cp
+       JOIN colaborador c ON c.id_colaborador = cp.id_colaborador
+       JOIN setor s       ON s.id_setor = c.id_setor
+      WHERE cp.id_projeto = ?
+      ORDER BY c.nome`, [idProjeto]);
+  return linhas.map((l) => ({ ...l, ativo: Boolean(l.ativo) }));
 }
 
 // ---------------------------------------------------------------
@@ -145,7 +211,7 @@ rotas.get('/:id', async (req, res, proximo) => {
   try {
     const projeto = await buscarProjeto(pool, Number(req.params.id));
     if (!projeto) return res.status(404).json({ mensagem: 'Projeto não encontrado.' });
-    res.json(projeto);
+    res.json({ ...projeto, lista_participantes: await listarParticipantes(pool, projeto.id_projeto) });
   } catch (erro) {
     proximo(erro);
   }
@@ -158,27 +224,43 @@ rotas.post('/', async (req, res, proximo) => {
   const { erros, dados } = validarProjeto(req.body);
   if (Object.keys(erros).length) return res.status(400).json({ erros });
 
+  // Projeto e participações gravados juntos, numa transação
+  const conexao = await pool.getConnection();
   try {
-    const errosBanco = {
-      ...(await conferirDuplicidade(pool, dados, null)),
-      ...(await conferirResponsavel(pool, dados.id_responsavel))
-    };
-    if (Object.keys(errosBanco).length) return res.status(400).json({ erros: errosBanco });
+    await conexao.beginTransaction();
 
-    const [resultado] = await pool.query(
+    const errosBanco = {
+      ...(await conferirDuplicidade(conexao, dados, null)),
+      ...(await conferirResponsavel(conexao, dados.id_responsavel)),
+      ...(await conferirParticipantes(conexao, dados.participantes, null))
+    };
+    if (Object.keys(errosBanco).length) {
+      await conexao.rollback();
+      return res.status(400).json({ erros: errosBanco });
+    }
+
+    const [resultado] = await conexao.query(
       `INSERT INTO projeto
          (codigo, nome, fonte_financiadora, id_responsavel, data_inicio, data_fim_prevista, situacao)
        VALUES (?, ?, ?, ?, ?, ?, 'em_andamento')`,
       [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel,
        dados.data_inicio, dados.data_fim_prevista]
     );
+    if (dados.participantes) {
+      await gravarParticipantes(conexao, resultado.insertId, dados.participantes);
+    }
+
+    await conexao.commit();
     res.status(201).json({ id_projeto: resultado.insertId });
   } catch (erro) {
+    await conexao.rollback();
     // Se duas pessoas gravarem o mesmo código ao mesmo tempo, o UNIQUE do banco segura
     if (erro.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ erros: { codigo: 'Código ou nome já cadastrado.' } });
     }
     proximo(erro);
+  } finally {
+    conexao.release();
   }
 });
 
@@ -190,21 +272,34 @@ rotas.put('/:id', exigirAdministrador, async (req, res, proximo) => {
   const { erros, dados } = validarProjeto(req.body);
   if (Object.keys(erros).length) return res.status(400).json({ erros });
 
+  const conexao = await pool.getConnection();
   try {
-    const atual = await buscarProjeto(pool, id);
-    if (!atual) return res.status(404).json({ mensagem: 'Projeto não encontrado.' });
+    await conexao.beginTransaction();
 
+    const atual = await buscarProjeto(conexao, id);
+    if (!atual) {
+      await conexao.rollback();
+      return res.status(404).json({ mensagem: 'Projeto não encontrado.' });
+    }
+
+    // O responsável que já estava no projeto pode ter sido desligado depois;
+    // nesse caso ele pode ser mantido, mas não escolhido de novo.
     const errosBanco = {
-      ...(await conferirDuplicidade(pool, dados, id)),
-      ...(await conferirResponsavel(pool, dados.id_responsavel))
+      ...(await conferirDuplicidade(conexao, dados, id)),
+      ...(dados.id_responsavel === atual.id_responsavel
+        ? {} : await conferirResponsavel(conexao, dados.id_responsavel)),
+      ...(await conferirParticipantes(conexao, dados.participantes, id))
     };
     // Projeto encerrado: o início não pode passar da data de encerramento
     if (atual.data_encerramento && dados.data_inicio > atual.data_encerramento) {
       errosBanco.data_inicio = 'O início não pode ser posterior ao encerramento do projeto.';
     }
-    if (Object.keys(errosBanco).length) return res.status(400).json({ erros: errosBanco });
+    if (Object.keys(errosBanco).length) {
+      await conexao.rollback();
+      return res.status(400).json({ erros: errosBanco });
+    }
 
-    await pool.query(
+    await conexao.query(
       `UPDATE projeto
           SET codigo = ?, nome = ?, fonte_financiadora = ?, id_responsavel = ?,
               data_inicio = ?, data_fim_prevista = ?
@@ -212,12 +307,20 @@ rotas.put('/:id', exigirAdministrador, async (req, res, proximo) => {
       [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel,
        dados.data_inicio, dados.data_fim_prevista, id]
     );
+    if (dados.participantes) {
+      await gravarParticipantes(conexao, id, dados.participantes);
+    }
+
+    await conexao.commit();
     res.json({ id_projeto: id });
   } catch (erro) {
+    await conexao.rollback();
     if (erro.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ erros: { codigo: 'Código ou nome já cadastrado.' } });
     }
     proximo(erro);
+  } finally {
+    conexao.release();
   }
 });
 

@@ -79,8 +79,24 @@ function validarProjeto(corpo) {
     }
   }
 
-  if (corpo.id_responsavel && (!Number.isInteger(idResponsavel) || idResponsavel <= 0)) {
+  if (!corpo.id_responsavel) {
+    erros.id_responsavel = 'O responsável é obrigatório.';
+  } else if (!Number.isInteger(idResponsavel) || idResponsavel <= 0) {
     erros.id_responsavel = 'Responsável inválido.';
+  }
+
+  // Colaboradores participantes: lista de ids, sem repetição. Ausente na
+  // requisição significa "não mexer" nas participações já gravadas.
+  let participantes = null;
+  if (corpo.participantes !== undefined) {
+    if (!Array.isArray(corpo.participantes)) {
+      erros.participantes = 'Participantes inválidos.';
+    } else {
+      participantes = [...new Set(corpo.participantes.map(Number))];
+      if (participantes.some((id) => !Number.isInteger(id) || id <= 0)) {
+        erros.participantes = 'Participantes inválidos.';
+      }
+    }
   }
 
   return {
@@ -91,7 +107,8 @@ function validarProjeto(corpo) {
       fonte_financiadora: fonte,
       id_responsavel: idResponsavel,
       data_inicio: dataInicio,
-      data_fim_prevista: dataFimPrevista
+      data_fim_prevista: dataFimPrevista,
+      participantes
     }
   };
 }

@@ -412,3 +412,29 @@ small.dica { color: var(--cinza-texto); font-size: 11.5px; }
   flex-direction: column;
 }
 .tabela td .situacao { white-space: nowrap; }
+
+/* Filtro de vigência por ano */
+.campo-ano input { width: 76px; }
+
+/* Colaboradores participantes do projeto */
+.lista-participantes {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+}
+.lista-participantes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.lista-participantes li + li { border-top: 1px solid var(--cinza-borda); }
+.lista-participantes small {
+  display: block;
+  font-size: 11px;
+  color: var(--cinza-texto);
+}
