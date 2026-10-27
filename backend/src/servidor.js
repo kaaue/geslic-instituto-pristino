@@ -1,6 +1,6 @@
 // Servidor da API do GESLIC.
-// Nesta sprint só sobe a RF_B3, mas a estrutura de pastas já comporta
-// as outras funções que o grupo vai implementar.
+// Cada função básica tem seu arquivo de rotas: RF_B3 (equipamentos) e
+// RF_B6 (projetos) até aqui.
 
 require('dotenv').config();
 const express = require('express');
@@ -8,6 +8,7 @@ const cors = require('cors');
 
 const pool = require('./banco');
 const rotasEquipamentos = require('./rotas/equipamentos');
+const rotasProjetos = require('./rotas/projetos');
 const rotasApoio = require('./rotas/apoio');
 
 const app = express();
@@ -17,6 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/equipamentos', rotasEquipamentos);
+app.use('/api/projetos', rotasProjetos);
 app.use('/api', rotasApoio);
 
 // Rota simples para conferir se a API e o banco estão de pé

@@ -311,3 +311,130 @@ small.dica { color: var(--cinza-texto); font-size: 11.5px; }
 
 .mensagem-sucesso { background: var(--verde-claro); color: var(--verde); }
 .mensagem-erro    { background: var(--vermelho-claro); color: var(--vermelho); }
+
+/* =========================================================
+   Navegação entre funções e tela de projetos (RF_B6)
+   ========================================================= */
+
+.barra-direita { display: flex; align-items: center; gap: 14px; }
+
+.seletor-perfil { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.seletor-perfil select {
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.abas {
+  display: flex;
+  gap: 4px;
+  padding: 0 28px;
+  background: #fff;
+  border-bottom: 1px solid var(--cinza-borda);
+}
+
+.aba {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 14px 9px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--cinza-texto);
+  cursor: pointer;
+}
+
+.aba small { font-size: 11px; color: #9aa4ae; margin-left: 4px; }
+.aba:hover { color: var(--texto); }
+.aba-ativa { color: var(--verde); border-bottom-color: var(--verde); font-weight: 600; }
+
+.subtitulo { margin: 4px 0 0; font-size: 12.5px; color: var(--cinza-texto); }
+
+.nota-perfil { margin-bottom: 12px; }
+
+.col-data { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.col-recursos { font-size: 12.5px; color: var(--cinza-texto); }
+
+.marca-prazo {
+  display: block;
+  width: fit-content;
+  margin-top: 3px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10.5px;
+}
+
+.prazo-proximo { background: var(--amarelo-claro); color: #7a5b00; border: 1px solid var(--amarelo-borda); }
+.prazo-vencido { background: var(--vermelho-claro); color: var(--vermelho); border: 1px solid #f0b8b3; }
+
+.botao-texto:disabled { color: #b6bec6; cursor: not-allowed; text-decoration: none; }
+
+.dupla-codigo { grid-template-columns: 120px 1fr; }
+
+.painel-corpo input[readonly] { background: #f4f6f8; color: var(--cinza-texto); }
+
+.aviso-info {
+  margin: 0;
+  background: #eef3ff;
+  border: 1px solid #c9d6f5;
+  color: #2c4d9b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+}
+
+.resumo-projeto {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: #f7f9fa;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.resumo-projeto span { display: block; font-size: 11.5px; color: var(--cinza-texto); }
+.resumo-projeto strong { font-size: 13px; font-weight: 600; }
+
+/* Janela central das ações Encerrar e Prorrogar */
+.janela {
+  position: fixed;
+  top: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 480px;
+  max-width: calc(100% - 32px);
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+}
+.tabela td .situacao { white-space: nowrap; }
+
+/* Filtro de vigência por ano */
+.campo-ano input { width: 76px; }
+
+/* Colaboradores participantes do projeto */
+.lista-participantes {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+}
+.lista-participantes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.lista-participantes li + li { border-top: 1px solid var(--cinza-borda); }
+.lista-participantes small {
+  display: block;
+  font-size: 11px;
+  color: var(--cinza-texto);
+}

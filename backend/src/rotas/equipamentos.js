@@ -236,7 +236,9 @@ rotas.put('/:id', async (req, res, proximo) => {
         `UPDATE instancia i
             JOIN alocacao a ON a.id_instancia = i.id_instancia
             JOIN licenca l  ON l.id_licenca = i.id_licenca
-            SET i.situacao = 'inativa'
+            SET i.situacao = 'inativa',
+                i.data_inativacao = CURDATE(),
+                i.motivo_inativacao = 'descarte do equipamento'
           WHERE a.id_equipamento = ?
             AND a.data_fim IS NULL
             AND l.transferivel = FALSE
