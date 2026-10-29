@@ -17,63 +17,95 @@ serviços e MySQL na persistência.
 ## Estrutura
 
 ```
-backend/            API em Node.js com Express
-  sql/              scripts do banco
-  src/
-    servidor.js     sobe a API
-    banco.js        conexão com o MySQL
-    validacao.js    regras de validação da RF_B3
-    rotas/          endpoints
-frontend/           interface em React com Vite
-  src/
-    App.jsx         tela de equipamentos
-    api.js          chamadas à API
-    mascaras.js     máscaras dos campos
-    componentes/    filtros, tabela e formulário
+geslic/
+├── backend/                     API em Node + Express
+│   ├── .env.example             modelo das variáveis de ambiente
+│   ├── scripts/setup-db.js      cria o banco, as tabelas e as contas (npm run db:*)
+│   └── src/
+│       ├── server.js            inicia o servidor e testa o banco
+│       ├── app.js               configura o Express (middlewares e rotas)
+│       ├── config/              env.js (variáveis) e database.js (pool MySQL e transações)
+│       ├── routes/              mapeia URL + verbo HTTP para um controller
+│       ├── controllers/         (C) recebe a requisição e devolve a resposta
+│       ├── models/              (M) acesso ao banco e regras dos dados (*Model.js e *Validacao.js)
+│       ├── middlewares/         autenticação (perfil), erros e rota não encontrada
+│       └── utils/               AppError, NotImplementedError, asyncHandler, normalização e senha
+│
+├── frontend/                    interface em React
+│   └── src/
+│       ├── main.jsx / App.jsx   ponto de entrada
+│       ├── routes/              rotas das telas e proteção por login
+│       ├── pages/               (V) uma pasta por tela, com os componentes só dela
+│       ├── components/          layout/ (menu, estrutura) e common/ (reutilizáveis)
+│       ├── services/            chamadas HTTP à API (um arquivo por recurso)
+│       ├── context/             estado global (autenticação)
+│       ├── hooks/               hooks customizados
+│       ├── config/              configuração de navegação (menu)
+│       ├── utils/               máscaras dos campos
+│       └── styles/              CSS global
+├── docs/                        documentos da fase de planejamento, diagramas, ERS
+│
+├── database/                    schema.sql, seed.sql e seed_dev.sql
+└── package.json                 atalhos db:setup, db:setup:exemplos e db:reset
 ```
+
+### Como uma requisição percorre o backend
+
+`routes/` escolhe o controller e aplica o middleware de perfil quando a rota é
+exclusiva do Administrador → o `controller` valida a entrada e chama o
+`model` → o `model` consulta o banco e aplica as regras (RN08, RN22...),
+lançando um `AppError` quando uma regra é violada → o middleware
+`errorHandler` transforma o `AppError` na resposta (400 com `erros` por campo,
+ou 403/404/409 com `mensagem`).
 
 ## Como rodar
 
-### 1. Criar o banco
+### 1. Configurar o backend
 
-Com o MySQL já instalado e rodando, abra o terminal na pasta `backend` e execute:
-
-```
-mysql -u root -p --default-character-set=utf8mb4 < sql/01_schema.sql
-mysql -u root -p --default-character-set=utf8mb4 < sql/02_carga.sql
-mysql -u root -p --default-character-set=utf8mb4 < sql/03_projetos.sql
-mysql -u root -p --default-character-set=utf8mb4 < sql/04_modelo_completo.sql
-```
-
-O `04_modelo_completo.sql` completa o banco conforme o modelo relacional da
-ERS 2.4 (28 tabelas): cria as tabelas das funções que ainda não foram
-implementadas (fornecedores, softwares, vigências, utilizações, apólices,
-contas de acesso, documentos, notificações e auditoria), acrescenta às tabelas
-existentes as colunas e restrições que faltavam e cadastra os perfis
-Administrador e Operador com suas permissões.
-
-No Windows, se o comando `mysql` não for reconhecido, use o caminho completo:
+Com o MySQL já instalado e rodando, na pasta `backend`:
 
 ```
-& "C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" -u root -p --default-character-set=utf8mb4 -e "source sql/01_schema.sql"
-```
-
-O primeiro script cria o banco `geslic` e as tabelas. O segundo carrega os dados
-de demonstração: 5 setores, 8 colaboradores, 15 equipamentos e 3 licenças
-alocadas.
-
-### 2. Configurar e subir a API
-
-Na pasta `backend`:
-
-```
-copy .env.exemplo .env
+copy .env.example .env
 ```
 
 Abra o `.env` e preencha `DB_SENHA` com a senha do root do seu MySQL. Depois:
 
 ```
 npm install
+```
+
+### 2. Criar o banco
+
+Com o `backend/.env` configurado, na raiz do projeto:
+
+```bash
+npm run db:setup            # banco + tabelas + dados de referência + usuário "admin"
+npm run db:setup:exemplos   # o mesmo + dados de exemplo e usuários de teste
+npm run db:reset            # APAGA o banco e recria tudo (use quando o schema mudar)
+```
+
+`db:setup` e `db:setup:exemplos` não apagam nada: se o banco configurado em
+`DB_NOME` (padrão `geslic`) já tiver tabelas, eles param e indicam o
+`db:reset`. O `db:reset` recria sem os dados de exemplo; para recriar com
+eles, use `npm run db:reset -- --exemplos`.
+
+Os comandos rodam os arquivos da pasta `database/` e criam as contas:
+
+| Arquivo / etapa | Conteúdo |
+|---|---|
+| `schema.sql` | as 28 tabelas do modelo relacional da ERS 2.4, com restrições e gatilhos |
+| `seed.sql` | dados de referência: perfis Administrador e Operador e suas permissões |
+| usuário `admin` | perfil Administrador; senha de `ADMIN_SENHA` no `.env` ou, se vazia, gerada e mostrada uma única vez |
+| `seed_dev.sql` | só com exemplos: 5 setores, 8 colaboradores, 15 equipamentos, 7 projetos e 3 licenças alocadas |
+| usuários de teste | só com exemplos: `ana.ribeiro` (Administrador) e `carlos.alves` (Operador), com a senha de `SENHA_USUARIOS_TESTE` |
+
+As senhas são gravadas só como hash (scrypt, em `backend/src/utils/senha.js`).
+As telas atuais (RF_B3 e RF_B6) usam os dados de exemplo; sem eles, as
+listagens começam vazias.
+
+### 3. Subir a API
+
+```
 npm start
 ```
 
@@ -81,7 +113,7 @@ A API sobe em `http://localhost:3001`. Para conferir se ela enxerga o banco,
 abra `http://localhost:3001/api/saude` no navegador: deve responder
 `{"api":"ok","banco":"ok"}`.
 
-### 3. Subir a interface
+### 4. Subir a interface
 
 Em outro terminal, na pasta `frontend`:
 
@@ -90,7 +122,9 @@ npm install
 npm run dev
 ```
 
-A tela abre em `http://localhost:5173`. As abas no topo alternam entre
+A tela abre em `http://localhost:5173`. Se a API estiver em outra porta que
+não a 3001, suba o front com a variável `API_URL` (no PowerShell:
+`$env:API_URL="http://localhost:3002"; npm run dev`). As abas no topo alternam entre
 Equipamentos (RF_B3) e Projetos (RF_B6); `http://localhost:5173/#projetos` abre
 direto na tela de projetos.
 
@@ -149,18 +183,17 @@ RN19, RN21, RN22 e protótipo 10).
 ## Arquivos
 
 ```
-backend/sql/03_projetos.sql          tabela projeto, colaborador_projeto e carga
-backend/sql/04_modelo_completo.sql   restante do modelo relacional da ERS 2.4
-backend/src/rotas/projetos.js        endpoints
-backend/src/validacaoProjeto.js      regras de validação
-backend/src/permissoes.js            perfis Administrador e Operador (RN21)
-frontend/src/telas/TelaProjetos.jsx  tela de projetos
-frontend/src/componentes/projetos/   filtros, tabela, formulário e janela de ações
+backend/src/routes/projetoRoutes.js            endpoints e perfil exigido em cada um
+backend/src/controllers/projetoController.js   entrada e resposta
+backend/src/models/projetoModel.js             consultas e regras (RN17, RN18, RN19, RN22)
+backend/src/models/projetoValidacao.js         regras de validação dos campos
+backend/src/middlewares/auth.js                perfis Administrador e Operador (RN21)
+frontend/src/pages/Projetos/                   tela, filtros, tabela, formulário e janela de ações
+frontend/src/services/projetoService.js        chamadas à API
 ```
 
-A tela de equipamentos do Rafael passou de `App.jsx` para
-`telas/TelaEquipamentos.jsx` sem mudar o comportamento; `App.jsx` agora tem a
-barra superior, as abas e o seletor de perfil.
+A barra superior, as abas e o seletor de perfil ficam em
+`components/layout/`; o perfil escolhido vive no `AuthContext`.
 
 ## Endpoints
 

@@ -1,12 +1,15 @@
 {
   "name": "geslic-backend",
   "version": "1.0.0",
-  "description": "API do GESLIC - funcao basica RF_B3 Gerenciar equipamentos",
-  "main": "src/servidor.js",
+  "description": "API do GESLIC (Node + Express + MySQL)",
+  "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node src/servidor.js",
-    "dev": "node --watch src/servidor.js"
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:setup": "node scripts/setup-db.js",
+    "db:setup:exemplos": "node scripts/setup-db.js --exemplos",
+    "db:reset": "node scripts/setup-db.js --reset"
   },
   "dependencies": {
     "cors": "2.8.5",
