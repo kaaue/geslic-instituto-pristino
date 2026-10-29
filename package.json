@@ -1,0 +1,10 @@
+{
+  "name": "geslic",
+  "private": true,
+  "description": "GESLIC - Sistema de Gestão de Licenças de Software e Apólices do Instituto Prístino",
+  "scripts": {
+    "db:setup": "npm --prefix backend run db:setup",
+    "db:setup:exemplos": "npm --prefix backend run db:setup:exemplos",
+    "db:reset": "npm --prefix backend run db:reset --"
+  }
+}
