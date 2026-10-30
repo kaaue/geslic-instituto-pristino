@@ -6,9 +6,10 @@ export default defineConfig({
   server: {
     port: 5173,
     // Encaminha as chamadas /api para o backend, assim o front usa caminhos
-    // relativos e não precisa saber a porta da API.
+    // relativos e não precisa saber a porta da API. Se a API estiver em outra
+    // porta, suba o front com API_URL=http://localhost:PORTA.
     proxy: {
-      '/api': 'http://localhost:3001'
+      '/api': process.env.API_URL || 'http://localhost:3001'
     }
   }
 });
