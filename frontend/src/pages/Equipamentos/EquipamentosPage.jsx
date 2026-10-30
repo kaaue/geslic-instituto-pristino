@@ -2,6 +2,10 @@
 // Organização: filtros, listagem e painel lateral de inclusão e edição,
 // seguindo o protótipo aprovado na ERS. A barra superior e o menu ficam em
 // components/layout.
+//
+// Permissões (RN21): o Operador consulta, inclui e inativa (descarte, RN08);
+// editar e excluir são exclusivos do Administrador. Os botões seguem as
+// permissões da conta, e a API aplica a mesma regra.
 
 import { useCallback, useEffect, useState } from 'react';
 import FiltrosEquipamentos from './FiltrosEquipamentos.jsx';
@@ -9,18 +13,33 @@ import TabelaEquipamentos from './TabelaEquipamentos.jsx';
 import FormularioEquipamento from './FormularioEquipamento.jsx';
 import Mensagem from '../../components/common/Mensagem.jsx';
 import Sobreposicao from '../../components/common/Sobreposicao.jsx';
+import useAuth from '../../hooks/useAuth';
 import useMensagem from '../../hooks/useMensagem';
 import useBuscaComAtraso from '../../hooks/useBuscaComAtraso';
 import {
   listarEquipamentos, incluirEquipamento, alterarEquipamento,
-  excluirEquipamento, previaInativacao
+  excluirEquipamento, previaInativacao, inativarEquipamento
 } from '../../services/equipamentoService';
 import { listarSetores } from '../../services/setorService';
 import { listarColaboradores } from '../../services/colaboradorService';
 
 const FILTROS_VAZIOS = { busca: '', id_setor: '', situacao: '', uso_geral: '' };
 
+// "1 instância não transferível foi inativada" / "2 instâncias não transferíveis foram inativadas"
+function textoInstancias(quantidade) {
+  if (!quantidade) return '';
+  return quantidade > 1
+    ? ` ${quantidade} instâncias não transferíveis foram inativadas.`
+    : ' 1 instância não transferível foi inativada.';
+}
+
 export default function EquipamentosPage() {
+  const { pode } = useAuth();
+  const podeIncluir = pode('cadastro.incluir');
+  const podeAlterar = pode('cadastro.alterar');
+  const podeExcluir = pode('cadastro.excluir');
+  const podeInativar = pode('cadastro.inativar');
+
   const [equipamentos, setEquipamentos] = useState([]);
   const [setores, setSetores] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
@@ -88,12 +107,8 @@ export default function EquipamentosPage() {
     try {
       if (edicao) {
         const resposta = await alterarEquipamento(edicao.id_equipamento, dados);
-        let texto = `Equipamento ${dados.etiqueta_instituto} alterado.`;
-        if (resposta.instancias_inativadas > 0) {
-          texto += ` ${resposta.instancias_inativadas} instância` +
-            `${resposta.instancias_inativadas > 1 ? 's não transferíveis foram inativadas' : ' não transferível foi inativada'}.`;
-        }
-        mostrarMensagem('sucesso', texto);
+        mostrarMensagem('sucesso',
+          `Equipamento ${dados.etiqueta_instituto} alterado.${textoInstancias(resposta.instancias_inativadas)}`);
       } else {
         await incluirEquipamento(dados);
         mostrarMensagem('sucesso', `Equipamento ${dados.etiqueta_instituto} cadastrado.`);
@@ -127,15 +142,54 @@ export default function EquipamentosPage() {
     }
   }
 
+  // Inativação (descarte) com o aviso da RN08 antes de confirmar
+  async function inativar(equipamento) {
+    let previa = { nao_transferiveis: [], transferiveis: [] };
+    try {
+      previa = await previaInativacao(equipamento.id_equipamento);
+    } catch {
+      // sem a prévia, a confirmação segue sem o detalhe das instâncias
+    }
+    const linhas = [
+      `Inativar o equipamento ${equipamento.etiqueta_instituto} — ${equipamento.identificacao}?`,
+      'Inativo significa descartado ou sem retorno ao uso.'
+    ];
+    if (previa.nao_transferiveis.length) {
+      linhas.push(`\nFicarão inativas (licença não transferível, RN08): ${previa.nao_transferiveis.map((i) => i.nome_software).join(', ')}.`);
+    }
+    if (previa.transferiveis.length) {
+      linhas.push(`Continuam ativas e podem ser liberadas ou transferidas: ${previa.transferiveis.map((i) => i.nome_software).join(', ')}.`);
+    }
+    if (!window.confirm(linhas.join('\n'))) return;
+
+    try {
+      const resposta = await inativarEquipamento(equipamento.id_equipamento);
+      mostrarMensagem('sucesso',
+        `Equipamento ${equipamento.etiqueta_instituto} inativado.${textoInstancias(resposta.instancias_inativadas)}`);
+      buscar();
+    } catch (erro) {
+      mostrarMensagem('erro', erro.corpo?.mensagem || 'Não foi possível inativar.');
+    }
+  }
+
   return (
     <>
       <main className="conteudo">
         <div className="titulo-area">
           <h2>Equipamentos</h2>
-          <button type="button" className="botao-principal" onClick={abrirNovo}>
-            Novo equipamento
-          </button>
+          {podeIncluir && (
+            <button type="button" className="botao-principal" onClick={abrirNovo}>
+              Novo equipamento
+            </button>
+          )}
         </div>
+
+        {!podeAlterar && (
+          <p className="nota nota-perfil">
+            Seu perfil pode consultar, cadastrar e inativar equipamentos. Alterar e excluir dados
+            cadastrais é exclusivo do perfil Administrador.
+          </p>
+        )}
 
         <Mensagem mensagem={mensagem} />
 
@@ -149,8 +203,9 @@ export default function EquipamentosPage() {
 
         <TabelaEquipamentos
           equipamentos={equipamentos}
-          aoEditar={abrirEdicao}
-          aoExcluir={excluir}
+          aoEditar={podeAlterar ? abrirEdicao : null}
+          aoExcluir={podeExcluir ? excluir : null}
+          aoInativar={podeInativar ? inativar : null}
           carregando={carregando}
         />
       </main>

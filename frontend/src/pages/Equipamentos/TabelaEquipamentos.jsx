@@ -1,8 +1,9 @@
 // Listagem dos equipamentos.
 // Mostra as duas etiquetas, o tipo, o setor, o responsável e a situação,
 // além de indicar quando o equipamento tem licença alocada.
+// Cada ação só aparece quando a tela a passa (conforme as permissões da conta).
 
-export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, carregando }) {
+export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, aoInativar, carregando }) {
   if (carregando) {
     return <p className="estado-vazio">Carregando equipamentos...</p>;
   }
@@ -53,17 +54,26 @@ export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, 
                   </span>
                 )}
               </td>
-              <td className="col-acoes">
-                <button type="button" className="botao-texto" onClick={() => aoEditar(eq)}>
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  className="botao-texto botao-perigo"
-                  onClick={() => aoExcluir(eq)}
-                >
-                  Excluir
-                </button>
+              <td className="col-acoes col-acoes-varias">
+                {aoEditar && (
+                  <button type="button" className="botao-texto" onClick={() => aoEditar(eq)}>
+                    Editar
+                  </button>
+                )}
+                {aoInativar && eq.situacao === 'ativo' && (
+                  <button type="button" className="botao-texto" onClick={() => aoInativar(eq)}>
+                    Inativar
+                  </button>
+                )}
+                {aoExcluir && (
+                  <button
+                    type="button"
+                    className="botao-texto botao-perigo"
+                    onClick={() => aoExcluir(eq)}
+                  >
+                    Excluir
+                  </button>
+                )}
               </td>
             </tr>
           ))}

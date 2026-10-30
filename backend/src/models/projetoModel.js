@@ -3,12 +3,31 @@
 //
 // O encerramento é manual e não transfere, renova nem cancela recursos (RN17, RN18).
 // A exclusão só vale para projeto sem vínculos (RN22).
-// Quem pode cada operação (RN21) é decidido nas rotas, pelo middleware de perfil.
+// Quem pode cada operação (RN21) é decidido nas rotas, pelas permissões.
+// Cada escrita registra no histórico (RF_F13) a conta responsável.
 
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const { lancarSeHouverErros } = require('../utils/AppError');
 const { validarEncerramento, validarProrrogacao } = require('./projetoValidacao');
+const Historico = require('./historicoModel');
+
+// Campos que o histórico guarda antes e depois de cada alteração
+function retrato(p, participantes) {
+  return {
+    codigo: p.codigo, nome: p.nome, fonte_financiadora: p.fonte_financiadora,
+    id_responsavel: p.id_responsavel, data_inicio: p.data_inicio,
+    data_fim_prevista: p.data_fim_prevista, data_encerramento: p.data_encerramento ?? null,
+    situacao: p.situacao ?? 'em_andamento',
+    ...(participantes && { participantes })
+  };
+}
+
+async function idsParticipantes(conexao, idProjeto) {
+  const [linhas] = await conexao.query(
+    'SELECT id_colaborador FROM colaborador_projeto WHERE id_projeto = ? ORDER BY id_colaborador', [idProjeto]);
+  return linhas.map((l) => l.id_colaborador);
+}
 
 // Antecedência padrão dos avisos de vencimento (RN24): seis meses
 const MESES_AVISO = 6;
@@ -215,7 +234,7 @@ async function buscarComParticipantes(id) {
 }
 
 // Projeto e participações gravados juntos, numa transação
-async function incluir(dados) {
+async function incluir(dados, idResponsavel) {
   try {
     return await comTransacao(async (conexao) => {
       lancarSeHouverErros({
@@ -234,6 +253,11 @@ async function incluir(dados) {
       if (dados.participantes) {
         await gravarParticipantes(conexao, resultado.insertId, dados.participantes);
       }
+      await Historico.registrar(conexao, {
+        idUsuario: idResponsavel, tipo: 'criacao', entidade: 'projeto', idRegistro: resultado.insertId,
+        descricao: `Projeto ${dados.codigo} · ${dados.nome} cadastrado`,
+        depois: retrato(dados, dados.participantes || [])
+      });
       return { id_projeto: resultado.insertId };
     });
   } catch (erro) {
@@ -241,7 +265,8 @@ async function incluir(dados) {
   }
 }
 
-async function alterar(id, dados) {
+// Correção dos dados cadastrais (exclusiva do Administrador, RN21)
+async function alterar(id, dados, idResponsavel) {
   try {
     return await comTransacao(async (conexao) => {
       const atual = await buscarOuFalhar(conexao, id);
@@ -260,6 +285,7 @@ async function alterar(id, dados) {
       }
       lancarSeHouverErros(erros);
 
+      const participantesAntes = await idsParticipantes(conexao, id);
       await conexao.query(
         `UPDATE projeto
             SET codigo = ?, nome = ?, fonte_financiadora = ?, id_responsavel = ?,
@@ -271,6 +297,12 @@ async function alterar(id, dados) {
       if (dados.participantes) {
         await gravarParticipantes(conexao, id, dados.participantes);
       }
+      await Historico.registrar(conexao, {
+        idUsuario: idResponsavel, tipo: 'correcao', entidade: 'projeto', idRegistro: id,
+        descricao: `Projeto ${dados.codigo} · ${dados.nome}: dados corrigidos`,
+        antes: retrato(atual, participantesAntes),
+        depois: retrato({ ...atual, ...dados }, await idsParticipantes(conexao, id))
+      });
       return { id_projeto: id };
     });
   } catch (erro) {
@@ -278,61 +310,86 @@ async function alterar(id, dados) {
   }
 }
 
-// Prorrogar o término previsto: só projeto em andamento
-async function prorrogar(id, corpo) {
-  const projeto = await buscarOuFalhar(pool, id);
-  if (projeto.situacao !== 'em_andamento') {
-    throw AppError.conflito('Projeto encerrado não pode ser prorrogado.');
-  }
-  const { erros, data } = validarProrrogacao(corpo, projeto);
-  lancarSeHouverErros(erros);
+// Prorrogar o término previsto: só projeto em andamento. Ação operacional,
+// permitida ao Operador (projeto.prorrogar), embora grave um UPDATE.
+async function prorrogar(id, corpo, idResponsavel) {
+  return comTransacao(async (conexao) => {
+    const projeto = await buscarOuFalhar(conexao, id);
+    if (projeto.situacao !== 'em_andamento') {
+      throw AppError.conflito('Projeto encerrado não pode ser prorrogado.');
+    }
+    const { erros, data } = validarProrrogacao(corpo, projeto);
+    lancarSeHouverErros(erros);
 
-  await pool.query('UPDATE projeto SET data_fim_prevista = ? WHERE id_projeto = ?', [data, id]);
-  return { id_projeto: id, data_fim_prevista: data };
+    await conexao.query('UPDATE projeto SET data_fim_prevista = ? WHERE id_projeto = ?', [data, id]);
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'prorrogacao', entidade: 'projeto', idRegistro: id,
+      descricao: `Projeto ${projeto.codigo} · ${projeto.nome}: término previsto prorrogado`,
+      antes: { data_fim_prevista: projeto.data_fim_prevista }, depois: { data_fim_prevista: data }
+    });
+    return { id_projeto: id, data_fim_prevista: data };
+  });
 }
 
 // Encerramento manual (RN17): não transfere, renova nem cancela licenças,
 // instâncias ou apólices (RN18). A resposta informa o que continua vinculado.
-async function encerrar(id, corpo) {
-  const projeto = await buscarOuFalhar(pool, id);
-  if (projeto.situacao === 'encerrado') {
-    throw AppError.conflito('Este projeto já está encerrado.');
-  }
-  const { erros, data } = validarEncerramento(corpo, projeto);
-  lancarSeHouverErros(erros);
+// A data efetiva do evento no histórico é a data de encerramento informada.
+async function encerrar(id, corpo, idResponsavel) {
+  return comTransacao(async (conexao) => {
+    const projeto = await buscarOuFalhar(conexao, id);
+    if (projeto.situacao === 'encerrado') {
+      throw AppError.conflito('Este projeto já está encerrado.');
+    }
+    const { erros, data } = validarEncerramento(corpo, projeto);
+    lancarSeHouverErros(erros);
 
-  await pool.query(
-    `UPDATE projeto SET situacao = 'encerrado', data_encerramento = ? WHERE id_projeto = ?`,
-    [data, id]);
-  return {
-    id_projeto: id,
-    data_encerramento: data,
-    licencas_vinculadas: projeto.licencas_adquiridas,
-    instancias_vinculadas: projeto.instancias_responsavel
-  };
+    await conexao.query(
+      `UPDATE projeto SET situacao = 'encerrado', data_encerramento = ? WHERE id_projeto = ?`,
+      [data, id]);
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'encerramento', entidade: 'projeto', idRegistro: id,
+      dataEvento: data,
+      descricao: `Projeto ${projeto.codigo} · ${projeto.nome} encerrado; ` +
+        `${projeto.licencas_adquiridas} licença(s) e ${projeto.instancias_responsavel} instância(s) mantidas (RN18)`,
+      antes: { situacao: projeto.situacao, data_encerramento: null },
+      depois: { situacao: 'encerrado', data_encerramento: data }
+    });
+    return {
+      id_projeto: id,
+      data_encerramento: data,
+      licencas_vinculadas: projeto.licencas_adquiridas,
+      instancias_vinculadas: projeto.instancias_responsavel
+    };
+  });
 }
 
 // Exclusão só sem vínculos (RN22)
-async function excluir(id) {
-  const projeto = await buscarOuFalhar(pool, id);
+async function excluir(id, idResponsavel) {
+  return comTransacao(async (conexao) => {
+    const projeto = await buscarOuFalhar(conexao, id);
 
-  const vinculos = [];
-  if (projeto.licencas_adquiridas) vinculos.push(`${projeto.licencas_adquiridas} licença(s) adquirida(s)`);
-  if (projeto.instancias_responsavel) vinculos.push(`${projeto.instancias_responsavel} instância(s) sob sua responsabilidade`);
-  if (projeto.participantes) vinculos.push(`${projeto.participantes} colaborador(es) participante(s)`);
-  // instâncias inativas também são vínculo histórico
-  const [inativas] = await pool.query(
-    `SELECT COUNT(*) AS total FROM instancia WHERE id_projeto_atual = ? AND situacao = 'inativa'`, [id]);
-  if (inativas[0].total) vinculos.push(`${inativas[0].total} instância(s) inativa(s) no histórico`);
+    const vinculos = [];
+    if (projeto.licencas_adquiridas) vinculos.push(`${projeto.licencas_adquiridas} licença(s) adquirida(s)`);
+    if (projeto.instancias_responsavel) vinculos.push(`${projeto.instancias_responsavel} instância(s) sob sua responsabilidade`);
+    if (projeto.participantes) vinculos.push(`${projeto.participantes} colaborador(es) participante(s)`);
+    // instâncias inativas também são vínculo histórico
+    const [inativas] = await conexao.query(
+      `SELECT COUNT(*) AS total FROM instancia WHERE id_projeto_atual = ? AND situacao = 'inativa'`, [id]);
+    if (inativas[0].total) vinculos.push(`${inativas[0].total} instância(s) inativa(s) no histórico`);
 
-  if (vinculos.length) {
-    throw AppError.conflito(
-      `O projeto ${projeto.codigo} possui vínculos (${vinculos.join(', ')}) e não pode ser excluído. ` +
-      'Para tirá-lo de uso, encerre o projeto.');
-  }
+    if (vinculos.length) {
+      throw AppError.conflito(
+        `O projeto ${projeto.codigo} possui vínculos (${vinculos.join(', ')}) e não pode ser excluído. ` +
+        'Para tirá-lo de uso, encerre o projeto.');
+    }
 
-  await pool.query('DELETE FROM projeto WHERE id_projeto = ?', [id]);
-  return { excluido: true };
+    await conexao.query('DELETE FROM projeto WHERE id_projeto = ?', [id]);
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'exclusao', entidade: 'projeto', idRegistro: id,
+      descricao: `Projeto ${projeto.codigo} · ${projeto.nome} excluído`, antes: retrato(projeto)
+    });
+    return { excluido: true };
+  });
 }
 
 module.exports = {

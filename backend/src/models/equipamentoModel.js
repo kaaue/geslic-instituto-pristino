@@ -1,9 +1,11 @@
 // Model da RF_B3 - Gerenciar equipamentos: acesso ao banco e regras dos dados.
 // O equipamento é especialização de bem, então toda escrita mexe em duas tabelas
-// dentro de uma transação: ou as duas gravam, ou nenhuma grava.
+// dentro de uma transação: ou as duas gravam, ou nenhuma grava. Cada escrita
+// registra no histórico (RF_F13) a conta responsável.
 
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
+const Historico = require('./historicoModel');
 
 // Colunas devolvidas na listagem e na busca por id.
 // Junta bem, equipamento, setor e colaborador, e conta quantas instâncias de
@@ -97,6 +99,45 @@ async function conferirEtiquetas(conexao, dados, idAtual) {
   }
 }
 
+// Busca o equipamento ou lança 404. `conexao` pode ser o pool ou a de uma transação.
+async function buscarOuFalhar(conexao, id) {
+  const [linhas] = await conexao.query(`SELECT ${COLUNAS} ${TABELAS} WHERE e.id_equipamento = ?`, [id]);
+  if (linhas.length === 0) throw AppError.naoEncontrado(NAO_ENCONTRADO);
+  return linhas[0];
+}
+
+// Campos que o histórico guarda antes e depois de cada alteração
+function retrato(e) {
+  return {
+    etiqueta_instituto: e.etiqueta_instituto, etiqueta_netscanner: e.etiqueta_netscanner,
+    identificacao: e.identificacao, tipo: e.tipo, categoria: e.categoria, id_setor: e.id_setor,
+    id_responsavel: e.id_responsavel, uso_geral: Boolean(e.uso_geral), situacao: e.situacao
+  };
+}
+
+// RN08: inativar equipamento significa descarte. As instâncias não
+// transferíveis alocadas a ele passam a inativas; as transferíveis
+// continuam ativas e podem ser liberadas ou transferidas depois.
+async function inativarInstanciasNaoTransferiveis(conexao, id) {
+  const [resultado] = await conexao.query(
+    `UPDATE instancia i
+        JOIN alocacao a ON a.id_instancia = i.id_instancia
+        JOIN licenca l  ON l.id_licenca = i.id_licenca
+        SET i.situacao = 'inativa',
+            i.data_inativacao = CURDATE(),
+            i.motivo_inativacao = 'descarte do equipamento'
+      WHERE a.id_equipamento = ?
+        AND a.data_fim IS NULL
+        AND l.transferivel = FALSE
+        AND i.situacao = 'ativa'`,
+    [id]
+  );
+  return resultado.affectedRows;
+}
+
+const textoInativacao = (quantidade) => (quantidade
+  ? `; ${quantidade} instância(s) não transferível(is) inativada(s) (RN08)` : '');
+
 async function listar(filtros) {
   const { sql, valores } = montarConsulta(filtros);
   const [linhas] = await pool.query(sql, valores);
@@ -104,12 +145,10 @@ async function listar(filtros) {
 }
 
 async function buscarPorId(id) {
-  const [linhas] = await pool.query(`SELECT ${COLUNAS} ${TABELAS} WHERE e.id_equipamento = ?`, [id]);
-  if (linhas.length === 0) throw AppError.naoEncontrado(NAO_ENCONTRADO);
-  return linhas[0];
+  return buscarOuFalhar(pool, id);
 }
 
-async function incluir(dados) {
+async function incluir(dados, idResponsavel) {
   return comTransacao(async (conexao) => {
     await conferirEtiquetas(conexao, dados, null);
 
@@ -131,14 +170,18 @@ async function incluir(dados) {
        dados.tipo, dados.id_responsavel, dados.uso_geral]
     );
 
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'criacao', entidade: 'equipamento', idRegistro: novoId,
+      descricao: `Equipamento ${dados.etiqueta_instituto} cadastrado`, depois: retrato(dados)
+    });
     return { id_equipamento: novoId };
   });
 }
 
-async function alterar(id, dados) {
+// Correção dos dados cadastrais (exclusiva do Administrador, RN21)
+async function alterar(id, dados, idResponsavel) {
   return comTransacao(async (conexao) => {
-    const [existe] = await conexao.query('SELECT situacao FROM bem WHERE id_bem = ?', [id]);
-    if (existe.length === 0) throw AppError.naoEncontrado(NAO_ENCONTRADO);
+    const atual = await buscarOuFalhar(conexao, id);
 
     await conferirEtiquetas(conexao, dados, id);
 
@@ -158,48 +201,62 @@ async function alterar(id, dados) {
        dados.tipo, dados.id_responsavel, dados.uso_geral, id]
     );
 
-    // RN08: inativar equipamento significa descarte. As instâncias não
-    // transferíveis alocadas a ele passam a inativas; as transferíveis
-    // continuam ativas e podem ser liberadas ou transferidas depois.
+    // Passar de ativo para inativo pela edição também aplica a RN08
     let instanciasInativadas = 0;
-    const situacaoAnterior = existe[0].situacao;
-    if (situacaoAnterior === 'ativo' && dados.situacao === 'inativo') {
-      const [resultado] = await conexao.query(
-        `UPDATE instancia i
-            JOIN alocacao a ON a.id_instancia = i.id_instancia
-            JOIN licenca l  ON l.id_licenca = i.id_licenca
-            SET i.situacao = 'inativa',
-                i.data_inativacao = CURDATE(),
-                i.motivo_inativacao = 'descarte do equipamento'
-          WHERE a.id_equipamento = ?
-            AND a.data_fim IS NULL
-            AND l.transferivel = FALSE
-            AND i.situacao = 'ativa'`,
-        [id]
-      );
-      instanciasInativadas = resultado.affectedRows;
+    if (atual.situacao === 'ativo' && dados.situacao === 'inativo') {
+      instanciasInativadas = await inativarInstanciasNaoTransferiveis(conexao, id);
     }
 
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'correcao', entidade: 'equipamento', idRegistro: id,
+      descricao: `Equipamento ${dados.etiqueta_instituto}: dados corrigidos${textoInativacao(instanciasInativadas)}`,
+      antes: retrato(atual), depois: retrato(dados)
+    });
+    return { id_equipamento: id, instancias_inativadas: instanciasInativadas };
+  });
+}
+
+// Inativação (descarte) como ação própria: o Operador inativa sem poder
+// alterar os demais dados cadastrais (RN21). Aplica a RN08.
+async function inativar(id, idResponsavel) {
+  return comTransacao(async (conexao) => {
+    const atual = await buscarOuFalhar(conexao, id);
+    if (atual.situacao === 'inativo') throw AppError.conflito('Este equipamento já está inativo.');
+
+    await conexao.query(`UPDATE bem SET situacao = 'inativo' WHERE id_bem = ?`, [id]);
+    const instanciasInativadas = await inativarInstanciasNaoTransferiveis(conexao, id);
+
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'inativacao', entidade: 'equipamento', idRegistro: id,
+      descricao: `Equipamento ${atual.etiqueta_instituto} inativado (descarte)${textoInativacao(instanciasInativadas)}`,
+      antes: retrato(atual), depois: retrato({ ...atual, situacao: 'inativo' })
+    });
     return { id_equipamento: id, instancias_inativadas: instanciasInativadas };
   });
 }
 
 // Só é permitido excluir cadastro sem vínculos (RN22). Com instância
 // alocada, o caminho é inativar o equipamento, não apagar o histórico.
-async function excluir(id) {
+async function excluir(id, idResponsavel) {
   return comTransacao(async (conexao) => {
+    const atual = await buscarOuFalhar(conexao, id);
+
     const [vinculos] = await conexao.query(
       'SELECT COUNT(*) AS total FROM alocacao WHERE id_equipamento = ?', [id]);
     if (vinculos[0].total > 0) {
       throw AppError.conflito(
         'Este equipamento já recebeu licenças e não pode ser excluído. ' +
-        'Para tirá-lo de uso, altere a situação para inativo.');
+        'Para tirá-lo de uso, inative o equipamento.');
     }
 
     // a exclusão em bem remove o equipamento junto, por causa do ON DELETE CASCADE
     const [resultado] = await conexao.query('DELETE FROM bem WHERE id_bem = ?', [id]);
     if (resultado.affectedRows === 0) throw AppError.naoEncontrado(NAO_ENCONTRADO);
 
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'exclusao', entidade: 'equipamento', idRegistro: id,
+      descricao: `Equipamento ${atual.etiqueta_instituto} excluído`, antes: retrato(atual)
+    });
     return { excluido: true };
   });
 }
@@ -221,4 +278,4 @@ async function previaInativacao(id) {
   };
 }
 
-module.exports = { listar, buscarPorId, incluir, alterar, excluir, previaInativacao };
+module.exports = { listar, buscarPorId, incluir, alterar, inativar, excluir, previaInativacao };

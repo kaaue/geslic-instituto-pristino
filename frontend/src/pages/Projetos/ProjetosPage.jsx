@@ -3,8 +3,9 @@
 // de inclusão e edição, mais duas ações próprias do projeto: prorrogar o término
 // previsto e encerrar (RN17).
 //
-// Perfis (RN21): o Operador consulta, inclui, prorroga e encerra; somente o
-// Administrador altera os dados cadastrais e exclui. A API aplica a mesma regra.
+// Permissões (RN21): o Operador consulta, inclui, prorroga e encerra; somente o
+// Administrador altera os dados cadastrais e exclui. As ações seguem as
+// permissões da conta (vindas da API), e a API aplica a mesma regra.
 
 import { useCallback, useEffect, useState } from 'react';
 import FiltrosProjetos from './FiltrosProjetos.jsx';
@@ -28,7 +29,14 @@ const FILTROS_VAZIOS = {
 };
 
 export default function ProjetosPage() {
-  const { administrador } = useAuth();
+  const { pode } = useAuth();
+  const permissoes = {
+    incluir: pode('cadastro.incluir'),
+    alterar: pode('cadastro.alterar'),
+    excluir: pode('cadastro.excluir'),
+    prorrogar: pode('projeto.prorrogar'),
+    encerrar: pode('projeto.encerrar')
+  };
 
   const [projetos, setProjetos] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
@@ -177,14 +185,16 @@ export default function ProjetosPage() {
               Cada período de um projeto é um registro independente (ex.: CAOMA 2025–2026 e CAOMA 2026–2027).
             </p>
           </div>
-          <button type="button" className="botao-principal" onClick={abrirNovo}>
-            Novo projeto
-          </button>
+          {permissoes.incluir && (
+            <button type="button" className="botao-principal" onClick={abrirNovo}>
+              Novo projeto
+            </button>
+          )}
         </div>
 
-        {!administrador && (
+        {!permissoes.alterar && (
           <p className="nota nota-perfil">
-            Perfil Operador: você pode consultar, cadastrar, prorrogar e encerrar projetos.
+            Seu perfil pode consultar, cadastrar, prorrogar e encerrar projetos.
             Alterar e excluir dados cadastrais é exclusivo do perfil Administrador.
           </p>
         )}
@@ -202,7 +212,7 @@ export default function ProjetosPage() {
 
         <TabelaProjetos
           projetos={projetos}
-          administrador={administrador}
+          permissoes={permissoes}
           carregando={carregando}
           aoEditar={abrirEdicao}
           aoExcluir={excluir}
@@ -215,7 +225,7 @@ export default function ProjetosPage() {
         <Sobreposicao aoFechar={fecharPainel}>
           <FormularioProjeto
             edicao={edicao}
-            somenteLeitura={Boolean(edicao) && !administrador}
+            somenteLeitura={Boolean(edicao) && !permissoes.alterar}
             colaboradores={colaboradores}
             fontes={fontes}
             erros={erros}

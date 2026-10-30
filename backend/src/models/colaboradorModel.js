@@ -1,6 +1,11 @@
-// Model de colaboradores: por enquanto só alimenta as listas de seleção.
+// Model de colaboradores (RF_B4).
+// Implementado: a lista dos ativos, usada nas listas de seleção.
+// EM DESENVOLVIMENTO (501): o cadastro completo, com projetos de que
+// participa, aviso de homônimo, e-mail único e desligamento, que encerra as
+// utilizações e deixa as instâncias ativas e vagas (RN07, RN19).
 
 const { pool } = require('../config/database');
+const { modelPendente } = require('../utils/pendente');
 
 // Só colaboradores ativos podem ser escolhidos como responsáveis
 async function listarAtivos() {
@@ -13,4 +18,13 @@ async function listarAtivos() {
   return linhas;
 }
 
-module.exports = { listarAtivos };
+module.exports = {
+  listarAtivos,
+  ...modelPendente('RF_B4 Gerenciar colaboradores', {
+    buscar: 'consulta de um colaborador',
+    incluir: 'inclusão',
+    alterar: 'alteração',
+    desligar: 'desligamento',
+    excluir: 'exclusão'
+  })
+};

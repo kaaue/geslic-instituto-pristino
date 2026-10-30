@@ -24,8 +24,9 @@ function textoRecursos(p) {
   return partes.join(' · ');
 }
 
+// permissoes: { alterar, excluir, prorrogar, encerrar }, da conta (vindas da API)
 export default function TabelaProjetos({
-  projetos, administrador, carregando, aoEditar, aoExcluir, aoEncerrar, aoProrrogar
+  projetos, permissoes, carregando, aoEditar, aoExcluir, aoEncerrar, aoProrrogar
 }) {
   if (carregando) {
     return <p className="estado-vazio">Carregando projetos...</p>;
@@ -82,26 +83,26 @@ export default function TabelaProjetos({
                   )}
                 </td>
                 <td className="col-recursos">{recursos || <span className="vazio">nenhum</span>}</td>
-                <td className="col-acoes">
+                <td className="col-acoes col-acoes-varias">
                   <button type="button" className="botao-texto" onClick={() => aoEditar(p)}>
-                    {administrador ? 'Editar' : 'Ver'}
+                    {permissoes.alterar ? 'Editar' : 'Ver'}
                   </button>
-                  {andamento && (
-                    <>
-                      <button type="button" className="botao-texto" onClick={() => aoProrrogar(p)}>
-                        Prorrogar
-                      </button>
-                      <button type="button" className="botao-texto" onClick={() => aoEncerrar(p)}>
-                        Encerrar
-                      </button>
-                    </>
+                  {andamento && permissoes.prorrogar && (
+                    <button type="button" className="botao-texto" onClick={() => aoProrrogar(p)}>
+                      Prorrogar
+                    </button>
+                  )}
+                  {andamento && permissoes.encerrar && (
+                    <button type="button" className="botao-texto" onClick={() => aoEncerrar(p)}>
+                      Encerrar
+                    </button>
                   )}
                   <button
                     type="button"
                     className="botao-texto botao-perigo"
                     onClick={() => aoExcluir(p)}
-                    disabled={!administrador}
-                    title={administrador ? 'Excluir projeto' : somenteAdmin}
+                    disabled={!permissoes.excluir}
+                    title={permissoes.excluir ? 'Excluir projeto' : somenteAdmin}
                   >
                     Excluir
                   </button>

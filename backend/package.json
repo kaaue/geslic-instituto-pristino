@@ -7,14 +7,18 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "test": "node --test --test-concurrency=1 \"tests/**/*.test.js\"",
     "db:setup": "node scripts/setup-db.js",
     "db:setup:exemplos": "node scripts/setup-db.js --exemplos",
-    "db:reset": "node scripts/setup-db.js --reset"
+    "db:reset": "node scripts/setup-db.js --reset",
+    "db:migrate": "node scripts/migrate-db.js",
+    "admin:redefinir": "node scripts/redefinir-admin.js"
   },
   "dependencies": {
     "cors": "2.8.5",
     "dotenv": "16.4.5",
     "express": "4.19.2",
-    "mysql2": "3.11.3"
+    "mysql2": "3.11.3",
+    "nodemailer": "10.1.7"
   }
 }

@@ -7,12 +7,17 @@ const AppError = require('../utils/AppError');
 // eslint-disable-next-line no-unused-vars
 module.exports = function errorHandler(erro, req, res, proximo) {
   if (erro instanceof AppError) {
-    return res.status(erro.status).json(erro.erros ? { erros: erro.erros } : { mensagem: erro.message });
+    const corpo = erro.erros ? { erros: erro.erros } : { mensagem: erro.message };
+    if (erro.codigo) corpo.codigo = erro.codigo;
+    return res.status(erro.status).json(corpo);
   }
 
-  // JSON malformado no corpo da requisição
+  // JSON malformado ou grande demais no corpo da requisição
   if (erro.type === 'entity.parse.failed') {
     return res.status(400).json({ mensagem: 'Corpo da requisição inválido.' });
+  }
+  if (erro.type === 'entity.too.large') {
+    return res.status(413).json({ mensagem: 'Corpo da requisição grande demais.' });
   }
 
   console.error(erro);

@@ -22,3 +22,8 @@ export function excluirEquipamento(id) {
 export function previaInativacao(id) {
   return requisicao(`/api/equipamentos/${id}/previa-inativacao`);
 }
+
+// Inativação (descarte) como ação própria, permitida ao Operador (RN21, RN08)
+export function inativarEquipamento(id) {
+  return requisicao(`/api/equipamentos/${id}/inativacao`, { method: 'POST' });
+}

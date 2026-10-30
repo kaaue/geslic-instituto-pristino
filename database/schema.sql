@@ -396,10 +396,14 @@ CREATE TABLE perfil (
   CONSTRAINT uq_perfil_nome UNIQUE (nome)
 );
 
+-- Permissão por operação. `exclusiva_administrador` marca as que a RN21
+-- reserva ao Administrador: elas não podem ser concedidas ao Operador.
 CREATE TABLE permissao (
-  id_permissao INT AUTO_INCREMENT PRIMARY KEY,
-  codigo       VARCHAR(40)  NOT NULL,
-  descricao    VARCHAR(120) NOT NULL,
+  id_permissao            INT AUTO_INCREMENT PRIMARY KEY,
+  codigo                  VARCHAR(40)  NOT NULL,
+  descricao               VARCHAR(120) NOT NULL,
+  grupo                   VARCHAR(40)  NOT NULL DEFAULT 'Geral',
+  exclusiva_administrador BOOLEAN      NOT NULL DEFAULT FALSE,
   CONSTRAINT uq_permissao_codigo UNIQUE (codigo)
 );
 
@@ -413,20 +417,59 @@ CREATE TABLE perfil_permissao (
 
 -- Conta de acesso (RF_B9). Senha somente como hash. A conta pode estar ligada
 -- a no máximo um colaborador, e o colaborador a no máximo uma conta.
+-- Situação: pendente (autocadastro aguardando aprovação), ativo ou inativo.
+-- troca_senha_obrigatoria: a conta entrou com senha provisória e precisa
+-- trocá-la antes de usar o sistema.
 CREATE TABLE usuario (
-  id_usuario     INT AUTO_INCREMENT PRIMARY KEY,
-  id_perfil      INT          NOT NULL,
-  id_colaborador INT,
-  nome           VARCHAR(120) NOT NULL,
-  login          VARCHAR(40)  NOT NULL,
-  email          VARCHAR(120) NOT NULL,
-  senha_hash     VARCHAR(255) NOT NULL,
-  ativo          BOOLEAN      NOT NULL DEFAULT TRUE,
+  id_usuario              INT AUTO_INCREMENT PRIMARY KEY,
+  id_perfil               INT          NOT NULL,
+  id_colaborador          INT,
+  nome                    VARCHAR(120) NOT NULL,
+  login                   VARCHAR(40)  NOT NULL,
+  email                   VARCHAR(120) NOT NULL,
+  senha_hash              VARCHAR(255) NOT NULL,
+  situacao                VARCHAR(10)  NOT NULL DEFAULT 'ativo',
+  troca_senha_obrigatoria BOOLEAN      NOT NULL DEFAULT FALSE,
+  criada_em               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  senha_alterada_em       DATETIME,
+  ultimo_acesso_em        DATETIME,
   CONSTRAINT uq_usuario_login UNIQUE (login),
   CONSTRAINT uq_usuario_email UNIQUE (email),
   CONSTRAINT uq_usuario_colaborador UNIQUE (id_colaborador),
+  CONSTRAINT ck_usuario_situacao CHECK (situacao IN ('pendente', 'ativo', 'inativo')),
   CONSTRAINT fk_usuario_perfil FOREIGN KEY (id_perfil) REFERENCES perfil (id_perfil),
   CONSTRAINT fk_usuario_colaborador FOREIGN KEY (id_colaborador) REFERENCES colaborador (id_colaborador)
+);
+
+-- Sessões no servidor. O navegador guarda só o token, num cookie HttpOnly;
+-- aqui fica o hash SHA-256 dele, nunca o token em si. Logout, desativação,
+-- troca de perfil e redefinição de senha preenchem encerrada_em.
+CREATE TABLE sessao (
+  id_sessao           INT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario          INT      NOT NULL,
+  token_hash          CHAR(64) NOT NULL,
+  criada_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ultimo_uso_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  -- validade máxima; a inatividade é conferida por ultimo_uso_em
+  expira_em           DATETIME NOT NULL,
+  encerrada_em        DATETIME,
+  motivo_encerramento VARCHAR(30),
+  CONSTRAINT uq_sessao_token UNIQUE (token_hash),
+  CONSTRAINT fk_sessao_usuario FOREIGN KEY (id_usuario)
+    REFERENCES usuario (id_usuario) ON DELETE CASCADE
+);
+
+-- Pedidos de redefinição de senha: só o hash do token, validade curta e uso único
+CREATE TABLE recuperacao_senha (
+  id_recuperacao INT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario     INT      NOT NULL,
+  token_hash     CHAR(64) NOT NULL,
+  criada_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expira_em      DATETIME NOT NULL,
+  usada_em       DATETIME,
+  CONSTRAINT uq_recuperacao_token UNIQUE (token_hash),
+  CONSTRAINT fk_recuperacao_usuario FOREIGN KEY (id_usuario)
+    REFERENCES usuario (id_usuario) ON DELETE CASCADE
 );
 
 -- Antecedências escolhidas por conta, em meses (RF_B10)
@@ -522,10 +565,16 @@ CREATE TABLE movimentacao (
 -- Eventos do histórico não podem ser alterados nem excluídos (RN22). Em
 -- produção a conta da aplicação recebe só INSERT e SELECT nesta tabela; os
 -- gatilhos garantem a regra também para quem tiver mais permissões.
+-- O corpo fica em BEGIN ... END para o backup do mysqldump poder ser
+-- restaurado (ver migrations/002_gatilhos_restauraveis.sql).
 CREATE TRIGGER tg_movimentacao_sem_alteracao BEFORE UPDATE ON movimentacao
-  FOR EACH ROW SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Eventos do histórico não podem ser alterados (RN22).';
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Eventos do histórico não podem ser alterados (RN22).';
+END;
 
 CREATE TRIGGER tg_movimentacao_sem_exclusao BEFORE DELETE ON movimentacao
-  FOR EACH ROW SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Eventos do histórico não podem ser excluídos (RN22).';
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Eventos do histórico não podem ser excluídos (RN22).';
+END;
