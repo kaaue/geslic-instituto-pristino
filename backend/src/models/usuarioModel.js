@@ -1,4 +1,4 @@
-// Model das contas de acesso (RF_B9): acesso ao banco e regras.
+// Model das contas de acesso (RF_B8): acesso ao banco e regras.
 //
 // Conta de acesso e colaborador são conceitos separados: a conta pode ser
 // ligada a no máximo um colaborador (e vice-versa), mas nenhum dos dois cria
@@ -443,7 +443,7 @@ async function listarPerfis() {
   };
 }
 
-// Definição das permissões do Operador (RF_B9). O Administrador tem sempre
+// Definição das permissões do Operador (RF_B8). O Administrador tem sempre
 // todas (RN21), e as exclusivas dele não podem ir para o Operador.
 async function definirPermissoes(idPerfil, codigos, idResponsavel) {
   return comTransacao(async (conexao) => {

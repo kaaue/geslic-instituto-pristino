@@ -1,7 +1,7 @@
 // Model da RF_B3 - Gerenciar equipamentos: acesso ao banco e regras dos dados.
 // O equipamento é especialização de bem, então toda escrita mexe em duas tabelas
 // dentro de uma transação: ou as duas gravam, ou nenhuma grava. Cada escrita
-// registra no histórico (RF_F13) a conta responsável.
+// registra no histórico (RF_F14) a conta responsável.
 
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');

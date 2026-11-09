@@ -23,17 +23,17 @@ rotas.use('/usuarios', require('./usuarioRoutes'));
 rotas.use('/perfis', require('./perfilRoutes'));
 rotas.use('/historico', require('./historicoRoutes'));
 
-// Funções básicas (RF_B1 a RF_B8; RF_B9 e RF_B10 acima)
+// Funções básicas (RF_B1 a RF_B7; contas RF_B8 e preferências RF_B9 acima)
 rotas.use('/fornecedores', require('./fornecedorRoutes'));
 rotas.use('/softwares', require('./softwareRoutes'));
 rotas.use('/equipamentos', require('./equipamentoRoutes'));
 rotas.use('/colaboradores', require('./colaboradorRoutes'));
 rotas.use('/setores', require('./setorRoutes'));
-rotas.use('/projetos', require('./projetoRoutes'));
 rotas.use('/bens-seguraveis', require('./bemSeguravelRoutes'));
 rotas.use('/tipos-seguro', require('./tipoSeguroRoutes'));
 
 // Funções fundamentais e de saída
+rotas.use('/projetos', require('./projetoRoutes'));
 rotas.use('/licencas', require('./licencaRoutes'));
 rotas.use('/apolices', require('./apoliceRoutes'));
 rotas.use('/documentos', require('./documentoRoutes'));

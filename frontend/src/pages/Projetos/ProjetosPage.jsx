@@ -1,4 +1,4 @@
-// Tela da função básica RF_B6 - Gerenciar projetos institucionais (Diogo Noboru Kamino).
+// Tela da função fundamental RF_F1 - Gerenciar projetos institucionais (Diogo Noboru Kamino).
 // Mesma organização da tela de equipamentos: filtros, listagem e painel lateral
 // de inclusão e edição, mais duas ações próprias do projeto: prorrogar o término
 // previsto e encerrar (RN17).

@@ -1,4 +1,4 @@
-// Contas e perfis de acesso (RF_B9, RN21, RN27): exclusivo de quem tem
+// Contas e perfis de acesso (RF_B8, RN21, RN27): exclusivo de quem tem
 // usuario.gerenciar (o Administrador).
 
 const express = require('express');

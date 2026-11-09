@@ -1,4 +1,4 @@
-// Contas e perfis de acesso (RF_B9): exclusivo do Administrador
+// Contas e perfis de acesso (RF_B8): exclusivo do Administrador
 
 import { requisicao, consultaFiltros, enviarJson } from './api';
 

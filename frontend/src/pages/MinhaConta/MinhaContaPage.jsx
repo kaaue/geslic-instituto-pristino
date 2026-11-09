@@ -1,7 +1,7 @@
-// Minha conta e preferências de aviso (Protótipo 4; RF_B9 e RF_B10).
+// Minha conta e preferências de aviso (Protótipo 4; RF_B8 e RF_B9).
 // Cada pessoa consulta a própria conta, atualiza nome e e-mail e troca a
 // senha após confirmar a atual. Com senha provisória, esta é a única tela
-// liberada até a troca. As preferências de aviso (RF_B10) estão em
+// liberada até a troca. As preferências de aviso (RF_B9) estão em
 // desenvolvimento.
 
 import { useState } from 'react';
@@ -72,7 +72,7 @@ export default function MinhaContaPage() {
       <div className="titulo-area">
         <div>
           <h2>Minha conta</h2>
-          <p className="subtitulo">RF_B9 e RF_B10 · Protótipo 4 da ERS</p>
+          <p className="subtitulo">RF_B8 e RF_B9 · Protótipo 4 da ERS</p>
         </div>
       </div>
 
@@ -132,7 +132,7 @@ export default function MinhaContaPage() {
 
       {!trocaSenhaObrigatoria && (
         <div className="aviso-desenvolvimento" role="status">
-          <strong>Preferências de aviso (RF_B10) em desenvolvimento</strong>
+          <strong>Preferências de aviso (RF_B9) em desenvolvimento</strong>
           <p>
             Aqui você vai escolher com quantos meses de antecedência quer ser avisado dos vencimentos
             (padrões: seis meses e um mês). A API dessa função ainda responde 501.

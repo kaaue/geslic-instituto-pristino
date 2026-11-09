@@ -1,4 +1,4 @@
-// Contas e perfis de acesso (Protótipos 13 e 13.1; RF_B9, RN21, RN27).
+// Contas e perfis de acesso (Protótipos 13 e 13.1; RF_B8, RN21, RN27).
 // Tela exclusiva do Administrador (permissão usuario.gerenciar): solicitações
 // de acesso, contas, perfis e a matriz de permissões. As regras (último
 // Administrador, motivo ao conceder o perfil, encerramento de sessões) são
@@ -124,7 +124,7 @@ export default function ContasPage() {
         <div>
           <h2>Contas e perfis de acesso</h2>
           <p className="subtitulo">
-            RF_B9 · exclusivo do Administrador · {administradoresAtivos} administrador(es) ativo(s); o sistema mantém sempre ao menos um (RN27).
+            RF_B8 · exclusivo do Administrador · {administradoresAtivos} administrador(es) ativo(s); o sistema mantém sempre ao menos um (RN27).
           </p>
         </div>
         {aba === 'contas' && (

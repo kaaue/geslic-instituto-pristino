@@ -1,4 +1,4 @@
-// Validações das contas de acesso (RF_B9): autocadastro, criação e edição
+// Validações das contas de acesso (RF_B8): autocadastro, criação e edição
 // pelo Administrador, troca e redefinição de senha.
 // Formato igual às demais validações: devolvem { dados, erros }, com erros no
 // formato campo -> mensagem. As mesmas regras estão na interface.

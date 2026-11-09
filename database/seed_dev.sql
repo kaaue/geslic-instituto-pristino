@@ -71,7 +71,7 @@ INSERT INTO equipamento
   (15, 'IP0113', 'NS-100080', 'Servidor',          3, FALSE);
 
 -- ---------------------------------------------------------------
--- Projetos (RF_B6)
+-- Projetos (RF_F1)
 -- - 1023 termina em poucos meses (aviso de término próximo)
 -- - 1301 está em andamento com o término previsto já vencido (aviso)
 -- - 1022 está encerrado e mantém uma licença vinculada (RN18)

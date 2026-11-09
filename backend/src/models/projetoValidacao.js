@@ -1,4 +1,4 @@
-// Validações da RF_B6 - Gerenciar projetos institucionais.
+// Validações da RF_F1 - Gerenciar projetos institucionais.
 // Seguem o mesmo formato de equipamentoValidacao.js (RF_B3): recebem o corpo
 // da requisição e devolvem { dados, erros }, com erros no formato campo -> mensagem.
 

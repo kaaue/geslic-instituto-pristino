@@ -1,10 +1,10 @@
-// Model da RF_B6 - Gerenciar projetos institucionais: acesso ao banco e
+// Model da RF_F1 - Gerenciar projetos institucionais: acesso ao banco e
 // regras dos dados.
 //
 // O encerramento é manual e não transfere, renova nem cancela recursos (RN17, RN18).
 // A exclusão só vale para projeto sem vínculos (RN22).
 // Quem pode cada operação (RN21) é decidido nas rotas, pelas permissões.
-// Cada escrita registra no histórico (RF_F13) a conta responsável.
+// Cada escrita registra no histórico (RF_F14) a conta responsável.
 
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');

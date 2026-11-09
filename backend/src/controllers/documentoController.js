@@ -1,4 +1,4 @@
-// Controller da RF_F11 Anexar e consultar documentos PDF - EM DESENVOLVIMENTO: repassa ao model, que responde 501.
+// Controller da RF_F12 Anexar e consultar documentos PDF - EM DESENVOLVIMENTO: repassa ao model, que responde 501.
 
 const { controllerPendente } = require('../utils/pendente');
 

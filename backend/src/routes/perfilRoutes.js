@@ -1,4 +1,4 @@
-// Perfis e matriz de permissões (RF_B9): exclusivo do Administrador.
+// Perfis e matriz de permissões (RF_B8): exclusivo do Administrador.
 
 const express = require('express');
 const controller = require('../controllers/usuarioController');

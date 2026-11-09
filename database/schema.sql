@@ -7,14 +7,14 @@
 --   equipamento.id_equipamento (no modelo: id_bem), equipamento.tipo
 --   (no modelo: tipo_equipamento), colaborador.ativo (no modelo: situacao
 --   ativo/desligado) e licenca.nome_software (redundante com software.nome;
---   sai quando a RF_F1 passar a usar a tabela software).
+--   sai quando a RF_F2 passar a usar a tabela software).
 --
 -- Regras que dependem de mais de uma tabela ficam na camada de serviços
 -- (quadro 3.3.1 da ERS): quantidade de instâncias por vigência (RN02),
 -- vigência sem fim só para licença perpétua e quantidade nula só para
 -- capacidade ilimitada (RN03, RN13), mesma licença não alocada duas vezes ao
 -- mesmo equipamento ou colaborador (RN10) e cobertura do item contratada na
--- vigência (RF_F8).
+-- vigência (RF_F9).
 
 -- Garante que os acentos sejam lidos corretamente ao rodar o script
 SET NAMES utf8mb4;
@@ -90,7 +90,7 @@ CREATE TABLE equipamento (
 );
 
 -- ---------------------------------------------------------------
--- Projeto institucional (RF_B6)
+-- Projeto institucional (RF_F1)
 -- ---------------------------------------------------------------
 
 CREATE TABLE projeto (
@@ -415,7 +415,7 @@ CREATE TABLE perfil_permissao (
   CONSTRAINT fk_perfperm_permissao FOREIGN KEY (id_permissao) REFERENCES permissao (id_permissao)
 );
 
--- Conta de acesso (RF_B9). Senha somente como hash. A conta pode estar ligada
+-- Conta de acesso (RF_B8). Senha somente como hash. A conta pode estar ligada
 -- a no máximo um colaborador, e o colaborador a no máximo uma conta.
 -- Situação: pendente (autocadastro aguardando aprovação), ativo ou inativo.
 -- troca_senha_obrigatoria: a conta entrou com senha provisória e precisa
@@ -472,7 +472,7 @@ CREATE TABLE recuperacao_senha (
     REFERENCES usuario (id_usuario) ON DELETE CASCADE
 );
 
--- Antecedências escolhidas por conta, em meses (RF_B10)
+-- Antecedências escolhidas por conta, em meses (RF_B9)
 CREATE TABLE preferencia_notificacao (
   id_preferencia     INT AUTO_INCREMENT PRIMARY KEY,
   id_usuario         INT     NOT NULL,
@@ -539,7 +539,7 @@ CREATE TABLE notificacao (
   CONSTRAINT fk_notificacao_projeto FOREIGN KEY (id_projeto) REFERENCES projeto (id_projeto)
 );
 
--- Trilha de auditoria (RF_F13, RN22): data efetiva do evento, momento do
+-- Trilha de auditoria (RF_F14, RN22): data efetiva do evento, momento do
 -- registro e dados anteriores e posteriores em JSON.
 CREATE TABLE movimentacao (
   id_movimentacao   INT AUTO_INCREMENT PRIMARY KEY,

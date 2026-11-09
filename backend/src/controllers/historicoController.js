@@ -1,4 +1,4 @@
-// Histórico de movimentações e auditoria (RF_S7, RF_F13): consulta exclusiva
+// Histórico de movimentações e auditoria (RF_S7, RF_F14): consulta exclusiva
 // de quem tem auditoria.consultar (o Administrador), com filtros e paginação.
 
 const Historico = require('../models/historicoModel');

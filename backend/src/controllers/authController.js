@@ -1,4 +1,4 @@
-// Controller de autenticação (seção 2.3.2 da ERS e RF_B9): login, logout,
+// Controller de autenticação (seção 2.3.2 da ERS e RF_B8): login, logout,
 // conta atual, solicitação de acesso e recuperação de senha. Todas as rotas
 // aqui são públicas, exceto /me e /logout.
 

@@ -1,11 +1,18 @@
 # GESLIC — Sistema de Gestão de Licenças de Software e Apólices
 
-Sistema do Instituto Prístino especificado na ERS versão 2.4 (`docs/ERS_GESLIC_v2.4.pdf`).
+Sistema do Instituto Prístino especificado na ERS versão 2.5 reordenada (a versão 2.4 está em `docs/ERS_GESLIC_v2.4.pdf`).
+
+Os identificadores do código seguem a numeração reordenada: projetos são a função
+fundamental RF_F1; licenças, RF_F2 a RF_F7; apólices, RF_F8 a RF_F11;
+documentos, RF_F12; situações e avisos, RF_F13; auditoria, RF_F14.
+A correspondência com a numeração anterior está no apêndice da ERS.
+A renumeração não implica implementação das funções pendentes: autorizações
+(RF_F15) e solicitações de ajuste (RF_B10) ainda não foram implementadas.
 
 | Função | Autor |
 |---|---|
 | RF_B3 Gerenciar equipamentos | Rafael Celestino Tomiazi |
-| RF_B6 Gerenciar projetos institucionais | Diogo Noboru Kamino |
+| RF_F1 Gerenciar projetos institucionais | Diogo Noboru Kamino |
 
 Disciplina: Prática em Engenharia de Software I — 7PPA, Unoeste, 2/2026
 
@@ -229,7 +236,7 @@ maiúscula e número. Nenhuma resposta da API contém hash, senha ou token
 5 falhas de login por conta e 20 por endereço a cada 15 minutos; 5 pedidos de
 recuperação por endereço e 3 por e-mail. Acima disso, 429.
 
-## Contas de acesso (RF_B9)
+## Contas de acesso (RF_B8)
 
 - **Solicitar acesso** (tela pública): nome, e-mail, login, senha e
   confirmação, validados na interface e na API. A conta nasce **pendente**,
@@ -294,16 +301,16 @@ acesso pela URL.
 
 | Função / tela | Acesso à página | Consultar | Incluir | Alterar | Excluir | Ações do domínio |
 |---|---|---|---|---|---|---|
-| Cadastros RF_B1 a RF_B8 | ambos (`cadastro.consultar`) | ambos | ambos (`cadastro.incluir`) | **Admin** (`cadastro.alterar`) | **Admin** (`cadastro.excluir`) | inativar / desligar: ambos (`cadastro.inativar`) |
+| Cadastros RF_B1 a RF_B7 | ambos (`cadastro.consultar`) | ambos | ambos (`cadastro.incluir`) | **Admin** (`cadastro.alterar`) | **Admin** (`cadastro.excluir`) | inativar / desligar: ambos (`cadastro.inativar`) |
 | RF_B3 Equipamentos | ambos | ambos | ambos | **Admin** | **Admin** | inativar (descarte, RN08): ambos |
-| RF_B6 Projetos | ambos | ambos | ambos | **Admin** | **Admin** | prorrogar (`projeto.prorrogar`) e encerrar (`projeto.encerrar`): ambos |
-| Licenças RF_F1 a RF_F6, RF_S2 | ambos (`licenca.consultar`) | ambos | registrar: ambos (`licenca.registrar`) | correção: **Admin** | **Admin** | movimentar, renovar e inativar: ambos; confirmar exceção (`excecao.confirmar`): ambos |
-| Apólices RF_F7 a RF_F10, RF_S4 | ambos (`apolice.consultar`) | ambos | registrar e vincular itens: ambos | correção: **Admin** | **Admin** | renovar e cancelar: ambos |
-| Documentos PDF RF_F11 | — | ambos (`documento.gerenciar`) | anexar: ambos | — | — | — |
+| RF_F1 Projetos | ambos | ambos | ambos | **Admin** | **Admin** | prorrogar (`projeto.prorrogar`) e encerrar (`projeto.encerrar`): ambos |
+| Licenças RF_F2 a RF_F7, RF_S2 | ambos (`licenca.consultar`) | ambos | registrar: ambos (`licenca.registrar`) | correção: **Admin** | **Admin** | movimentar, renovar e inativar: ambos; confirmar exceção (`excecao.confirmar`): ambos |
+| Apólices RF_F8 a RF_F11, RF_S4 | ambos (`apolice.consultar`) | ambos | registrar e vincular itens: ambos | correção: **Admin** | **Admin** | renovar e cancelar: ambos |
+| Documentos PDF RF_F12 | — | ambos (`documento.gerenciar`) | anexar: ambos | — | — | — |
 | Painel e relatórios RF_S1 a RF_S6 | ambos (`relatorio.consultar`) | ambos | — | — | — | — |
-| Notificações RF_S8, preferências RF_B10, Minha conta | toda conta | só a própria | — | só a própria | — | — |
-| Histórico RF_S7 / RF_F13 | **Admin** (`auditoria.consultar`) | **Admin** | automático para todas as contas | imutável | imutável | — |
-| Contas e perfis RF_B9 | **Admin** (`usuario.gerenciar`) | **Admin** | **Admin** | **Admin** | só solicitação recusada | aprovar, perfil, situação, senha provisória: **Admin** |
+| Notificações RF_S8, preferências RF_B9, Minha conta | toda conta | só a própria | — | só a própria | — | — |
+| Histórico RF_S7 / RF_F14 | **Admin** (`auditoria.consultar`) | **Admin** | automático para todas as contas | imutável | imutável | — |
+| Contas e perfis RF_B8 | **Admin** (`usuario.gerenciar`) | **Admin** | **Admin** | **Admin** | só solicitação recusada | aprovar, perfil, situação, senha provisória: **Admin** |
 | Dados sensíveis (chave de ativação) | — | só perfil com `visualiza_dados_sensiveis` (Administrador) | — | — | — | — |
 
 "Ambos" = Operador e Administrador. As permissões do Operador podem ser
@@ -320,32 +327,32 @@ senha, hash, token ou chave.
 
 - Autenticação: login, sessão, logout, expiração, restauração ao recarregar,
   troca obrigatória de senha provisória.
-- RF_B9 Contas e perfis: solicitação de acesso, aprovação, gerenciamento,
+- RF_B8 Contas e perfis: solicitação de acesso, aprovação, gerenciamento,
   matriz de permissões e Minha conta.
 - Recuperação de senha por e-mail.
 - RF_B3 Equipamentos: CRUD, validações, RN08, RN22, inativação pelo Operador e
   histórico.
-- RF_B6 Projetos: CRUD, participantes, prorrogação, encerramento, RN17, RN18,
+- RF_F1 Projetos: CRUD, participantes, prorrogação, encerramento, RN17, RN18,
   RN22 e histórico.
 - RF_S7 Histórico: consulta real com filtros e paginação, só para o
   Administrador.
-- RF_F13: gravação automática, por enquanto nas operações que existem (contas,
+- RF_F14: gravação automática, por enquanto nas operações que existem (contas,
   perfis, equipamentos e projetos).
 
 **Estruturado (tela, serviço, rotas da API com autenticação e permissões,
 controller e model), com a API respondendo `501 Não implementado`:**
 
-- RF_B1 Fornecedores e seguradoras, RF_B2 Softwares, RF_B7 Bens seguráveis e
-  RF_B8 Tipos de seguro e coberturas.
+- RF_B1 Fornecedores e seguradoras, RF_B2 Softwares, RF_B6 Bens seguráveis e
+  RF_B7 Tipos de seguro e coberturas.
 - RF_B4 Colaboradores e RF_B5 Setores: a lista dos ativos já funciona e
   alimenta as telas de equipamentos e projetos; o cadastro completo responde
   501.
-- RF_B10 Preferências de notificação (na tela Minha conta).
-- RF_F1 a RF_F6 Licenças, RF_F7 a RF_F10 Apólices e RF_F11 Documentos PDF.
+- RF_B9 Preferências de notificação (na tela Minha conta).
+- RF_F2 a RF_F7 Licenças, RF_F8 a RF_F11 Apólices e RF_F12 Documentos PDF.
 - RF_S1 Painel (a tela inicial mostra conta e atalhos, sem números simulados),
   RF_S2 a RF_S6 Relatórios e RF_S8 Notificações.
 
-**Ainda não estruturado:** RF_F12, a rotina diária de situações e avisos. É
+**Ainda não estruturado:** RF_F13, a rotina diária de situações e avisos. É
 uma função oculta, sem tela; fica para quando licenças e apólices existirem.
 
 As telas em desenvolvimento aparecem no menu com a marca "em breve" e mostram o
@@ -380,7 +387,7 @@ nenhuma tabela tem rolagem horizontal.
 - **Solicitação de acesso:** o Protótipo 1 diz que não há autocadastro. Por
   decisão da equipe, existe a solicitação pública, mas a conta só ganha acesso
   quando um Administrador aprova, define o perfil e o vínculo. Assim continua
-  valendo que as contas passam pelo Administrador (RF_B9).
+  valendo que as contas passam pelo Administrador (RF_B8).
 - **E-mail:** a seção 2.3.1 deixa o envio de notificações por e-mail fora
   desta versão. O e-mail é usado **só** na recuperação de senha. A senha
   provisória gerada pelo Administrador, prevista no Protótipo 13, também
@@ -390,7 +397,7 @@ nenhuma tabela tem rolagem horizontal.
 
 # RF_B3 — Gerenciar equipamentos
 
-Autor: Rafael Celestino Tomiazi. Especificação: ERS 2.4 (RF_B3, RN08, RN20,
+Autor: Rafael Celestino Tomiazi. Especificação: ERS 2.5 reordenada (RF_B3, RN08, RN20,
 RN22 e protótipo 7).
 
 ## Endpoints
@@ -430,9 +437,9 @@ histórico.
 
 ---
 
-# RF_B6 — Gerenciar projetos institucionais
+# RF_F1 — Gerenciar projetos institucionais
 
-Autor: Diogo Noboru Kamino. Especificação: ERS 2.4 (RF_B6, RN17, RN18, RN19,
+Autor: Diogo Noboru Kamino. Especificação: ERS 2.5 reordenada (RF_F1, RN17, RN18, RN19,
 RN21, RN22 e protótipo 10).
 
 ## Endpoints
@@ -454,12 +461,12 @@ RN21, RN22 e protótipo 10).
 | Código obrigatório, exatamente 4 dígitos, informado pelo usuário | RN19 |
 | Código único | Quadro de restrições (3.3.1) |
 | Nome obrigatório e único, sem diferenciar maiúsculas, minúsculas e espaços extras | RN19 |
-| Fonte financiadora e início obrigatórios | RF_B6 |
+| Fonte financiadora e início obrigatórios | RF_F1 |
 | Datas válidas (31/02 é recusado) | — |
 | Término previsto não anterior ao início | 3.3.1 |
-| Responsável obrigatório, colaborador ativo | RF_B6 |
-| Participantes: colaboradores já cadastrados; desligado não entra como novo participante | RF_B4, RF_B6 |
-| Prorrogação só para projeto em andamento e para data posterior ao término atual | RF_B6 |
+| Responsável obrigatório, colaborador ativo | RF_F1 |
+| Participantes: colaboradores já cadastrados; desligado não entra como novo participante | RF_B4, RF_F1 |
+| Prorrogação só para projeto em andamento e para data posterior ao término atual | RF_F1 |
 | Encerramento manual, com data não anterior ao início e não futura | RN17 |
 | Encerrar não transfere, renova nem cancela licenças e instâncias | RN18 |
 | Alterar e excluir somente pelo Administrador | RN21 |

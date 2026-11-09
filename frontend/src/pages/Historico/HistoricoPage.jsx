@@ -1,4 +1,4 @@
-// Histórico de movimentações e auditoria (Protótipo 28; RF_S7, RF_F13, RN22).
+// Histórico de movimentações e auditoria (Protótipo 28; RF_S7, RF_F14, RN22).
 // Tela exclusiva do Administrador. Registro imutável com a data e hora do
 // registro, a data efetiva, o evento, o registro afetado, o detalhe e a conta
 // responsável. Os dados vêm do banco, com filtros e paginação na API.

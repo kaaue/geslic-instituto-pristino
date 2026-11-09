@@ -1,4 +1,4 @@
-// Rotas da RF_B6 - Gerenciar projetos institucionais.
+// Rotas da RF_F1 - Gerenciar projetos institucionais.
 //
 // Quem pode o quê (RN21, RN17):
 //   Operador e Administrador: consultar, incluir, prorrogar o término e encerrar.

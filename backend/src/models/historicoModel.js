@@ -1,4 +1,4 @@
-// Histórico de movimentações e auditoria (RF_F13, RF_S7, RN22).
+// Histórico de movimentações e auditoria (RF_F14, RF_S7, RN22).
 // A gravação acontece dentro da transação de cada operação, para todas as
 // contas; a consulta é exclusiva de quem tem a permissão auditoria.consultar.
 // Os eventos não podem ser alterados nem excluídos (gatilhos no banco).

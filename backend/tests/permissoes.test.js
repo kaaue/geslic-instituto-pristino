@@ -1,4 +1,4 @@
-// Permissões nas funções básicas existentes (RF_B3, RF_B6), histórico e
+// Permissões nas funções existentes de equipamentos e projetos (RF_B3, RF_F1), histórico e
 // funções ainda em desenvolvimento.
 
 const { test, before, after, beforeEach } = require('node:test');

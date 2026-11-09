@@ -98,7 +98,7 @@ Rode `npm run db:migrate` antes de fazer a cópia.
 
 ## Tabelas
 
-**Cadastros (RF_B1 a RF_B8)**
+**Cadastros (RF_B1 a RF_B7) e projetos (RF_F1)**
 
 | Tabela | Conteúdo |
 |---|---|
@@ -108,7 +108,7 @@ Rode `npm run db:migrate` antes de fazer a cópia.
 | `fornecedor`, `software` | fornecedores e seguradoras (CNPJ único) e softwares |
 | `tipo_seguro`, `cobertura` | tipos de seguro e suas coberturas |
 
-**Licenças e apólices (RF_F1 a RF_F11)**
+**Licenças e apólices (RF_F2 a RF_F12)**
 
 | Tabela | Conteúdo |
 |---|---|
@@ -117,7 +117,7 @@ Rode `npm run db:migrate` antes de fazer a cópia.
 | `apolice`, `vigencia_apolice`, `vigencia_cobertura`, `item_segurado`, `item_cobertura` | apólice, vigências, coberturas contratadas e bens ou pessoas segurados |
 | `documento` | metadados e caminho dos PDFs de cada vigência (RN23) |
 
-**Contas, avisos e auditoria (RF_B9, RF_B10, RF_F12, RF_F13)**
+**Contas, avisos e auditoria (RF_B8, RF_B9, RF_F13, RF_F14)**
 
 | Tabela | Conteúdo |
 |---|---|
@@ -171,12 +171,12 @@ erDiagram
 
 | Tema | Decisão | Motivo |
 |---|---|---|
-| Nomes mantidos | `equipamento.id_equipamento` (modelo: `id_bem`), `equipamento.tipo`, `colaborador.ativo` e `licenca.nome_software` | o código da RF_B3 já usa esses nomes; `nome_software` sai quando a RF_F1 passar a usar `software` |
+| Nomes mantidos | `equipamento.id_equipamento` (modelo: `id_bem`), `equipamento.tipo`, `colaborador.ativo` e `licenca.nome_software` | o código da RF_B3 já usa esses nomes; `nome_software` sai quando a RF_F2 passar a usar `software` |
 | Situação da conta | `usuario.situacao` (pendente, ativo, inativo) no lugar do booleano `ativo` | o autocadastro precisa do estado "aguardando aprovação"; contas não são excluídas, para preservar o histórico (RN27) |
 | Conta e colaborador | `usuario.id_colaborador` opcional e único | a ERS separa conta de acesso e cadastro de pessoa: nenhum cria o outro |
 | Senhas e tokens | senha só como hash scrypt; tokens de sessão e de recuperação só como SHA-256 | quem lê o banco não consegue entrar nem redefinir senhas |
 | Permissões | catálogo por operação (`cadastro.alterar`, `projeto.encerrar`...), com `exclusiva_administrador` | permissões configuráveis (Quadro 7) sem permitir dar ao Operador o que a RN21 reserva ao Administrador |
-| Histórico imutável | gatilhos bloqueiam `UPDATE` e `DELETE` em `movimentacao`; os dados de antes e depois são JSON, sem campos de senha, hash, token ou chave | RN22 e RF_F13 |
+| Histórico imutável | gatilhos bloqueiam `UPDATE` e `DELETE` em `movimentacao`; os dados de antes e depois são JSON, sem campos de senha, hash, token ou chave | RN22 e RF_F14 |
 | Vínculo vigente único | colunas geradas `instancia_vigente` com `UNIQUE` em `alocacao` e `utilizacao` | no máximo uma alocação e uma utilização vigentes por instância (RN09), mantendo o histórico |
 | Regras entre tabelas | capacidade da vigência, perpétua sem fim, mesma licença no mesmo destino e cobertura do item ficam na aplicação | não cabem em `CHECK` com segurança no MySQL (quadro 3.3.1) |
 
@@ -192,3 +192,6 @@ erDiagram
 - **Consultas:** sempre parametrizadas (`?`), nunca com valores concatenados.
 - **Alterou o schema?** Crie uma migração, atualize o `schema.sql` e este
   README.
+
+
+Os códigos RF deste documento seguem a ERS 2.5 reordenada. A base do schema continua sendo o modelo 2.4 com extensões de autenticação; autorizações e solicitações de ajuste ainda exigem implementação. A atualização dos comentários não executa migrações.

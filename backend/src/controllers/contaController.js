@@ -1,4 +1,4 @@
-// Minha conta (RF_B9): cada pessoa atualiza nome e e-mail e troca a senha
+// Minha conta (RF_B8): cada pessoa atualiza nome e e-mail e troca a senha
 // após confirmar a atual. Perfil, login e situação não mudam por aqui.
 
 const Usuario = require('../models/usuarioModel');

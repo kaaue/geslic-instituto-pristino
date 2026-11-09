@@ -1,4 +1,4 @@
-// Autenticação e autorização (RF_B9, RN21, seção 2.3.2 da ERS).
+// Autenticação e autorização (RF_B8, RN21, seção 2.3.2 da ERS).
 //
 // autenticar: exige a sessão do cookie, confere no banco a cada requisição e
 //   carrega a conta com perfil e permissões atuais em req.usuario. Conta

@@ -1,4 +1,4 @@
-// Controller da RF_F1 a RF_F6 Licenças de software - EM DESENVOLVIMENTO: repassa ao model, que responde 501.
+// Controller da RF_F2 a RF_F7 Licenças de software - EM DESENVOLVIMENTO: repassa ao model, que responde 501.
 
 const { controllerPendente } = require('../utils/pendente');
 

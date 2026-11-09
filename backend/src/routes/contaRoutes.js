@@ -1,4 +1,4 @@
-// Minha conta (RF_B9) e preferências de notificação (RF_B10): qualquer conta
+// Minha conta (RF_B8) e preferências de notificação (RF_B9): qualquer conta
 // autenticada, sempre sobre a própria conta.
 
 const express = require('express');

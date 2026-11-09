@@ -14,17 +14,23 @@ export const GRUPOS_MENU = [
     itens: [{ caminho: '/', rotulo: 'Painel', titulo: 'Painel', funcao: 'RF_S1', icone: '◧' }]
   },
   {
+    titulo: 'Projetos',
+    itens: [
+      { caminho: '/projetos', rotulo: 'Projetos', funcao: 'RF_F1', permissao: 'cadastro.consultar', icone: '▢' }
+    ]
+  },
+  {
     titulo: 'Licenças',
     modulo: 'licencas',
     itens: [
-      { caminho: '/licencas', rotulo: 'Licenças', funcao: 'RF_F1 a RF_F6', permissao: 'licenca.consultar', icone: '▤', pendente: true }
+      { caminho: '/licencas', rotulo: 'Licenças', funcao: 'RF_F2 a RF_F7', permissao: 'licenca.consultar', icone: '▤', pendente: true }
     ]
   },
   {
     titulo: 'Apólices',
     modulo: 'apolices',
     itens: [
-      { caminho: '/apolices', rotulo: 'Apólices', funcao: 'RF_F7 a RF_F10', permissao: 'apolice.consultar', icone: '◈', pendente: true }
+      { caminho: '/apolices', rotulo: 'Apólices', funcao: 'RF_F8 a RF_F11', permissao: 'apolice.consultar', icone: '◈', pendente: true }
     ]
   },
   {
@@ -34,11 +40,10 @@ export const GRUPOS_MENU = [
       { caminho: '/softwares', rotulo: 'Softwares', funcao: 'RF_B2', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
       { caminho: '/fornecedores', rotulo: 'Fornecedores e seguradoras', funcao: 'RF_B1', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
       { caminho: '/equipamentos', rotulo: 'Equipamentos', funcao: 'RF_B3', permissao: 'cadastro.consultar', icone: '▢' },
-      { caminho: '/bens-seguraveis', rotulo: 'Bens seguráveis', funcao: 'RF_B7', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
+      { caminho: '/bens-seguraveis', rotulo: 'Bens seguráveis', funcao: 'RF_B6', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
       { caminho: '/colaboradores', rotulo: 'Colaboradores', funcao: 'RF_B4', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
       { caminho: '/setores', rotulo: 'Setores', funcao: 'RF_B5', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
-      { caminho: '/projetos', rotulo: 'Projetos', funcao: 'RF_B6', permissao: 'cadastro.consultar', icone: '▢' },
-      { caminho: '/tipos-seguro', rotulo: 'Tipos e coberturas', funcao: 'RF_B8', permissao: 'cadastro.consultar', icone: '▢', pendente: true }
+      { caminho: '/tipos-seguro', rotulo: 'Tipos e coberturas', funcao: 'RF_B7', permissao: 'cadastro.consultar', icone: '▢', pendente: true }
     ]
   },
   {
@@ -53,8 +58,8 @@ export const GRUPOS_MENU = [
     titulo: 'Conta',
     secao: 'Conta',
     itens: [
-      { caminho: '/minha-conta', rotulo: 'Minha conta', funcao: 'RF_B9 e RF_B10', icone: '◉' },
-      { caminho: '/contas', rotulo: 'Contas e perfis', funcao: 'RF_B9', permissao: 'usuario.gerenciar', icone: '⚙' }
+      { caminho: '/minha-conta', rotulo: 'Minha conta', funcao: 'RF_B8 e RF_B9', icone: '◉' },
+      { caminho: '/contas', rotulo: 'Contas e perfis', funcao: 'RF_B8', permissao: 'usuario.gerenciar', icone: '⚙' }
     ]
   }
 ];

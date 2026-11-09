@@ -41,7 +41,7 @@ export function moedaParaNumero(texto) {
 }
 
 // ---------------------------------------------------------------
-// Máscaras da tela de projetos (RF_B6)
+// Máscaras da tela de projetos (RF_F1)
 // ---------------------------------------------------------------
 
 // Código do projeto: exatamente quatro dígitos (RN19)

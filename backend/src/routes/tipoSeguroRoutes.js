@@ -1,4 +1,4 @@
-// RF_B8 Gerenciar tipos de seguro e coberturas (em desenvolvimento: 501).
+// RF_B7 Gerenciar tipos de seguro e coberturas (em desenvolvimento: 501).
 // Permissões (RN21): consultar, incluir e inativar - Operador e Administrador;
 // alterar e excluir - somente o Administrador.
 

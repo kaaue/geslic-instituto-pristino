@@ -1,5 +1,5 @@
 -- GESLIC - migração 001: autenticação real, sessões, recuperação de senha e
--- permissões por operação (RF_B9, RN21, RN27, seção 2.3.2 da ERS).
+-- permissões por operação (RF_B8, RN21, RN27, seção 2.3.2 da ERS).
 --
 -- Aplicada por `npm run db:migrate` em bancos criados antes desta versão. Não
 -- apaga dados: as contas existentes mantêm perfil e senha, e a coluna `ativo`

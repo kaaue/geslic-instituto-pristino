@@ -1,4 +1,4 @@
-// Controller da RF_B6 - Gerenciar projetos institucionais.
+// Controller da RF_F1 - Gerenciar projetos institucionais.
 // Lê a requisição, valida a entrada, chama o model e devolve a resposta.
 // As regras dos dados (RN17, RN18, RN19, RN22) ficam no model; quem pode cada
 // operação (RN21) é decidido nas rotas.

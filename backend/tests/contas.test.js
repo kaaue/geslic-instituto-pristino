@@ -1,4 +1,4 @@
-// Autocadastro, aprovação, gerenciamento de contas, perfis e permissões (RF_B9, RN21, RN27).
+// Autocadastro, aprovação, gerenciamento de contas, perfis e permissões (RF_B8, RN21, RN27).
 
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');

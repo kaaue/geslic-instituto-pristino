@@ -118,7 +118,7 @@ function avisarSenhaProvisoria(senha) {
   console.log('  Para usar uma senha fixa, defina ADMIN_SENHA no .env.\n');
 }
 
-// Conta inicial "admin" (RF_B9: "conta inicial definida na configuração").
+// Conta inicial "admin" (RF_B8: "conta inicial definida na configuração").
 // Com ADMIN_SENHA no .env, usa essa senha; sem ela, gera uma senha provisória,
 // mostra uma vez e obriga a troca no primeiro acesso.
 async function criarAdmin(conexao) {

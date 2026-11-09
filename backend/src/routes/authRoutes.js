@@ -1,4 +1,4 @@
-// Autenticação (seção 2.3.2 da ERS e RF_B9). Login, solicitação de acesso e
+// Autenticação (seção 2.3.2 da ERS e RF_B8). Login, solicitação de acesso e
 // recuperação de senha são públicos; /me e /logout exigem sessão.
 
 const express = require('express');

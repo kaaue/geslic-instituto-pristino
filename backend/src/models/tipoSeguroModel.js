@@ -1,10 +1,10 @@
-// Model da RF_B8 Gerenciar tipos de seguro e coberturas - EM DESENVOLVIMENTO.
+// Model da RF_B7 Gerenciar tipos de seguro e coberturas - EM DESENVOLVIMENTO.
 // Coberturas usadas em apólices não são excluídas, apenas inativadas.
 // Cada operação responde 501 até ser implementada (ver utils/pendente.js).
 
 const { modelPendente } = require('../utils/pendente');
 
-module.exports = modelPendente('RF_B8 Gerenciar tipos de seguro e coberturas', {
+module.exports = modelPendente('RF_B7 Gerenciar tipos de seguro e coberturas', {
   listar: 'consulta',
   buscar: 'consulta de um registro',
   incluir: 'inclusão',

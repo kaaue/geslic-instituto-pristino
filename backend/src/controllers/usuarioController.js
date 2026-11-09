@@ -1,4 +1,4 @@
-// Controller de Contas e perfis (RF_B9, RN21, RN27): exclusivo de quem tem
+// Controller de Contas e perfis (RF_B8, RN21, RN27): exclusivo de quem tem
 // a permissão usuario.gerenciar (o Administrador). As regras ficam no model.
 
 const Usuario = require('../models/usuarioModel');

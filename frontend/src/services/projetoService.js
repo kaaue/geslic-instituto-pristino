@@ -1,4 +1,4 @@
-// RF_B6 - Gerenciar projetos institucionais
+// RF_F1 - Gerenciar projetos institucionais
 
 import { requisicao, consultaFiltros, enviarJson } from './api';
 
