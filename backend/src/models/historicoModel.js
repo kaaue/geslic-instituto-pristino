@@ -51,6 +51,10 @@ function montarFiltros(filtros) {
     condicoes.push('m.entidade = ?');
     valores.push(filtros.entidade);
   }
+  if (filtros.id_registro) {
+    condicoes.push('m.id_registro = ?');
+    valores.push(Number(filtros.id_registro));
+  }
   if (filtros.id_usuario) {
     condicoes.push('m.id_usuario = ?');
     valores.push(Number(filtros.id_usuario));

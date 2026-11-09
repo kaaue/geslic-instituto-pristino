@@ -45,11 +45,34 @@ function validarNovaSenha(senha, confirmacao, erros, campo = 'senha') {
 
 // Autocadastro (público). Perfil, situação e colaborador NÃO vêm daqui: a
 // conta nasce pendente, como Operador, e o Administrador decide na aprovação.
+// O setor e o cargo identificam o colaborador, que só é criado na aprovação.
 function validarSolicitacao(corpo) {
   const erros = {};
   const dados = validarIdentificacao(corpo, erros);
   validarNovaSenha(corpo.senha, corpo.confirmacao, erros);
-  return { erros, dados: { ...dados, senha: corpo.senha } };
+  const idSetor = Number(corpo.id_setor);
+  if (!Number.isInteger(idSetor) || idSetor <= 0) erros.id_setor = 'Selecione o seu setor.';
+  const cargo = textoOuNulo(corpo.cargo);
+  if (cargo && cargo.length > 80) erros.cargo = 'O cargo deve ter no máximo 80 caracteres.';
+  return { erros, dados: { ...dados, senha: corpo.senha, id_setor: idSetor, cargo } };
+}
+
+// Colaborador novo, cadastrado junto com a conta (criação ou aprovação).
+// O nome padrão é o da conta. Devolve null quando não foi enviado.
+function lerColaboradorNovo(corpo, nomeConta, erros) {
+  const novo = corpo.colaborador_novo;
+  if (!novo || typeof novo !== 'object') return null;
+  // na aprovação (nomeConta null), sem nome informado vale o nome da conta solicitada
+  const nome = normalizarTexto(novo.nome) || nomeConta || null;
+  const cargo = textoOuNulo(novo.cargo);
+  const idSetor = Number(novo.id_setor);
+  if (nome !== null || nomeConta !== null) {
+    if (!nome || nome.length < 3) erros.colaborador_nome = 'Informe o nome do colaborador.';
+    else if (nome.length > 120) erros.colaborador_nome = 'O nome deve ter no máximo 120 caracteres.';
+  }
+  if (!Number.isInteger(idSetor) || idSetor <= 0) erros.colaborador_id_setor = 'Selecione o setor do colaborador.';
+  if (cargo && cargo.length > 80) erros.colaborador_cargo = 'O cargo deve ter no máximo 80 caracteres.';
+  return { nome, cargo, id_setor: idSetor };
 }
 
 // id do colaborador vinculado: opcional
@@ -86,6 +109,8 @@ function validarCriacao(corpo) {
   const { erros, dados } = validarDadosConta(corpo);
   dados.id_perfil = lerPerfil(corpo.id_perfil, erros);
   dados.motivo = textoOuNulo(corpo.motivo);
+  dados.colaborador_novo = dados.id_colaborador ? null : lerColaboradorNovo(corpo, dados.nome, erros);
+  dados.confirmar_homonimo = corpo.confirmar_homonimo === true;
   return { erros, dados };
 }
 
@@ -95,8 +120,10 @@ function validarAprovacao(corpo) {
   const dados = {
     id_perfil: lerPerfil(corpo.id_perfil, erros),
     id_colaborador: lerColaborador(corpo.id_colaborador, erros),
-    motivo: textoOuNulo(corpo.motivo)
+    motivo: textoOuNulo(corpo.motivo),
+    confirmar_homonimo: corpo.confirmar_homonimo === true
   };
+  dados.colaborador_novo = dados.id_colaborador ? null : lerColaboradorNovo(corpo, null, erros);
   return { erros, dados };
 }
 

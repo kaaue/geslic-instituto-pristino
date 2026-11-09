@@ -1,11 +1,14 @@
 // Tela da função fundamental RF_F1 - Gerenciar projetos institucionais (Diogo Noboru Kamino).
-// Mesma organização da tela de equipamentos: filtros, listagem e painel lateral
-// de inclusão e edição, mais duas ações próprias do projeto: prorrogar o término
-// previsto e encerrar (RN17).
+// Mesma organização dos cadastros: filtros, listagem só de consulta e um
+// painel lateral aberto pelo botão "Gerenciar" de cada linha, que concentra
+// visualização, edição, participantes, prorrogação, encerramento, reabertura
+// e o histórico do projeto. Projeto não é excluído (sai de uso pelo
+// encerramento, que pode ser desfeito pela reabertura).
 //
-// Permissões (RN21): o Operador consulta, inclui, prorroga e encerra; somente o
-// Administrador altera os dados cadastrais e exclui. As ações seguem as
-// permissões da conta (vindas da API), e a API aplica a mesma regra.
+// Permissões (RN21): o Operador consulta, inclui, prorroga, encerra e reabre;
+// somente o Administrador altera os dados cadastrais e os participantes. As
+// ações seguem as permissões da conta (vindas da API), e a API aplica a
+// mesma regra.
 
 import { useCallback, useEffect, useState } from 'react';
 import FiltrosProjetos from './FiltrosProjetos.jsx';
@@ -22,13 +25,16 @@ import BotaoSolicitarAjuste from '../../components/solicitacoes/BotaoSolicitarAj
 import FaixaCorrecao from '../../components/solicitacoes/FaixaCorrecao.jsx';
 import {
   listarProjetos, buscarProjeto, listarFontesFinanciadoras, listarAnosProjetos, incluirProjeto,
-  alterarProjeto, excluirProjeto, encerrarProjeto, prorrogarProjeto
+  alterarProjeto, encerrarProjeto, prorrogarProjeto, reabrirProjeto
 } from '../../services/projetoService';
 import { listarColaboradores } from '../../services/colaboradorService';
+import { listarSetores } from '../../services/setorService';
+import { listarHistorico } from '../../services/historicoService';
+import { mensagemDeErro } from '../../services/api';
 import { dataDaApi } from '../../utils/mascaras';
 
 const FILTROS_VAZIOS = {
-  busca: '', situacao: '', id_responsavel: '', fonte: '', prazo: '', ano: '', semestre: ''
+  busca: '', situacao: '', id_responsavel: '', id_setor: '', prazo: '', ano: ''
 };
 
 export default function ProjetosPage() {
@@ -36,13 +42,14 @@ export default function ProjetosPage() {
   const permissoes = {
     incluir: pode('cadastro.incluir'),
     alterar: pode('cadastro.alterar'),
-    excluir: pode('cadastro.excluir'),
     prorrogar: pode('projeto.prorrogar'),
     encerrar: pode('projeto.encerrar')
   };
+  const veHistorico = pode('auditoria.consultar');
 
   const [projetos, setProjetos] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
+  const [setores, setSetores] = useState([]);
   const [fontes, setFontes] = useState([]);
   const [anos, setAnos] = useState([]);
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
@@ -50,14 +57,14 @@ export default function ProjetosPage() {
 
   const [painelAberto, setPainelAberto] = useState(false);
   const [edicao, setEdicao] = useState(null);
-  const [acao, setAcao] = useState(null); // { tipo: 'encerrar' | 'prorrogar', projeto }
+  const [historico, setHistorico] = useState(null);
+  const [acao, setAcao] = useState(null); // 'encerrar' | 'prorrogar' | 'reabrir'
   const [erros, setErros] = useState({});
   const [salvando, setSalvando] = useState(false);
-  const [mensagem, mostrarMensagem] = useMensagem(6000);
+  const [mensagem, mostrarMensagem] = useMensagem(7000);
 
-  // Listas dos filtros que dependem dos projetos cadastrados: as fontes
-  // financiadoras e os anos de vigência. Recarregadas sempre que um projeto
-  // é incluído, alterado, prorrogado, encerrado ou excluído.
+  // Listas que dependem dos projetos cadastrados: as fontes financiadoras
+  // (sugestões do cadastro) e os anos de vigência. Recarregadas a cada gravação.
   const carregarListasDosFiltros = useCallback(() => {
     listarFontesFinanciadoras().then(setFontes).catch(() => setFontes([]));
     listarAnosProjetos().then(setAnos).catch(() => setAnos([]));
@@ -65,6 +72,7 @@ export default function ProjetosPage() {
 
   useEffect(() => {
     listarColaboradores().then(setColaboradores).catch(() => setColaboradores([]));
+    listarSetores().then(setSetores).catch(() => setSetores([]));
     carregarListasDosFiltros();
   }, [carregarListasDosFiltros]);
 
@@ -85,46 +93,49 @@ export default function ProjetosPage() {
 
   function abrirNovo() {
     setEdicao(null);
+    setHistorico(null);
     setErros({});
     setPainelAberto(true);
   }
 
+  async function carregarProjeto(id) {
+    const projeto = await buscarProjeto(id);
+    setEdicao(projeto);
+    if (veHistorico) {
+      listarHistorico({ entidade: 'projeto', id_registro: id, por_pagina: 50 })
+        .then((r) => setHistorico(r.itens))
+        .catch(() => setHistorico(null));
+    }
+    return projeto;
+  }
+
   // A listagem não traz os participantes; o painel abre com o projeto completo
-  async function abrirEdicao(projeto) {
+  async function abrirGerenciar(projeto) {
     try {
-      setEdicao(await buscarProjeto(projeto.id_projeto));
+      await carregarProjeto(projeto.id_projeto);
       setErros({});
       setPainelAberto(true);
     } catch (erro) {
-      mostrarMensagem('erro', erro.corpo?.mensagem || 'Não foi possível abrir o projeto.');
+      mostrarMensagem('erro', mensagemDeErro(erro, 'Não foi possível abrir o projeto.'));
     }
   }
 
   function fecharPainel() {
     setPainelAberto(false);
     setEdicao(null);
+    setHistorico(null);
     setErros({});
   }
 
   // Aberto pelo "Abrir cadastro" de uma solicitação de ajuste (RF_B10)
-  const { idSolicitacao } = useAbrirPorLink(projetos, 'id_projeto', abrirEdicao);
-
-  function abrirAcao(tipo, projeto) {
-    setErros({});
-    setAcao({ tipo, projeto });
-  }
-
-  function fecharAcao() {
-    setAcao(null);
-    setErros({});
-  }
+  const { idSolicitacao } = useAbrirPorLink(projetos, 'id_projeto', abrirGerenciar);
 
   // Erro de campo (400) vai para o formulário; demais erros viram mensagem
   function tratarErro(erro, padrao) {
     if (erro.corpo?.erros) {
       setErros(erro.corpo.erros);
     } else {
-      mostrarMensagem('erro', erro.corpo?.mensagem || padrao);
+      mostrarMensagem('erro', mensagemDeErro(erro, padrao));
     }
   }
 
@@ -134,57 +145,46 @@ export default function ProjetosPage() {
     try {
       if (edicao) {
         await alterarProjeto(edicao.id_projeto, dados);
-        mostrarMensagem('sucesso', `Projeto ${dados.codigo} alterado.`);
+        mostrarMensagem('sucesso', `Projeto ${dados.codigo} alterado com sucesso.`);
       } else {
         await incluirProjeto(dados);
-        mostrarMensagem('sucesso', `Projeto ${dados.codigo} · ${dados.nome} cadastrado.`);
+        mostrarMensagem('sucesso', `Projeto ${dados.codigo} · ${dados.nome} cadastrado com sucesso.`);
       }
       fecharPainel();
       buscar();
       carregarListasDosFiltros();
     } catch (erro) {
-      tratarErro(erro, 'Não foi possível salvar.');
+      tratarErro(erro, 'Não foi possível concluir a operação.');
     } finally {
       setSalvando(false);
     }
   }
 
-  async function confirmarAcao(data) {
-    const { tipo, projeto } = acao;
+  async function confirmarAcao(valor) {
+    const projeto = edicao;
     setSalvando(true);
     setErros({});
     try {
-      if (tipo === 'encerrar') {
-        const r = await encerrarProjeto(projeto.id_projeto, data);
-        const recursos = r.licencas_vinculadas + r.instancias_vinculadas;
-        mostrarMensagem('sucesso', `Projeto ${projeto.codigo} encerrado em ${dataDaApi(r.data_encerramento)}.` +
-          (recursos > 0 ? ' Os recursos vinculados foram mantidos, sem transferência ou cancelamento.' : ''));
+      if (acao === 'encerrar') {
+        const r = await encerrarProjeto(projeto.id_projeto, valor);
+        mostrarMensagem('sucesso', `Projeto encerrado com sucesso em ${dataDaApi(r.data_encerramento)}. ` +
+          'Os vínculos e recursos foram preservados.');
+      } else if (acao === 'reabrir') {
+        const r = await reabrirProjeto(projeto.id_projeto, valor.motivo);
+        mostrarMensagem(r.avisos?.length ? 'aviso' : 'sucesso',
+          ['Projeto reaberto com sucesso.', ...(r.avisos || [])].join(' '));
       } else {
-        const r = await prorrogarProjeto(projeto.id_projeto, data);
-        mostrarMensagem('sucesso', `Término previsto do projeto ${projeto.codigo} prorrogado para ${dataDaApi(r.data_fim_prevista)}.`);
+        const r = await prorrogarProjeto(projeto.id_projeto, valor);
+        mostrarMensagem('sucesso', `Término previsto prorrogado com sucesso para ${dataDaApi(r.data_fim_prevista)}.`);
       }
-      fecharAcao();
+      setAcao(null);
+      await carregarProjeto(projeto.id_projeto);
       buscar();
-      // prorrogar ou encerrar muda o último ano de vigência do projeto
       carregarListasDosFiltros();
     } catch (erro) {
-      tratarErro(erro, 'Não foi possível concluir a ação.');
+      tratarErro(erro, 'Não foi possível concluir a operação.');
     } finally {
       setSalvando(false);
-    }
-  }
-
-  async function excluir(projeto) {
-    const confirmado = window.confirm(`Excluir o projeto ${projeto.codigo} — ${projeto.nome}?`);
-    if (!confirmado) return;
-    try {
-      await excluirProjeto(projeto.id_projeto);
-      mostrarMensagem('sucesso', `Projeto ${projeto.codigo} excluído.`);
-      buscar();
-      carregarListasDosFiltros();
-    } catch (erro) {
-      // 409: projeto com vínculos (RN22); 403: perfil sem permissão (RN21)
-      mostrarMensagem('erro', erro.corpo?.mensagem || 'Não foi possível excluir.');
     }
   }
 
@@ -207,8 +207,8 @@ export default function ProjetosPage() {
 
         {!permissoes.alterar && (
           <p className="nota nota-perfil">
-            Seu perfil pode consultar, cadastrar, prorrogar e encerrar projetos.
-            Alterar e excluir dados cadastrais é exclusivo do perfil Administrador.
+            Seu perfil pode consultar, cadastrar, prorrogar, encerrar e reabrir projetos.
+            Alterar dados cadastrais e participantes é exclusivo do perfil Administrador.
           </p>
         )}
 
@@ -220,20 +220,12 @@ export default function ProjetosPage() {
           aoMudar={setFiltros}
           aoLimpar={() => setFiltros(FILTROS_VAZIOS)}
           colaboradores={colaboradores}
-          fontes={fontes}
+          setores={setores}
           anos={anos}
           total={projetos.length}
         />
 
-        <TabelaProjetos
-          projetos={projetos}
-          permissoes={permissoes}
-          carregando={carregando}
-          aoEditar={abrirEdicao}
-          aoExcluir={excluir}
-          aoEncerrar={(p) => abrirAcao('encerrar', p)}
-          aoProrrogar={(p) => abrirAcao('prorrogar', p)}
-        />
+        <TabelaProjetos projetos={projetos} carregando={carregando} aoGerenciar={abrirGerenciar} />
       </main>
 
       {painelAberto && (
@@ -242,11 +234,15 @@ export default function ProjetosPage() {
             edicao={edicao}
             somenteLeitura={Boolean(edicao) && !permissoes.alterar}
             colaboradores={colaboradores}
+            setores={setores}
             fontes={fontes}
-            erros={erros}
+            erros={acao ? {} : erros}
             salvando={salvando}
+            permissoes={permissoes}
+            historico={veHistorico ? historico : null}
             aoSalvar={salvar}
             aoCancelar={fecharPainel}
+            aoAcao={(tipo) => { setErros({}); setAcao(tipo); }}
             atalhoAjuste={edicao && (
               <BotaoSolicitarAjuste entidade="projeto" idRegistro={edicao.id_projeto}
                 rotulo={`${edicao.codigo} · ${edicao.nome}`} texto="Solicitar ajuste deste projeto" className="botao-secundario"
@@ -256,15 +252,15 @@ export default function ProjetosPage() {
         </Sobreposicao>
       )}
 
-      {acao && (
-        <Sobreposicao aoFechar={fecharAcao}>
+      {acao && edicao && (
+        <Sobreposicao aoFechar={() => setAcao(null)} classe="fundo-janela">
           <PainelAcaoProjeto
-            tipo={acao.tipo}
-            projeto={acao.projeto}
+            tipo={acao}
+            projeto={edicao}
             erros={erros}
             salvando={salvando}
             aoConfirmar={confirmarAcao}
-            aoCancelar={fecharAcao}
+            aoCancelar={() => { setAcao(null); setErros({}); }}
           />
         </Sobreposicao>
       )}

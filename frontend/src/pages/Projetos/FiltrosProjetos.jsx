@@ -1,17 +1,12 @@
-// Filtros da consulta de projetos. Combináveis entre si: busca livre,
-// situação, responsável, fonte financiadora, prazo do término previsto e
-// período de vigência (ano inteiro ou semestre).
+// Filtros da consulta de projetos, combináveis entre si: busca livre,
+// situação, ano de vigência, setor, responsável e prazo do término previsto.
+// "Vigente em" mostra os projetos cuja vigência cruza o ano escolhido,
+// inclusive os iniciados antes. O setor considera o responsável e os
+// participantes. A fonte financiadora continua no cadastro e na busca livre.
 
-export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaboradores, fontes, anos, total }) {
+export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaboradores, setores, anos, total }) {
   function mudar(campo, valor) {
     aoMudar({ ...filtros, [campo]: valor });
-  }
-
-  // O ano é escolhido numa lista com os anos em que houve projeto em
-  // andamento, então não há como digitar um ano inválido ou sem projetos.
-  // Sem ano escolhido, o semestre não se aplica e volta para "ano inteiro".
-  function mudarAno(ano) {
-    aoMudar({ ...filtros, ano, semestre: ano ? filtros.semestre : '' });
   }
 
   const temFiltro = Object.values(filtros).some((v) => v !== '');
@@ -39,18 +34,8 @@ export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaborado
         </label>
 
         <label className="campo">
-          <span>Prazo do término</span>
-          <select value={filtros.prazo} onChange={(e) => mudar('prazo', e.target.value)}>
-            <option value="">Todos</option>
-            <option value="proximo">Termina nos próximos 6 meses</option>
-            <option value="vencido">Vencido</option>
-            <option value="sem_termino">Sem término previsto</option>
-          </select>
-        </label>
-
-        <label className="campo">
           <span>Vigente em</span>
-          <select value={filtros.ano} onChange={(e) => mudarAno(e.target.value)}>
+          <select value={filtros.ano} onChange={(e) => mudar('ano', e.target.value)}>
             <option value="">Todos os anos</option>
             {anos.map((ano) => (
               <option key={ano} value={String(ano)}>{ano}</option>
@@ -59,15 +44,10 @@ export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaborado
         </label>
 
         <label className="campo">
-          <span>Período</span>
-          <select
-            value={filtros.semestre}
-            disabled={filtros.ano === ''}
-            onChange={(e) => mudar('semestre', e.target.value)}
-          >
-            <option value="">Ano inteiro</option>
-            <option value="1">1º semestre</option>
-            <option value="2">2º semestre</option>
+          <span>Setor</span>
+          <select value={filtros.id_setor} onChange={(e) => mudar('id_setor', e.target.value)}>
+            <option value="">Todos</option>
+            {setores.map((s) => <option key={s.id_setor} value={s.id_setor}>{s.nome}</option>)}
           </select>
         </label>
 
@@ -82,10 +62,12 @@ export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaborado
         </label>
 
         <label className="campo">
-          <span>Fonte financiadora</span>
-          <select value={filtros.fonte} onChange={(e) => mudar('fonte', e.target.value)}>
-            <option value="">Todas</option>
-            {fontes.map((f) => <option key={f} value={f}>{f}</option>)}
+          <span>Prazo do término</span>
+          <select value={filtros.prazo} onChange={(e) => mudar('prazo', e.target.value)}>
+            <option value="">Todos</option>
+            <option value="proximo">Termina nos próximos 6 meses</option>
+            <option value="vencido">Vencido</option>
+            <option value="sem_termino">Sem término previsto</option>
           </select>
         </label>
 

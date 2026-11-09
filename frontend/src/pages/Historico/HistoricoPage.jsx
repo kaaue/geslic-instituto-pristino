@@ -17,7 +17,7 @@ const FILTROS_VAZIOS = { inicio: '', fim: '', tipo: '', entidade: '', id_usuario
 
 const ROTULO_TIPO = {
   criacao: 'Criação', correcao: 'Correção', exclusao: 'Exclusão', inativacao: 'Inativação',
-  reativacao: 'Reativação', encerramento: 'Encerramento', prorrogacao: 'Prorrogação',
+  reativacao: 'Reativação', encerramento: 'Encerramento', reabertura: 'Reabertura', prorrogacao: 'Prorrogação',
   aprovacao: 'Aprovação de acesso', rejeicao: 'Recusa de acesso', perfil: 'Alteração de perfil',
   senha: 'Senha', permissao: 'Permissões', desligamento: 'Desligamento',
   solicitacao: 'Solicitação de ajuste', conclusao: 'Conclusão de solicitação'

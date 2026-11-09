@@ -83,7 +83,7 @@ export function mensagemDeErro(erro, padrao = 'Não foi possível concluir a ope
 }
 
 // Operações padrão de um cadastro: listar, buscar, incluir, alterar,
-// inativar (com data efetiva e motivo, RN37), reativar e excluir. Usada
+// inativar (com data efetiva e motivo, RN37) e reativar (sem exclusão). Usada
 // pelos serviços das funções básicas.
 export function servicoDeCadastro(base, acaoInativar = 'inativacao') {
   return {
@@ -92,8 +92,7 @@ export function servicoDeCadastro(base, acaoInativar = 'inativacao') {
     incluir: (dados) => requisicao(base, enviarJson('POST', dados)),
     alterar: (id, dados) => requisicao(`${base}/${id}`, enviarJson('PUT', dados)),
     inativar: (id, evento) => requisicao(`${base}/${id}/${acaoInativar}`, enviarJson('POST', evento)),
-    reativar: (id) => requisicao(`${base}/${id}/reativacao`, { method: 'POST' }),
-    excluir: (id) => requisicao(`${base}/${id}`, { method: 'DELETE' })
+    reativar: (id) => requisicao(`${base}/${id}/reativacao`, { method: 'POST' })
   };
 }
 

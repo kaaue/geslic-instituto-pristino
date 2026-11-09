@@ -8,6 +8,7 @@ export const contaAtual = () => requisicao('/api/auth/me');
 // Atividade humana sem outra requisição (RN32): mantém a sessão enquanto a pessoa trabalha
 export const registrarAtividade = () => requisicao('/api/auth/atividade', { method: 'POST' });
 export const solicitarAcesso = (dados) => requisicao('/api/auth/cadastro', enviarJson('POST', dados));
+export const setoresDaSolicitacao = () => requisicao('/api/auth/setores');
 export const solicitarRecuperacao = (email) => requisicao('/api/auth/recuperacao', enviarJson('POST', { email }));
 export const redefinirSenha = (token, senha, confirmacao) =>
   requisicao('/api/auth/redefinicao', enviarJson('POST', { token, senha, confirmacao }));

@@ -24,7 +24,7 @@ import ProjetosPage from '../pages/Projetos/ProjetosPage.jsx';
 import ColaboradoresPage from '../pages/Colaboradores/ColaboradoresPage.jsx';
 import SetoresPage from '../pages/Setores/SetoresPage.jsx';
 import SoftwaresPage from '../pages/Softwares/SoftwaresPage.jsx';
-import FornecedoresPage from '../pages/Fornecedores/FornecedoresPage.jsx';
+import FornecedoresPage, { SeguradorasPage } from '../pages/Fornecedores/FornecedoresPage.jsx';
 import BensSeguraveisPage from '../pages/BensSeguraveis/BensSeguraveisPage.jsx';
 import TiposSeguroPage from '../pages/TiposSeguro/TiposSeguroPage.jsx';
 import RelatoriosPage from '../pages/Relatorios/RelatoriosPage.jsx';
@@ -44,6 +44,7 @@ const TELAS = {
   '/setores': SetoresPage,
   '/softwares': SoftwaresPage,
   '/fornecedores': FornecedoresPage,
+  '/seguradoras': SeguradorasPage,
   '/bens-seguraveis': BensSeguraveisPage,
   '/tipos-seguro': TiposSeguroPage,
   '/relatorios': RelatoriosPage,

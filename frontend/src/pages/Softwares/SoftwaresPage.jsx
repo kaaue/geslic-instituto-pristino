@@ -174,13 +174,6 @@ export default function SoftwaresPage() {
                           sucesso: `Software ${rotulo(s)} reativado.`, mostrarMensagem, aoConcluir: recarregar
                         })}>Reativar</button>
                       )}
-                      {pode('cadastro.excluir') && (
-                        <button type="button" className="botao-texto botao-perigo" onClick={() => acaoDeLinha({
-                          confirmar: `Excluir o software ${rotulo(s)}? Só cadastros sem licenças podem ser excluídos.`,
-                          acao: () => servico.excluir(s.id_software), sucesso: `Software ${rotulo(s)} excluído.`,
-                          mostrarMensagem, aoConcluir: recarregar
-                        })}>Excluir</button>
-                      )}
                       <BotaoSolicitarAjuste entidade="software" idRegistro={s.id_software} rotulo={rotulo(s)}
                         aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />
                     </td>

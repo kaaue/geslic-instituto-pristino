@@ -18,6 +18,17 @@ rotas.use('/auth', require('./authRoutes'));
 // Daqui em diante, só com sessão válida
 rotas.use(autenticar);
 
+// Registros não são excluídos fisicamente: cada cadastro tem inativação
+// (ou encerramento, no projeto) e reativação, e o histórico é preservado.
+// Qualquer DELETE de cadastro responde 405 com a orientação. A única
+// remoção técnica é a da presença numa solicitação de ajuste (RN42).
+rotas.delete(/^\/(?!solicitacoes-ajuste\/\d+\/presenca$).*/, (req, res) => {
+  res.status(405).json({
+    codigo: 'EXCLUSAO_INDISPONIVEL',
+    mensagem: 'Registros não são excluídos no GESLIC. Use inativar (ou encerrar, no caso de projetos); o histórico é preservado.'
+  });
+});
+
 rotas.use('/conta', require('./contaRoutes'));
 rotas.use('/usuarios', require('./usuarioRoutes'));
 rotas.use('/perfis', require('./perfilRoutes'));

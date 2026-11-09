@@ -363,8 +363,9 @@ senha, hash, token ou chave.
   bens seguráveis, tipos de seguro e coberturas, contas e perfis,
   preferências de notificação e solicitações de ajuste.
 - Recuperação de senha por e-mail.
-- RF_F1 Projetos: CRUD, participantes, prorrogação, encerramento, RN17, RN18,
-  RN22 e histórico.
+- RF_F1 Projetos: cadastro, participantes (individual ou por setor, com o
+  responsável incluído automaticamente), prorrogação, encerramento, reabertura,
+  RN17, RN18 e histórico. Sem exclusão física (ver "Revisões funcionais").
 - RF_S7 Histórico: consulta real com filtros e paginação, só para o
   Administrador.
 - RF_F14: gravação automática, por enquanto nas operações que existem
@@ -456,6 +457,70 @@ conta responsável, a data efetiva e a data e a hora do registro.
 - **Avisos:** as preferências já são gravadas e respeitam o perfil, mas a
   emissão dos avisos (RF_F13) e a central de notificações (RF_S8) ainda não
   existem.
+
+## Revisões funcionais (lote de novembro de 2026)
+
+Ajustes de interface e de regras pedidos depois das funções básicas.
+Migração: `004_revisoes_funcionais.sql` (só acrescenta colunas).
+
+- **Menu:** Painel, Licenças e Apólices ficam direto no menu; Projetos entrou
+  em Cadastros, que agora tem também "Fornecedores" e "Seguradoras" (o mesmo
+  cadastro RF_B1, cada item filtrado pelo tipo); "Conta" virou
+  "Configurações" e "Contas e perfis" virou "Gerenciar usuários".
+- **Projetos:** filtros por situação, ano de vigência ("Vigente em", que pega
+  também os projetos iniciados antes), setor (do responsável ou de algum
+  participante), responsável e prazo. O semestre e a fonte financiadora
+  saíram dos filtros; a fonte continua no cadastro e na busca livre. A
+  tabela tem só o botão "Gerenciar", que abre o painel lateral com os dados,
+  os participantes, a vigência, o encerramento, a reabertura e o histórico
+  do projeto (para quem consulta a auditoria).
+- **Participantes:** inclusão individual (busca por parte do nome, com setor
+  e cargo para diferenciar homônimos) ou em lote por setor (marca todos ou
+  só alguns). O lote copia quem está no setor naquele momento: mudanças
+  futuras no setor não alteram o projeto. O responsável entra
+  automaticamente, sem duplicar, na criação e na edição; trocar o
+  responsável não retira o anterior.
+- **Reabertura de projeto** (`POST /api/projetos/:id/reabertura`, permissão
+  `projeto.encerrar`): exige motivo, volta a "em andamento" sem mudar as
+  datas e devolve avisos (término vencido, responsável desligado). O
+  encerramento anterior continua no histórico; a reabertura é um evento
+  próprio, com estado anterior e novo.
+- **Sem exclusão física:** os botões "Excluir" saíram das telas, e qualquer
+  `DELETE` de cadastro responde 405 (`EXCLUSAO_INDISPONIVEL`) com a
+  orientação de inativar ou encerrar. A permissão `cadastro.excluir`
+  continua no banco, sem uso. A recusa de uma solicitação de acesso ainda
+  remove o pedido (ele nunca teve acesso), com o registro no histórico.
+- **Gerenciar usuários:** botão único "Gerenciar" (ou "Revisar", no pedido
+  pendente) abrindo o painel da conta com editar, alterar perfil, senha
+  provisória, desativar ou reativar e transferir privilégios. Filtro por
+  setor (do colaborador; no pedido pendente, o setor informado).
+- **Conta e colaborador num só fluxo:** toda conta nova, criada ou aprovada,
+  fica ligada a um colaborador, escolhido entre os existentes ou cadastrado
+  na mesma transação (com o e-mail da conta). Homônimo devolve 409
+  `COLABORADOR_HOMONIMO` com setor e cargo de cada um, e só segue com
+  `confirmar_homonimo`. A solicitação de acesso pede setor e cargo
+  (`GET /api/auth/setores` lista os setores ativos, só id e nome); o
+  colaborador só é criado na aprovação.
+- **Motivo na aprovação:** pedido só quando a conta recebe o perfil
+  Administrador; a aprovação comum não pede motivo. Cada motivo fica no
+  evento dele (aprovação, perfil, desativação, encerramento, reabertura).
+- **Senha provisória:** gerada com `crypto.randomInt`, gravada só como hash,
+  com troca obrigatória e prazo (`SENHA_PROVISORIA_HORAS`, padrão 72 h);
+  vencida, o login responde 403 `SENHA_PROVISORIA_EXPIRADA`. Aparece uma
+  única vez, com o botão "Copiar senha", e nunca vai para o histórico.
+- **Transferência de privilégios:** janela em quatro etapas (destinatário,
+  conta de origem e o que acontece com ela, resumo com os nomes reais,
+  confirmação). A API continua transacional e impede ficar sem
+  Administrador ativo.
+- **Fonte financiadora:** texto livre; a lista de sugestões só existe quando
+  há fontes já usadas, para o navegador não mostrar uma seta sem opções.
+
+Pendências para validar com o Instituto: a ERS 2.6 ainda prevê exclusão de
+cadastros sem vínculos (RN22) e precisa ser atualizada; o setor de um
+projeto é inferido do responsável e dos participantes (o projeto não tem
+setor próprio); a validade de 72 h da senha provisória; os projetos já
+cadastrados não ganharam o responsável como participante automaticamente
+(a regra vale a partir da próxima gravação de cada projeto).
 
 ## Divergências em relação à ERS
 

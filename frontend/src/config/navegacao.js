@@ -1,5 +1,6 @@
-// Menu lateral, agrupado por módulo como nos protótipos da ERS (Apêndice 2),
-// e as permissões de cada tela.
+// Menu lateral e as permissões de cada tela. Painel, Licenças e Apólices ficam
+// direto no menu; os cadastros (inclusive Projetos) ficam no grupo expansível
+// Cadastros; Consultas e Configurações vêm depois.
 //
 // `permissao` é o código (tabela permissao) exigido para abrir a tela; sem
 // `permissao`, qualquer conta autenticada abre. A API exige as mesmas
@@ -12,27 +13,12 @@
 
 export const GRUPOS_MENU = [
   {
+    // Itens principais, sem título de grupo (sem "PROJETOS > Projetos")
     titulo: null,
-    itens: [{ caminho: '/', rotulo: 'Painel', titulo: 'Painel', funcao: 'RF_S1', icone: '◧' }]
-  },
-  {
-    titulo: 'Projetos',
     itens: [
-      { caminho: '/projetos', rotulo: 'Projetos', funcao: 'RF_F1', permissao: 'cadastro.consultar', icone: '▢' }
-    ]
-  },
-  {
-    titulo: 'Licenças',
-    modulo: 'licencas',
-    itens: [
-      { caminho: '/licencas', rotulo: 'Licenças', funcao: 'RF_F2 a RF_F7', permissao: 'licenca.consultar', icone: '▤', pendente: true }
-    ]
-  },
-  {
-    titulo: 'Apólices',
-    modulo: 'apolices',
-    itens: [
-      { caminho: '/apolices', rotulo: 'Apólices', funcao: 'RF_F8 a RF_F11', permissao: 'apolice.consultar', icone: '◈', pendente: true }
+      { caminho: '/', rotulo: 'Painel', titulo: 'Painel', funcao: 'RF_S1', icone: '◧' },
+      { caminho: '/licencas', rotulo: 'Licenças', funcao: 'RF_F2 a RF_F7', permissao: 'licenca.consultar', icone: '▤', pendente: true, modulo: 'licencas' },
+      { caminho: '/apolices', rotulo: 'Apólices', funcao: 'RF_F8 a RF_F11', permissao: 'apolice.consultar', icone: '◈', pendente: true, modulo: 'apolices' }
     ]
   },
   {
@@ -42,11 +28,13 @@ export const GRUPOS_MENU = [
     expansivel: true,
     icone: '▦',
     itens: [
-      { caminho: '/softwares', rotulo: 'Softwares', funcao: 'RF_B2', permissao: 'cadastro.consultar' },
-      { caminho: '/fornecedores', rotulo: 'Fornecedores e seguradoras', funcao: 'RF_B1', permissao: 'cadastro.consultar' },
-      { caminho: '/equipamentos', rotulo: 'Equipamentos', funcao: 'RF_B3', permissao: 'cadastro.consultar' },
-      { caminho: '/bens-seguraveis', rotulo: 'Bens seguráveis', funcao: 'RF_B6', permissao: 'cadastro.consultar' },
+      { caminho: '/projetos', rotulo: 'Projetos', funcao: 'RF_F1', permissao: 'cadastro.consultar' },
       { caminho: '/colaboradores', rotulo: 'Colaboradores', funcao: 'RF_B4', permissao: 'cadastro.consultar' },
+      { caminho: '/equipamentos', rotulo: 'Equipamentos', funcao: 'RF_B3', permissao: 'cadastro.consultar' },
+      { caminho: '/softwares', rotulo: 'Softwares', funcao: 'RF_B2', permissao: 'cadastro.consultar' },
+      { caminho: '/fornecedores', rotulo: 'Fornecedores', funcao: 'RF_B1', permissao: 'cadastro.consultar' },
+      { caminho: '/seguradoras', rotulo: 'Seguradoras', funcao: 'RF_B1', permissao: 'cadastro.consultar' },
+      { caminho: '/bens-seguraveis', rotulo: 'Bens seguráveis', funcao: 'RF_B6', permissao: 'cadastro.consultar' },
       { caminho: '/setores', rotulo: 'Setores', funcao: 'RF_B5', permissao: 'cadastro.consultar' },
       { caminho: '/tipos-seguro', rotulo: 'Tipos e coberturas', funcao: 'RF_B7', permissao: 'cadastro.consultar' }
     ]
@@ -60,11 +48,11 @@ export const GRUPOS_MENU = [
     ]
   },
   {
-    titulo: 'Conta',
-    secao: 'Conta',
+    titulo: 'Configurações',
+    secao: 'Configurações',
     itens: [
       { caminho: '/minha-conta', rotulo: 'Minha conta', titulo: 'Minha conta', funcao: 'RF_B8 e RF_B9', icone: '◉' },
-      { caminho: '/contas', rotulo: 'Contas e perfis', funcao: 'RF_B8', permissao: 'usuario.gerenciar', icone: '⚙' }
+      { caminho: '/contas', rotulo: 'Gerenciar usuários', funcao: 'RF_B8', permissao: 'usuario.gerenciar', icone: '⚙' }
     ]
   }
 ];
@@ -75,7 +63,7 @@ export const OUTRAS_TELAS = [
 ];
 
 const TODAS = [
-  ...GRUPOS_MENU.flatMap((g) => g.itens.map((i) => ({ ...i, modulo: g.modulo, secao: g.secao }))),
+  ...GRUPOS_MENU.flatMap((g) => g.itens.map((i) => ({ ...i, modulo: i.modulo ?? g.modulo, secao: g.secao }))),
   ...OUTRAS_TELAS
 ];
 

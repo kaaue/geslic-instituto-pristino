@@ -32,10 +32,10 @@ function vinculos(f) {
   return partes.join(' e ');
 }
 
-function FormularioFornecedor({ registro, controle, aoSalvar }) {
+function FormularioFornecedor({ registro, controle, aoSalvar, tipoPadrao = 'software' }) {
   const [form, setForm] = useState(registro
     ? { ...VAZIO, ...registro, cnpj: mascaraCnpj(registro.cnpj), telefone: registro.telefone || '' }
-    : VAZIO);
+    : { ...VAZIO, tipo: tipoPadrao });
   const mudar = (campo, mascara) => (e) => setForm({ ...form, [campo]: mascara ? mascara(e.target.value) : e.target.value });
   const { erros, erroGeral, salvando, fechar } = controle;
   const comErro = (campo) => (erros[campo] ? 'com-erro' : '');
@@ -96,17 +96,24 @@ function FormularioFornecedor({ registro, controle, aoSalvar }) {
   );
 }
 
-export default function FornecedoresPage() {
+// Menu: "Fornecedores" e "Seguradoras" são o mesmo cadastro (RF_B1), cada
+// item já filtrado pelo seu tipo. O tipo continua editável no formulário.
+export function SeguradorasPage() {
+  return <FornecedoresPage tipoFixo="seguradora" />;
+}
+
+const TITULO_TIPO = { software: 'Fornecedores', seguradora: 'Seguradoras' };
+
+export default function FornecedoresPage({ tipoFixo = 'software' }) {
   const { pode } = useAuth();
   const [mensagem, mostrarMensagem] = useMensagem(6000);
-  const listar = useCallback((f) => servico.listar(f), []);
+  const listar = useCallback((f) => servico.listar({ ...f, tipo: tipoFixo }), [tipoFixo]);
   const { itens, filtros, setFiltros, carregando, recarregar, limpar } =
     useListagem(listar, FILTROS, (texto) => mostrarMensagem('erro', texto));
   const controle = usePainelCadastro(mostrarMensagem, recarregar);
   const { painel, abrir, executar } = controle;
   const { idSolicitacao } = useAbrirPorLink(itens, 'id_fornecedor', useCallback((f) => abrir('form', f), [abrir]));
   const podeAlterar = pode('cadastro.alterar');
-  const software = itens.filter((f) => f.tipo === 'software').length;
 
   function salvar(form) {
     const registro = painel.registro;
@@ -121,8 +128,8 @@ export default function FornecedoresPage() {
       <main className="conteudo">
         <div className="titulo-area">
           <div>
-            <h2>Fornecedores e seguradoras</h2>
-            <p className="subtitulo-pagina">Empresas com as quais o Instituto contrata licenças e seguros. CNPJ único.</p>
+            <h2>{TITULO_TIPO[tipoFixo]}</h2>
+            <p className="subtitulo-pagina">{tipoFixo === 'seguradora' ? 'Seguradoras com as quais o Instituto contrata apólices.' : 'Empresas das quais o Instituto adquire licenças de software.'} CNPJ único; inativação em vez de exclusão.</p>
           </div>
           {pode('cadastro.incluir') && (
             <button type="button" className="botao-principal" onClick={() => abrir('form')}>Novo cadastro</button>
@@ -140,14 +147,6 @@ export default function FornecedoresPage() {
                 onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })} />
             </label>
             <label className="campo">
-              <span>Tipo</span>
-              <select value={filtros.tipo} onChange={(e) => setFiltros({ ...filtros, tipo: e.target.value })}>
-                <option value="">Todos</option>
-                <option value="software">Fornecedores de software</option>
-                <option value="seguradora">Seguradoras</option>
-              </select>
-            </label>
-            <label className="campo">
               <span>Situação</span>
               <select value={filtros.situacao} onChange={(e) => setFiltros({ ...filtros, situacao: e.target.value })}>
                 <option value="">Todas</option>
@@ -160,7 +159,7 @@ export default function FornecedoresPage() {
             )}
           </div>
           <p className="resumo-filtro">
-            {itens.length} cadastro(s) · {software} fornecedor(es) de software e {itens.length - software} seguradora(s)
+            {itens.length} {tipoFixo === 'seguradora' ? 'seguradora(s)' : 'fornecedor(es) de software'}
           </p>
           {!podeAlterar && (
             <p className="nota-filtro">Perfil Operador: inclui e inativa cadastros; para corrigir dados, use “Solicitar ajuste”.</p>
@@ -201,13 +200,6 @@ export default function FornecedoresPage() {
                           sucesso: `${nome(f)} reativado.`, mostrarMensagem, aoConcluir: recarregar
                         })}>Reativar</button>
                       )}
-                      {pode('cadastro.excluir') && (
-                        <button type="button" className="botao-texto botao-perigo" onClick={() => acaoDeLinha({
-                          confirmar: `Excluir ${f.razao_social}? Só cadastros sem licenças e sem apólices podem ser excluídos.`,
-                          acao: () => servico.excluir(f.id_fornecedor), sucesso: `${nome(f)} excluído.`,
-                          mostrarMensagem, aoConcluir: recarregar
-                        })}>Excluir</button>
-                      )}
                       <BotaoSolicitarAjuste entidade="fornecedor" idRegistro={f.id_fornecedor} rotulo={nome(f)}
                         aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />
                     </td>
@@ -219,7 +211,7 @@ export default function FornecedoresPage() {
         )}
       </main>
 
-      {painel?.tipo === 'form' && <FormularioFornecedor registro={painel.registro} controle={controle} aoSalvar={salvar} />}
+      {painel?.tipo === 'form' && <FormularioFornecedor registro={painel.registro} controle={controle} aoSalvar={salvar} tipoPadrao={tipoFixo} />}
       {painel?.tipo === 'inativar' && (
         <DialogoInativacao
           titulo={`Inativar ${painel.registro.tipo === 'seguradora' ? 'seguradora' : 'fornecedor'}`}

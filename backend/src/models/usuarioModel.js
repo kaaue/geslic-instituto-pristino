@@ -1,8 +1,10 @@
 // Model das contas de acesso (RF_B8): acesso ao banco e regras.
 //
-// Conta de acesso e colaborador são conceitos separados: a conta pode ser
-// ligada a no máximo um colaborador (e vice-versa), mas nenhum dos dois cria
-// o outro. O perfil (Administrador ou Operador) e as permissões vêm sempre do
+// Conta de acesso e colaborador são entidades separadas: um colaborador pode
+// existir sem conta, e toda conta nova (criada ou aprovada pelo Administrador)
+// fica ligada a um colaborador, que pode ser escolhido entre os existentes ou
+// cadastrado no mesmo fluxo, na mesma transação. A conta "admin" inicial,
+// criada pelos scripts, é a exceção. O perfil (Administrador ou Operador) e as permissões vêm sempre do
 // banco, nunca do que o cliente envia.
 //
 // Regras da RN27 aplicadas aqui:
@@ -18,6 +20,7 @@ const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const { lancarSeHouverErros } = require('../utils/AppError');
 const { gerarHashSenha, verificarSenha, gerarSenhaProvisoria } = require('../utils/senha');
+const { senhaProvisoriaHoras } = require('../config/env');
 const Sessao = require('./sessaoModel');
 const Historico = require('./historicoModel');
 
@@ -31,6 +34,9 @@ const COLUNAS = `
     u.id_usuario, u.nome, u.login, u.email, u.situacao,
     u.troca_senha_obrigatoria, u.id_perfil, p.nome AS perfil,
     p.visualiza_dados_sensiveis, u.id_colaborador, c.nome AS nome_colaborador,
+    c.id_setor, sc.nome AS nome_setor, c.cargo AS cargo_colaborador,
+    u.cadastro_id_setor, scad.nome AS nome_setor_solicitado, u.cadastro_cargo,
+    DATE_FORMAT(u.senha_provisoria_expira_em, '%Y-%m-%dT%H:%i:%s') AS senha_provisoria_expira_em,
     DATE_FORMAT(u.criada_em, '%Y-%m-%dT%H:%i:%s')   AS criada_em,
     DATE_FORMAT(u.aprovada_em, '%Y-%m-%dT%H:%i:%s') AS aprovada_em,
     ua.nome AS nome_aprovador`;
@@ -39,7 +45,9 @@ const TABELAS = `
     FROM usuario u
     JOIN perfil p           ON p.id_perfil = u.id_perfil
     LEFT JOIN colaborador c ON c.id_colaborador = u.id_colaborador
-    LEFT JOIN usuario ua    ON ua.id_usuario = u.id_aprovador`;
+    LEFT JOIN usuario ua    ON ua.id_usuario = u.id_aprovador
+    LEFT JOIN setor sc      ON sc.id_setor = c.id_setor
+    LEFT JOIN setor scad    ON scad.id_setor = u.cadastro_id_setor`;
 
 function publico(linha) {
   if (!linha) return null;
@@ -115,6 +123,51 @@ async function conferirColaborador(conexao, idColaborador, idAtual, idColaborado
   }
 }
 
+// Colaborador da conta: o escolhido (conferido acima) ou um novo, cadastrado
+// agora, na mesma transação da conta. Nome repetido não identifica pessoa
+// (RN19): com homônimo, a API pede confirmação (409 COLABORADOR_HOMONIMO) e
+// mostra setor e situação de cada um, para o Administrador escolher o
+// existente ou confirmar que é outra pessoa.
+async function resolverColaborador(conexao, dados, email, idConta, erros) {
+  if (dados.id_colaborador) {
+    await conferirColaborador(conexao, dados.id_colaborador, idConta, null, erros);
+    return dados.id_colaborador;
+  }
+  const novo = dados.colaborador_novo;
+  if (!novo) {
+    erros.id_colaborador = 'Selecione o colaborador da conta ou cadastre um novo.';
+    return null;
+  }
+  const [[setor]] = await conexao.query('SELECT ativo FROM setor WHERE id_setor = ?', [novo.id_setor || 0]);
+  if (!setor || !setor.ativo) erros.colaborador_id_setor = 'Selecione um setor ativo.';
+  const [comEmail] = await conexao.query(
+    'SELECT id_colaborador, nome FROM colaborador WHERE email = ?', [email]);
+  if (comEmail.length) {
+    erros.id_colaborador = `Já existe o colaborador ${comEmail[0].nome} com este e-mail: selecione-o.`;
+  }
+  if (Object.keys(erros).length) return null;
+
+  if (!dados.confirmar_homonimo) {
+    const [homonimos] = await conexao.query(
+      `SELECT c.id_colaborador, c.nome, c.cargo, s.nome AS nome_setor, c.ativo,
+              (SELECT COUNT(*) FROM usuario u WHERE u.id_colaborador = c.id_colaborador) AS tem_conta
+         FROM colaborador c JOIN setor s ON s.id_setor = c.id_setor
+        WHERE c.nome = ? ORDER BY c.ativo DESC`, [novo.nome]);
+    if (homonimos.length) {
+      throw AppError.conflito(
+        `Já existe colaborador chamado ${novo.nome}. Selecione o cadastro existente ou confirme que é outra pessoa.`,
+        'COLABORADOR_HOMONIMO',
+        { homonimos: homonimos.map((h) => ({ ...h, ativo: Boolean(h.ativo), tem_conta: Boolean(h.tem_conta) })) });
+    }
+  }
+  const [r] = await conexao.query(
+    'INSERT INTO colaborador (nome, cargo, email, id_setor, ativo) VALUES (?, ?, ?, ?, TRUE)',
+    [novo.nome, novo.cargo, email, novo.id_setor]);
+  return r.insertId;
+}
+
+const prazoProvisoria = () => new Date(Date.now() + senhaProvisoriaHoras * 3600 * 1000);
+
 // Bloqueia (FOR UPDATE) os Administradores ativos e garante que, tirando a
 // conta `idAlvo`, sobra pelo menos um (RN27).
 async function garantirOutroAdministrador(conexao, idAlvo) {
@@ -149,22 +202,28 @@ async function carregarAutenticado(idUsuario) {
 // Para o login: aceita o login ou o e-mail; inclui o hash para conferência
 async function buscarParaLogin(identificador) {
   const [linhas] = await pool.query(
-    'SELECT id_usuario, situacao, senha_hash FROM usuario WHERE login = ? OR email = ? LIMIT 1',
+    `SELECT id_usuario, situacao, senha_hash,
+            (troca_senha_obrigatoria AND senha_provisoria_expira_em < NOW()) AS provisoria_expirada
+       FROM usuario WHERE login = ? OR email = ? LIMIT 1`,
     [identificador, identificador]);
   return linhas[0] || null;
 }
 
-// Autocadastro: conta pendente, perfil Operador, sem colaborador. O perfil
-// definitivo e o vínculo com colaborador são decididos na aprovação.
+// Autocadastro: conta pendente, perfil Operador, sem colaborador. Setor e
+// cargo informados ficam guardados no pedido; o colaborador só é criado (ou
+// escolhido entre os existentes) na aprovação.
 async function solicitarCadastro(dados) {
   return comTransacao(async (conexao) => {
     const erros = {};
     await conferirUnicidade(conexao, dados, null, erros);
+    const [[setor]] = await conexao.query('SELECT ativo FROM setor WHERE id_setor = ?', [dados.id_setor || 0]);
+    if (!setor || !setor.ativo) erros.id_setor = 'Selecione o seu setor.';
     lancarSeHouverErros(erros);
     const [resultado] = await conexao.query(
-      `INSERT INTO usuario (id_perfil, nome, login, email, senha_hash, situacao, senha_alterada_em)
-       SELECT id_perfil, ?, ?, ?, ?, 'pendente', NOW() FROM perfil WHERE nome = ?`,
-      [dados.nome, dados.login, dados.email, gerarHashSenha(dados.senha), OPERADOR]);
+      `INSERT INTO usuario (id_perfil, nome, login, email, senha_hash, situacao, senha_alterada_em,
+                            cadastro_id_setor, cadastro_cargo)
+       SELECT id_perfil, ?, ?, ?, ?, 'pendente', NOW(), ?, ? FROM perfil WHERE nome = ?`,
+      [dados.nome, dados.login, dados.email, gerarHashSenha(dados.senha), dados.id_setor, dados.cargo, OPERADOR]);
     return { id_usuario: resultado.insertId };
   });
 }
@@ -210,7 +269,8 @@ async function trocarSenha(conexao, idUsuario, senhaAtual, novaSenha, idSessaoAt
     throw AppError.campos({ senha: 'A nova senha deve ser diferente da atual.' });
   }
   await conexao.query(
-    `UPDATE usuario SET senha_hash = ?, troca_senha_obrigatoria = FALSE, senha_alterada_em = NOW()
+    `UPDATE usuario SET senha_hash = ?, troca_senha_obrigatoria = FALSE, senha_provisoria_expira_em = NULL,
+                        senha_alterada_em = NOW()
       WHERE id_usuario = ?`, [gerarHashSenha(novaSenha), idUsuario]);
   const encerradas = await Sessao.encerrarDaConta(conexao, idUsuario, 'troca_senha', idSessaoAtual);
   await Historico.registrar(conexao, {
@@ -246,6 +306,11 @@ async function listar(filtros) {
     condicoes.push('u.situacao = ?');
     valores.push(filtros.situacao);
   }
+  // Setor do colaborador vinculado; no pedido pendente, o setor informado
+  if (filtros.id_setor) {
+    condicoes.push('(c.id_setor = ? OR (u.id_colaborador IS NULL AND u.cadastro_id_setor = ?))');
+    valores.push(Number(filtros.id_setor), Number(filtros.id_setor));
+  }
   const [linhas] = await pool.query(
     `SELECT ${COLUNAS} ${TABELAS}
       ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''}
@@ -257,30 +322,36 @@ async function buscarPorId(id) {
   return buscarOuFalhar(pool, id);
 }
 
-// Conta criada pelo Administrador: já ativa, com senha provisória gerada pelo
-// sistema e troca obrigatória no primeiro acesso. A senha é devolvida uma vez.
+// Conta criada pelo Administrador: já ativa, ligada a um colaborador
+// (existente ou cadastrado agora), com senha provisória gerada pelo sistema,
+// com prazo e troca obrigatória no primeiro acesso. A senha é devolvida uma
+// única vez e nunca vai para o histórico.
 async function criar(dados, idResponsavel) {
   return comTransacao(async (conexao) => {
     const erros = {};
     const perfil = await perfilOuErro(conexao, dados.id_perfil, erros);
     await conferirUnicidade(conexao, dados, null, erros);
-    await conferirColaborador(conexao, dados.id_colaborador, null, null, erros);
     lancarSeHouverErros(erros);
     exigirMotivoAoConcederAdmin(perfil, dados.motivo);
+    const idColaborador = await resolverColaborador(conexao, dados, dados.email, null, erros);
+    lancarSeHouverErros(erros);
 
     const senha = gerarSenhaProvisoria();
     const [resultado] = await conexao.query(
       `INSERT INTO usuario
-         (id_perfil, id_colaborador, nome, login, email, senha_hash, situacao, troca_senha_obrigatoria)
-       VALUES (?, ?, ?, ?, ?, ?, 'ativo', TRUE)`,
-      [perfil.id_perfil, dados.id_colaborador, dados.nome, dados.login, dados.email, gerarHashSenha(senha)]);
+         (id_perfil, id_colaborador, nome, login, email, senha_hash, situacao, troca_senha_obrigatoria,
+          senha_provisoria_expira_em)
+       VALUES (?, ?, ?, ?, ?, ?, 'ativo', TRUE, ?)`,
+      [perfil.id_perfil, idColaborador, dados.nome, dados.login, dados.email, gerarHashSenha(senha),
+       prazoProvisoria()]);
     const conta = await buscar(conexao, resultado.insertId);
     await Historico.registrar(conexao, {
       idUsuario: idResponsavel, tipo: 'criacao', entidade: 'usuario', idRegistro: conta.id_usuario,
-      descricao: `Conta ${conta.login} criada com perfil ${conta.perfil}`,
+      descricao: `Conta ${conta.login} criada com perfil ${conta.perfil}, ligada ao colaborador ` +
+        `${conta.nome_colaborador}${dados.colaborador_novo ? ' (cadastrado junto com a conta)' : ''}`,
       motivo: dados.motivo, depois: retrato(conta)
     });
-    return { conta, senha_provisoria: senha };
+    return { conta, senha_provisoria: senha, senha_expira_em: conta.senha_provisoria_expira_em };
   });
 }
 
@@ -313,18 +384,21 @@ async function aprovar(id, dados, idResponsavel) {
     if (atual.situacao !== 'pendente') throw AppError.conflito('Esta conta não está aguardando aprovação.');
     const erros = {};
     const perfil = await perfilOuErro(conexao, dados.id_perfil, erros);
-    await conferirColaborador(conexao, dados.id_colaborador, id, null, erros);
     lancarSeHouverErros(erros);
     exigirMotivoAoConcederAdmin(perfil, dados.motivo);
+    if (dados.colaborador_novo && !dados.colaborador_novo.nome) dados.colaborador_novo.nome = atual.nome;
+    const idColaborador = await resolverColaborador(conexao, dados, atual.email, id, erros);
+    lancarSeHouverErros(erros);
 
     await conexao.query(
       `UPDATE usuario SET situacao = 'ativo', id_perfil = ?, id_colaborador = ?, id_aprovador = ?, aprovada_em = NOW()
         WHERE id_usuario = ?`,
-      [perfil.id_perfil, dados.id_colaborador, idResponsavel, id]);
+      [perfil.id_perfil, idColaborador, idResponsavel, id]);
     const depois = await buscar(conexao, id);
     await Historico.registrar(conexao, {
       idUsuario: idResponsavel, tipo: 'aprovacao', entidade: 'usuario', idRegistro: id,
-      descricao: `Solicitação de acesso de ${depois.login} aprovada com perfil ${depois.perfil}`,
+      descricao: `Solicitação de acesso de ${depois.login} aprovada com perfil ${depois.perfil}, ` +
+        `ligada ao colaborador ${depois.nome_colaborador}${dados.colaborador_novo ? ' (cadastrado na aprovação)' : ''}`,
       motivo: dados.motivo, antes: retrato(atual), depois: retrato(depois)
     });
     return depois;
@@ -419,8 +493,9 @@ async function definirSenhaProvisoria(id, idResponsavel) {
     if (atual.situacao !== 'ativo') throw AppError.conflito('Só contas ativas recebem senha provisória.');
     const senha = gerarSenhaProvisoria();
     await conexao.query(
-      `UPDATE usuario SET senha_hash = ?, troca_senha_obrigatoria = TRUE, senha_alterada_em = NOW()
-        WHERE id_usuario = ?`, [gerarHashSenha(senha), id]);
+      `UPDATE usuario SET senha_hash = ?, troca_senha_obrigatoria = TRUE, senha_provisoria_expira_em = ?,
+                          senha_alterada_em = NOW()
+        WHERE id_usuario = ?`, [gerarHashSenha(senha), prazoProvisoria(), id]);
     await conexao.query('UPDATE recuperacao_senha SET usada_em = NOW() WHERE id_usuario = ? AND usada_em IS NULL', [id]);
     const encerradas = await Sessao.encerrarDaConta(conexao, id, 'senha_redefinida');
     await Historico.registrar(conexao, {
@@ -428,7 +503,9 @@ async function definirSenhaProvisoria(id, idResponsavel) {
       descricao: `Conta ${atual.login}: senha provisória definida pelo Administrador` +
         (encerradas ? `; ${encerradas} sessão(ões) encerrada(s)` : '')
     });
-    return { senha_provisoria: senha };
+    const [[prazo]] = await conexao.query(
+      `SELECT DATE_FORMAT(senha_provisoria_expira_em, '%Y-%m-%dT%H:%i:%s') AS expira FROM usuario WHERE id_usuario = ?`, [id]);
+    return { senha_provisoria: senha, senha_expira_em: prazo.expira };
   });
 }
 
@@ -450,7 +527,7 @@ const MATRIZ = [
     codigos: ['cadastro.inativar', 'projeto.prorrogar', 'projeto.encerrar'] },
   { operacao: 'Alterar participantes de projeto existente', codigos: ['cadastro.alterar'],
     nao: { Operador: 'solicita ajuste' } },
-  { operacao: 'Alterar e excluir dados cadastrais e desligar colaboradores', codigos: ['cadastro.alterar', 'cadastro.excluir'],
+  { operacao: 'Alterar dados cadastrais, reativar e desligar colaboradores', codigos: ['cadastro.alterar'],
     nao: { Operador: 'solicita ajuste' } },
   { operacao: 'Registrar resultado de autorização', codigos: ['autorizacao.registrar'] },
   { operacao: 'Emitir autorização operacional', codigos: ['autorizacao.emitir'] },
@@ -458,7 +535,7 @@ const MATRIZ = [
     nao: { Administrador: 'corrige diretamente' } },
   { operacao: 'Corrigir o cadastro e concluir solicitação de ajuste', codigos: ['cadastro.alterar', 'ajuste.concluir'] },
   { operacao: 'Relatórios (RF_S2 a RF_S6) e histórico de auditoria (RF_S7)', codigos: ['relatorio.consultar', 'auditoria.consultar'] },
-  { operacao: 'Contas e perfis · aprovar solicitações de acesso', codigos: ['usuario.gerenciar'] }
+  { operacao: 'Gerenciar usuários · aprovar solicitações de acesso', codigos: ['usuario.gerenciar'] }
 ];
 
 async function listarPerfis() {
@@ -512,14 +589,16 @@ async function transferirAdministrador(dados, idResponsavel) {
     await Historico.registrar(conexao, {
       idUsuario: idResponsavel, tipo: 'perfil', entidade: 'usuario', idRegistro: concedida.id_usuario,
       dataEvento: dados.data_efetiva, motivo: dados.motivo,
-      descricao: `Troca de gestão: ${concedida.login} recebe o perfil Administrador`,
+      descricao: `Transferência de privilégios: ${concedida.login} recebe o perfil Administrador de ${revogada.login}`,
       antes: retrato(concedida), depois: retrato(concedidaDepois)
     });
     await Historico.registrar(conexao, {
       idUsuario: idResponsavel, tipo: dados.destino_revogada === 'inativar' ? 'inativacao' : 'perfil',
       entidade: 'usuario', idRegistro: revogada.id_usuario, dataEvento: dados.data_efetiva, motivo: dados.motivo,
-      descricao: `Troca de gestão: ${revogada.login} ` +
-        (dados.destino_revogada === 'inativar' ? 'tem a conta inativada' : 'passa a Operador'),
+      descricao: `Transferência de privilégios: ${revogada.login} ` +
+        (dados.destino_revogada === 'inativar'
+          ? 'deixa de ser Administrador e tem a conta desativada'
+          : 'passa a Operador e continua ativa') + ` (privilégios para ${concedida.login})`,
       antes: retrato(revogada), depois: retrato(revogadaDepois)
     });
     return { concedida: concedidaDepois, revogada: revogadaDepois };

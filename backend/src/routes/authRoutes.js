@@ -10,6 +10,8 @@ const rotas = express.Router();
 
 rotas.post('/login', asyncHandler(controller.login));
 rotas.post('/cadastro', asyncHandler(controller.solicitarCadastro));
+// Setores ativos (só id e nome), para a solicitação de acesso
+rotas.get('/setores', asyncHandler(controller.setoresDaSolicitacao));
 rotas.post('/recuperacao', asyncHandler(controller.solicitarRecuperacao));
 rotas.post('/redefinicao', asyncHandler(controller.redefinirSenha));
 

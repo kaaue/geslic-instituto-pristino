@@ -1,10 +1,14 @@
-// Formulário lateral de inclusão e edição de projeto.
-// Na edição pelo perfil Operador, abre somente para leitura: alterar dados
-// cadastrais é exclusivo do Administrador (RN21).
-// Situação e data de encerramento não são editadas aqui: o encerramento é uma
-// ação própria, com data, feita pelo botão Encerrar da listagem (RN17).
+// Painel lateral do projeto: inclusão e "Gerenciar" (visualização, edição,
+// participantes, vigência e histórico num único lugar).
+// Na edição pelo perfil Operador, os dados abrem somente para leitura: alterar
+// dados cadastrais é exclusivo do Administrador (RN21). Prorrogar, encerrar e
+// reabrir ficam na seção "Vigência e situação", separada da edição, e abrem
+// uma janela de confirmação própria.
+// O responsável entra automaticamente entre os participantes e não pode ser
+// retirado enquanto for o responsável (a API aplica a mesma regra).
 
 import { useEffect, useState } from 'react';
+import SeletorColaboradores from '../../components/common/SeletorColaboradores.jsx';
 import { mascaraCodigoProjeto, mascaraData, dataParaApi, dataDaApi } from '../../utils/mascaras';
 
 const VAZIO = {
@@ -17,9 +21,16 @@ const VAZIO = {
   participantes: []
 };
 
+const ROTULO_EVENTO = {
+  criacao: 'Cadastro', correcao: 'Correção', prorrogacao: 'Prorrogação',
+  encerramento: 'Encerramento', reabertura: 'Reabertura'
+};
+
 // atalhoAjuste: botão "Solicitar ajuste deste projeto" (RF_B10), mostrado na consulta pelo Operador
+// historico: eventos do projeto (só para quem consulta a auditoria), ou null
 export default function FormularioProjeto({
-  edicao, somenteLeitura, colaboradores, fontes, erros, salvando, aoSalvar, aoCancelar, atalhoAjuste = null
+  edicao, somenteLeitura, colaboradores, setores, fontes, erros, salvando, permissoes,
+  aoSalvar, aoCancelar, aoAcao, historico = null, atalhoAjuste = null
 }) {
   const [form, setForm] = useState(VAZIO);
 
@@ -43,6 +54,16 @@ export default function FormularioProjeto({
     setForm((atual) => ({ ...atual, [campo]: valor }));
   }
 
+  // Ao escolher o responsável, ele entra nos participantes (sem repetir).
+  // Trocar de responsável não retira o anterior.
+  function mudarResponsavel(valor) {
+    setForm((atual) => {
+      const id = Number(valor);
+      const participantes = id && !atual.participantes.includes(id) ? [...atual.participantes, id] : atual.participantes;
+      return { ...atual, id_responsavel: valor, participantes };
+    });
+  }
+
   function enviar(evento) {
     evento.preventDefault();
     if (somenteLeitura) return;
@@ -54,33 +75,22 @@ export default function FormularioProjeto({
     });
   }
 
-  function adicionarParticipante(id) {
-    if (!id) return;
-    setForm((atual) => ({ ...atual, participantes: [...atual.participantes, Number(id)] }));
-  }
-
-  function removerParticipante(id) {
-    setForm((atual) => ({ ...atual, participantes: atual.participantes.filter((p) => p !== id) }));
-  }
-
   const encerrado = edicao && edicao.situacao === 'encerrado';
-  const titulo = !edicao ? 'Novo projeto' : somenteLeitura ? 'Projeto' : 'Editar projeto';
+  const titulo = !edicao ? 'Novo projeto' : 'Gerenciar projeto';
 
   // Responsável atual pode estar inativo; nesse caso ainda aparece na lista
   const responsavelForaDaLista = edicao && edicao.id_responsavel
     && !colaboradores.some((c) => c.id_colaborador === edicao.id_responsavel);
 
-  // Nomes dos participantes: colaboradores ativos e, na edição, também os que
-  // já participavam e foram desligados depois (continuam no projeto)
-  const colaboradorPorId = new Map(
-    [...(edicao?.lista_participantes || []), ...colaboradores].map((c) => [c.id_colaborador, c]));
-  const disponiveis = colaboradores.filter((c) => !form.participantes.includes(c.id_colaborador));
-
   return (
-    <form className="painel" onSubmit={enviar}>
+    <form className="painel painel-largo" onSubmit={enviar} noValidate>
       <header className="painel-cabecalho">
         <h2>{titulo}</h2>
-        {edicao && <span className="id-interno">Projeto {edicao.codigo}</span>}
+        {edicao && (
+          <span className="id-interno">
+            {edicao.codigo} · {edicao.nome} · {encerrado ? `encerrado em ${dataDaApi(edicao.data_encerramento)}` : 'em andamento'}
+          </span>
+        )}
       </header>
 
       <div className="painel-corpo">
@@ -88,13 +98,14 @@ export default function FormularioProjeto({
           <>
             <p className="aviso-info">
               Após a criação, somente o Administrador altera os dados e os participantes. Para incluir ou retirar
-              alguém, ou corrigir um dado, emita uma solicitação de ajuste (RN38). Para prorrogar o término ou
-              encerrar, use as ações da listagem.
+              alguém, ou corrigir um dado, emita uma solicitação de ajuste (RN38). Prorrogar e encerrar ficam
+              na seção “Vigência e situação”, abaixo.
             </p>
             {atalhoAjuste}
           </>
         )}
 
+        <h3 className="secao-painel">Dados do projeto</h3>
         <div className="dupla dupla-codigo">
           <label className="campo">
             <span>Código *</span>
@@ -129,22 +140,29 @@ export default function FormularioProjeto({
           </label>
         </div>
 
+        {/* Texto livre. As fontes já usadas aparecem como sugestão ao digitar;
+            sem sugestões, o campo não tem a lista (e o navegador não mostra a seta). */}
         <label className="campo">
           <span>Fonte financiadora *</span>
           <input
             type="text"
-            list="lista-fontes"
+            list={!somenteLeitura && fontes.length ? 'lista-fontes' : undefined}
             value={form.fonte_financiadora}
             placeholder="Termo de Cooperação 08/2025"
             readOnly={somenteLeitura}
             maxLength={120}
+            autoComplete="off"
             onChange={(e) => mudar('fonte_financiadora', e.target.value)}
-            className={erros.fonte_financiadora ? 'com-erro' : ''}
+            className={`campo-texto-sugestoes ${erros.fonte_financiadora ? 'com-erro' : ''}`}
           />
-          <datalist id="lista-fontes">
-            {fontes.map((f) => <option key={f} value={f} />)}
-          </datalist>
-          {erros.fonte_financiadora && <small className="erro">{erros.fonte_financiadora}</small>}
+          {!somenteLeitura && fontes.length > 0 && (
+            <datalist id="lista-fontes">
+              {fontes.map((f) => <option key={f} value={f} />)}
+            </datalist>
+          )}
+          {erros.fonte_financiadora
+            ? <small className="erro">{erros.fonte_financiadora}</small>
+            : !somenteLeitura && <small className="dica">Texto livre; as fontes já usadas aparecem como sugestão.</small>}
         </label>
 
         <label className="campo">
@@ -152,7 +170,7 @@ export default function FormularioProjeto({
           <select
             value={form.id_responsavel}
             disabled={somenteLeitura}
-            onChange={(e) => mudar('id_responsavel', e.target.value)}
+            onChange={(e) => mudarResponsavel(e.target.value)}
             className={erros.id_responsavel ? 'com-erro' : ''}
           >
             <option value="">Selecione o colaborador responsável</option>
@@ -165,7 +183,9 @@ export default function FormularioProjeto({
               </option>
             ))}
           </select>
-          {erros.id_responsavel && <small className="erro">{erros.id_responsavel}</small>}
+          {erros.id_responsavel
+            ? <small className="erro">{erros.id_responsavel}</small>
+            : <small className="dica">O responsável entra automaticamente entre os participantes.</small>}
         </label>
 
         <div className="dupla">
@@ -200,75 +220,86 @@ export default function FormularioProjeto({
           </label>
         </div>
 
-        <div className="campo">
-          <span>Colaboradores participantes</span>
-          {!somenteLeitura && (
-            <select
-              value=""
-              onChange={(e) => adicionarParticipante(e.target.value)}
-              className={erros.participantes ? 'com-erro' : ''}
-              disabled={disponiveis.length === 0}
-            >
-              <option value="">
-                {disponiveis.length ? 'Adicionar colaborador cadastrado...' : 'Todos os colaboradores ativos já foram incluídos'}
-              </option>
-              {disponiveis.map((c) => (
-                <option key={c.id_colaborador} value={c.id_colaborador}>
-                  {c.nome} — {c.nome_setor}
-                </option>
-              ))}
-            </select>
-          )}
-          {form.participantes.length > 0 ? (
-            <ul className="lista-participantes">
-              {form.participantes.map((id) => {
-                const c = colaboradorPorId.get(id);
-                return (
-                  <li key={id}>
-                    <span>
-                      {c ? c.nome : `Colaborador ${id}`}
-                      <small>
-                        {c ? [c.cargo, c.nome_setor].filter(Boolean).join(' · ') : ''}
-                        {c && c.ativo === false ? ' · desligado' : ''}
-                      </small>
-                    </span>
-                    {!somenteLeitura && (
-                      <button type="button" className="botao-texto" onClick={() => removerParticipante(id)}>
-                        Remover
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <small className="dica">
-              Nenhum participante. Vincule colaboradores já cadastrados; o cadastro de
-              colaboradores é feito na tela própria (RF_B4).
-            </small>
-          )}
-          {erros.participantes && <small className="erro">{erros.participantes}</small>}
-        </div>
+        <h3 className="secao-painel">Participantes</h3>
+        <SeletorColaboradores
+          selecionados={form.participantes}
+          aoMudar={(lista) => mudar('participantes', lista)}
+          colaboradores={colaboradores}
+          conhecidos={edicao?.lista_participantes || []}
+          setores={setores}
+          fixos={form.id_responsavel ? [Number(form.id_responsavel)] : []}
+          somenteLeitura={somenteLeitura}
+          erro={erros.participantes}
+        />
 
         {edicao && (
-          <div className="resumo-projeto">
-            <div>
-              <span>Situação</span>
-              <strong>{encerrado ? `Encerrado em ${dataDaApi(edicao.data_encerramento)}` : 'Em andamento'}</strong>
+          <>
+            <h3 className="secao-painel">Vigência e situação</h3>
+            <div className="resumo-projeto">
+              <div>
+                <span>Situação</span>
+                <strong>{encerrado ? `Encerrado em ${dataDaApi(edicao.data_encerramento)}` : 'Em andamento'}</strong>
+              </div>
+              <div>
+                <span>Término previsto</span>
+                <strong>{edicao.data_fim_prevista ? dataDaApi(edicao.data_fim_prevista) : 'sem término'}</strong>
+              </div>
+              <div>
+                <span>Recursos vinculados</span>
+                <strong>{edicao.licencas_adquiridas} licença(s) · {edicao.instancias_responsavel} instância(s)</strong>
+              </div>
             </div>
-            <div>
-              <span>Recursos vinculados</span>
-              <strong>
-                {edicao.licencas_adquiridas} licença(s) · {edicao.instancias_responsavel} instância(s)
-              </strong>
+            <div className="acoes-painel">
+              {!encerrado && permissoes.prorrogar && (
+                <button type="button" className="botao-secundario" onClick={() => aoAcao('prorrogar')}>
+                  Prorrogar término
+                </button>
+              )}
             </div>
-          </div>
+            {(permissoes.encerrar) && (
+              <div className="zona-sensivel">
+                <div>
+                  <strong>{encerrado ? 'Reabrir projeto' : 'Encerrar projeto'}</strong>
+                  <p>
+                    {encerrado
+                      ? 'Volta o projeto para “em andamento” sem alterar as datas. O encerramento anterior continua no histórico.'
+                      : 'Encerramento administrativo, com data. Vínculos e recursos são preservados.'}
+                  </p>
+                </div>
+                <button type="button" className="botao-perigo-contorno"
+                  onClick={() => aoAcao(encerrado ? 'reabrir' : 'encerrar')}>
+                  {encerrado ? 'Reabrir projeto' : 'Encerrar projeto'}
+                </button>
+              </div>
+            )}
+
+            {historico && (
+              <>
+                <h3 className="secao-painel">Histórico do projeto</h3>
+                {historico.length === 0 ? (
+                  <small className="dica">Nenhum evento registrado.</small>
+                ) : (
+                  <ul className="linha-do-tempo">
+                    {historico.map((h) => (
+                      <li key={h.id_movimentacao}>
+                        <span className="linha-do-tempo-data">{dataDaApi(h.data_evento)}</span>
+                        <span>
+                          <strong>{ROTULO_EVENTO[h.tipo] || h.tipo}</strong> · {h.descricao}
+                          <small>por {h.nome_responsavel}{h.motivo ? ` · motivo: ${h.motivo}` : ''}</small>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </>
         )}
 
         {!edicao && (
           <p className="nota">
-            O projeto é cadastrado em andamento. O encerramento é feito depois, pela
-            ação Encerrar, e não transfere, renova nem cancela recursos.
+            O projeto é cadastrado em andamento. Encerrar, reabrir e prorrogar ficam no painel do projeto,
+            pelo botão Gerenciar; nada disso transfere, renova ou cancela recursos.
           </p>
         )}
       </div>
@@ -279,7 +310,7 @@ export default function FormularioProjeto({
         </button>
         {!somenteLeitura && (
           <button type="submit" className="botao-principal" disabled={salvando}>
-            {salvando ? 'Salvando...' : 'Salvar'}
+            {salvando ? 'Salvando...' : edicao ? 'Salvar alterações' : 'Cadastrar projeto'}
           </button>
         )}
       </footer>

@@ -14,7 +14,6 @@ rotas.get('/', p('licenca.consultar'), asyncHandler(controller.listar));
 rotas.get('/:id', p('licenca.consultar'), asyncHandler(controller.buscar));
 rotas.post('/', p('licenca.registrar'), asyncHandler(controller.registrar));
 rotas.put('/:id', p('cadastro.alterar'), asyncHandler(controller.alterar));
-rotas.delete('/:id', p('cadastro.excluir'), asyncHandler(controller.excluir));
 rotas.get('/:id/chave', p('licenca.consultar'), exigirDadosSensiveis, asyncHandler(controller.revelarChave));
 rotas.post('/:id/renovacao', p('licenca.renovar'), asyncHandler(controller.renovar));
 rotas.post('/:id/inativacao', p('licenca.inativar'), asyncHandler(controller.inativar));

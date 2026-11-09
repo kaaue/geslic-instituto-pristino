@@ -13,7 +13,6 @@ rotas.get('/', p('apolice.consultar'), asyncHandler(controller.listar));
 rotas.get('/:id', p('apolice.consultar'), asyncHandler(controller.buscar));
 rotas.post('/', p('apolice.registrar'), asyncHandler(controller.registrar));
 rotas.put('/:id', p('cadastro.alterar'), asyncHandler(controller.alterar));
-rotas.delete('/:id', p('cadastro.excluir'), asyncHandler(controller.excluir));
 rotas.post('/:id/itens', p('apolice.registrar'), asyncHandler(controller.vincularItens));
 rotas.post('/:id/renovacao', p('apolice.renovar'), asyncHandler(controller.renovar));
 rotas.post('/:id/cancelamento', p('apolice.cancelar'), asyncHandler(controller.cancelar));

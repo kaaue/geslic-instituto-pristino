@@ -12,13 +12,13 @@ const idDe = async (login) => (await t.sql('SELECT id_usuario FROM usuario WHERE
 const perfilId = async (nome) => (await t.sql('SELECT id_perfil FROM perfil WHERE nome = ?', [nome]))[0].id_perfil;
 
 test('autocadastro valida os campos no backend', async () => {
-  const r = await t.cliente().post('/auth/cadastro', {
+  const r = await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'A', email: 'invalido', login: 'X Y', senha: 'curta', confirmacao: 'outra'
   });
   assert.equal(r.status, 400);
   assert.ok(r.corpo.erros.nome && r.corpo.erros.email && r.corpo.erros.login && r.corpo.erros.senha);
 
-  const confirmacao = await t.cliente().post('/auth/cadastro', {
+  const confirmacao = await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Pessoa Válida', email: 'valida@pristino.org.br', login: 'pessoa.valida',
     senha: 'Valida2026', confirmacao: 'Valida2027'
   });
@@ -27,7 +27,7 @@ test('autocadastro valida os campos no backend', async () => {
 });
 
 test('autocadastro não aceita privilégios enviados pelo cliente', async () => {
-  const r = await t.cliente().post('/auth/cadastro', {
+  const r = await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Quer Ser Admin', email: 'quer.admin@pristino.org.br', login: 'quer.admin',
     senha: 'Admin2026x', confirmacao: 'Admin2026x',
     id_perfil: await perfilId('Administrador'), perfil: 'Administrador', situacao: 'ativo', id_colaborador: 1
@@ -41,7 +41,7 @@ test('autocadastro não aceita privilégios enviados pelo cliente', async () => 
 });
 
 test('login e e-mail repetidos são recusados no autocadastro', async () => {
-  const r = await t.cliente().post('/auth/cadastro', {
+  const r = await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Outra Pessoa', email: 'carlos.alves@pristino.org.br', login: 'admin',
     senha: 'Outra2026x', confirmacao: 'Outra2026x'
   });
@@ -50,7 +50,7 @@ test('login e e-mail repetidos são recusados no autocadastro', async () => {
 });
 
 test('aprovação administrativa libera o acesso com o perfil escolhido e o vínculo validado', async () => {
-  await t.cliente().post('/auth/cadastro', {
+  await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Juliana Moreira', email: 'juliana.conta@pristino.org.br', login: 'juliana.moreira',
     senha: 'Juliana2026', confirmacao: 'Juliana2026'
   });
@@ -75,7 +75,7 @@ test('aprovação administrativa libera o acesso com o perfil escolhido e o vín
 });
 
 test('recusa remove a solicitação pendente e fica no histórico', async () => {
-  await t.cliente().post('/auth/cadastro', {
+  await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Recusada Silva', email: 'recusada@pristino.org.br', login: 'recusada',
     senha: 'Recusada2026', confirmacao: 'Recusada2026'
   });
@@ -157,20 +157,20 @@ test('a matriz de perfis e permissões é explicativa e não editável (RN41, CA
     Administrador: { permitido: false, observacao: 'corrige diretamente' },
     Operador: { permitido: true, observacao: null }
   });
-  assert.equal(linha('Alterar e excluir dados cadastrais').perfis.Operador.observacao, 'solicita ajuste');
+  assert.equal(linha('Alterar dados cadastrais').perfis.Operador.observacao, 'solicita ajuste');
   assert.equal(linha('Relatórios').perfis.Operador.permitido, false);
-  assert.equal(linha('Contas e perfis').perfis.Administrador.permitido, true);
+  assert.equal(linha('Gerenciar usuários').perfis.Administrador.permitido, true);
 
   // nenhuma operação personaliza as permissões, nem do Operador
   const tentativa = await admin.put(`/perfis/${await perfilId('Operador')}/permissoes`, { permissoes: ['cadastro.excluir'] });
   assert.equal(tentativa.status, 405);
   assert.equal(tentativa.corpo.codigo, 'MATRIZ_NAO_EDITAVEL');
-  assert.equal((await op.delete('/fornecedores/1')).status, 403);
+  assert.equal((await op.delete('/fornecedores/1')).status, 405);
   assert.equal((await op.get('/equipamentos')).status, 200);
 });
 
 test('contas usam e-mail @pristino.org.br e a aprovação registra quem aprovou (CA23)', async () => {
-  const fora = await t.cliente().post('/auth/cadastro', {
+  const fora = await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Fora do Domínio', email: 'fora@gmail.com', login: 'fora.dominio', senha: 'Senha2026', confirmacao: 'Senha2026'
   });
   assert.equal(fora.status, 400);

@@ -3,7 +3,7 @@
 // que os utilizam. O painel lateral edita o tipo e as coberturas: cobertura
 // já usada em apólice não é excluída, apenas inativada para novos registros
 // (RN22). Permissões (RN21): o Operador consulta, inclui (tipos e coberturas)
-// e inativa; corrigir, reativar e excluir são do Administrador.
+// e inativa; corrigir e reativar são do Administrador. Não há exclusão.
 
 import { useCallback, useState } from 'react';
 import useAuth from '../../hooks/useAuth';
@@ -22,7 +22,7 @@ import { mensagemDeErro } from '../../services/api';
 
 const FILTROS = { busca: '', situacao: '' };
 
-// Linha de cobertura no painel: inativar (em uso), excluir (sem uso), reativar e renomear
+// Linha de cobertura no painel: inativar, reativar e renomear (sem exclusão)
 function LinhaCobertura({ cobertura, pode, aoAgir }) {
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState(cobertura.descricao);
@@ -41,13 +41,10 @@ function LinhaCobertura({ cobertura, pode, aoAgir }) {
       <td><span className={`situacao situacao-${cobertura.ativo ? 'ativo' : 'inativo'}`}>{cobertura.ativo ? 'ativa' : 'inativa'}</span></td>
       <td className="col-acoes col-acoes-varias">
         {!editando && pode('cadastro.alterar') && <button type="button" className="botao-texto" onClick={() => setEditando(true)}>Renomear</button>}
-        {cobertura.ativo && pode('cadastro.inativar') && (cobertura.em_uso || !pode('cadastro.excluir')) && (
+        {cobertura.ativo && pode('cadastro.inativar') && (
           <button type="button" className="botao-texto" onClick={() => aoAgir('inativar', cobertura)}>Inativar</button>
         )}
         {!cobertura.ativo && pode('cadastro.alterar') && <button type="button" className="botao-texto" onClick={() => aoAgir('reativar', cobertura)}>Reativar</button>}
-        {!cobertura.em_uso && pode('cadastro.excluir') && (
-          <button type="button" className="botao-texto botao-perigo" onClick={() => aoAgir('excluir', cobertura)}>Excluir</button>
-        )}
       </td>
     </tr>
   );
@@ -75,10 +72,8 @@ function PainelTipo({ registro, controle, aoSalvar, aoMudouCobertura }) {
     const operacoes = {
       inativar: () => servico.inativarCobertura(cobertura.id_cobertura),
       reativar: () => servico.reativarCobertura(cobertura.id_cobertura),
-      excluir: () => servico.excluirCobertura(cobertura.id_cobertura),
       renomear: () => servico.alterarCobertura(cobertura.id_cobertura, texto)
     };
-    if (acao === 'excluir' && !window.confirm(`Excluir a cobertura ${cobertura.descricao}?`)) return false;
     try {
       await operacoes[acao]();
       await recarregarTipo();
@@ -267,13 +262,6 @@ export default function TiposSeguroPage() {
                           confirmar: `Reativar o tipo ${t.descricao}?`, acao: () => servico.reativar(t.id_tipo_seguro),
                           sucesso: `Tipo ${t.descricao} reativado.`, mostrarMensagem, aoConcluir: recarregar
                         })}>Reativar</button>
-                      )}
-                      {pode('cadastro.excluir') && (
-                        <button type="button" className="botao-texto botao-perigo" onClick={() => acaoDeLinha({
-                          confirmar: `Excluir o tipo ${t.descricao} e as coberturas dele? Só tipos sem uso em apólices podem ser excluídos.`,
-                          acao: () => servico.excluir(t.id_tipo_seguro), sucesso: `Tipo ${t.descricao} excluído.`,
-                          mostrarMensagem, aoConcluir: recarregar
-                        })}>Excluir</button>
                       )}
                       <BotaoSolicitarAjuste entidade="tipo_seguro" idRegistro={t.id_tipo_seguro} rotulo={t.descricao}
                         aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />

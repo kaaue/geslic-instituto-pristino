@@ -34,7 +34,7 @@ test('RF_B1: CNPJ obrigatório e único; Operador inclui e inativa, só o Admini
   const id = novo.corpo.id_fornecedor;
 
   assert.equal((await op.put(`/fornecedores/${id}`, { ...novo.corpo, razao_social: 'Outra' })).status, 403);
-  assert.equal((await op.delete(`/fornecedores/${id}`)).status, 403);
+  assert.equal((await op.delete(`/fornecedores/${id}`)).status, 405);
   assert.equal((await op.post(`/fornecedores/${id}/inativacao`, {})).status, 400);
   const inativo = await op.post(`/fornecedores/${id}/inativacao`, { data_efetiva: ontem(), motivo: 'Contrato encerrado' });
   assert.equal(inativo.status, 200);
@@ -43,7 +43,7 @@ test('RF_B1: CNPJ obrigatório e único; Operador inclui e inativa, só o Admini
   assert.equal((await admin.post(`/fornecedores/${id}/reativacao`)).status, 200);
 
   // sem vínculos, o Administrador exclui
-  assert.equal((await admin.delete(`/fornecedores/${id}`)).status, 200);
+  assert.equal((await admin.delete(`/fornecedores/${id}`)).status, 405);
 });
 
 test('RF_B1: fornecedor com licenças não exclui nem vira seguradora (RN22, CA11)', async () => {
@@ -51,9 +51,9 @@ test('RF_B1: fornecedor com licenças não exclui nem vira seguradora (RN22, CA1
   const atual = (await admin.get('/fornecedores/1')).corpo;
   assert.ok(atual.licencas >= 1);
   const excluir = await admin.delete('/fornecedores/1');
-  assert.equal(excluir.status, 409);
-  assert.equal(excluir.corpo.codigo, 'CADASTRO_COM_VINCULOS');
-  assert.match(excluir.corpo.mensagem, /licenç/);
+  assert.equal(excluir.status, 405);
+  assert.equal(excluir.corpo.codigo, 'EXCLUSAO_INDISPONIVEL');
+  assert.match(excluir.corpo.mensagem, /inativar/);
   const virar = await admin.put('/fornecedores/1', { ...atual, tipo: 'seguradora' });
   assert.equal(virar.status, 400);
   assert.ok(virar.corpo.erros.tipo);
@@ -73,8 +73,8 @@ test('RF_B2: software com licença não é excluído; nome e versão não se rep
   assert.equal((await op.post('/softwares', { nome: 'ArcGIS Desktop', versao: '11.0', fabricante: 'Esri' })).status, 201);
 
   const excluir = await admin.delete(`/softwares/${arcgis.id_software}`);
-  assert.equal(excluir.status, 409);
-  assert.match(excluir.corpo.mensagem, /inative/);
+  assert.equal(excluir.status, 405);
+  assert.match(excluir.corpo.mensagem, /inativar/);
 
   // a correção do nome acompanha nas licenças (coluna legada nome_software)
   const corrigido = await admin.put(`/softwares/${arcgis.id_software}`, { ...arcgis, nome: 'ArcGIS Pro Standard' });
@@ -129,7 +129,7 @@ test('RF_B4: desligamento só pelo Administrador, com data efetiva; encerra util
   assert.ok(!(await op.get('/colaboradores/ativos')).corpo.some((c) => c.id_colaborador === 4));
   assert.ok((await op.get('/colaboradores?situacao=desligado')).corpo.some((c) => c.id_colaborador === 4));
   // com participações e responsabilidades, não exclui (RN22)
-  assert.equal((await admin.delete('/colaboradores/4')).status, 409);
+  assert.equal((await admin.delete('/colaboradores/4')).status, 405);
 });
 
 test('RF_B5: coordenador precisa ser colaborador ativo; inativação com data efetiva (CA17); exclusão sem vínculos', async () => {
@@ -162,8 +162,8 @@ test('RF_B5: coordenador precisa ser colaborador ativo; inativação com data ef
        FROM movimentacao WHERE entidade = 'setor' AND id_registro = ? AND tipo = 'inativacao'`, [novo.corpo.id_setor]);
   assert.deepEqual({ ...evento }, { efetiva: ontem(), registro_hoje: 1 });
 
-  assert.equal((await admin.delete(`/setores/${administrativo.id_setor}`)).status, 409);
-  assert.equal((await admin.delete(`/setores/${novo.corpo.id_setor}`)).status, 200);
+  assert.equal((await admin.delete(`/setores/${administrativo.id_setor}`)).status, 405);
+  assert.equal((await admin.delete(`/setores/${novo.corpo.id_setor}`)).status, 405);
 });
 
 test('RF_B6: campos por categoria (RN20): placa obrigatória e única para veículo; série opcional', async () => {
@@ -204,7 +204,7 @@ test('RF_B6: bem coberto por duas apólices mostra as duas e os projetos financi
   assert.ok(!('id_projeto' in mavic));
 
   // coberto por apólice: não exclui (RN22); inativa com data efetiva
-  assert.equal((await admin.delete(`/bens-seguraveis/${mavic.id_bem}`)).status, 409);
+  assert.equal((await admin.delete(`/bens-seguraveis/${mavic.id_bem}`)).status, 405);
   assert.equal((await op.post(`/bens-seguraveis/${mavic.id_bem}/inativacao`, { data_efetiva: ontem() })).status, 200);
 
   // equipamentos também são bens, mas inativação e exclusão seguem pela RF_B3 (RN08)
@@ -228,13 +228,14 @@ test('RF_B7: tipos e coberturas; cobertura usada não é excluída, só inativad
   assert.equal(equipamentos.apolices, 1);
   const usada = equipamentos.coberturas.find((c) => c.descricao === 'Quebra acidental');
   assert.equal(usada.em_uso, true);
-  assert.equal((await admin.delete(`/tipos-seguro/coberturas/${usada.id_cobertura}`)).status, 409);
+  assert.equal((await admin.delete(`/tipos-seguro/coberturas/${usada.id_cobertura}`)).status, 405);
   assert.equal((await op.post(`/tipos-seguro/coberturas/${usada.id_cobertura}/inativacao`, {})).status, 200);
-  assert.equal((await admin.delete(`/tipos-seguro/${equipamentos.id_tipo_seguro}`)).status, 409);
+  assert.equal((await admin.delete(`/tipos-seguro/${equipamentos.id_tipo_seguro}`)).status, 405);
 
-  // sem uso: o Administrador exclui o tipo, com as coberturas
-  assert.equal((await op.delete(`/tipos-seguro/${novo.corpo.id_tipo_seguro}`)).status, 403);
-  assert.equal((await admin.delete(`/tipos-seguro/${novo.corpo.id_tipo_seguro}`)).status, 200);
+  // nem sem uso o tipo é excluído: o tipo e as coberturas continuam, para inativar
+  assert.equal((await op.delete(`/tipos-seguro/${novo.corpo.id_tipo_seguro}`)).status, 405);
+  assert.equal((await admin.delete(`/tipos-seguro/${novo.corpo.id_tipo_seguro}`)).status, 405);
   const [{ total }] = await t.sql('SELECT COUNT(*) AS total FROM cobertura WHERE id_tipo_seguro = ?', [novo.corpo.id_tipo_seguro]);
-  assert.equal(total, 0);
+  assert.equal(total, 2);
+  assert.equal((await op.post(`/tipos-seguro/${novo.corpo.id_tipo_seguro}/inativacao`, { data_efetiva: t.dataLocal(), motivo: 'Sem uso' })).status, 200);
 });

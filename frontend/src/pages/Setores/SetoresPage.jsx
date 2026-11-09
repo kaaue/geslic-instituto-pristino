@@ -193,13 +193,6 @@ export default function SetoresPage() {
                           sucesso: `Setor ${s.nome} reativado.`, mostrarMensagem, aoConcluir: recarregar
                         })}>Reativar</button>
                       )}
-                      {pode('cadastro.excluir') && (
-                        <button type="button" className="botao-texto botao-perigo" onClick={() => acaoDeLinha({
-                          confirmar: `Excluir o setor ${s.nome}? Só setores sem vínculos podem ser excluídos.`,
-                          acao: () => servico.excluir(s.id_setor), sucesso: `Setor ${s.nome} excluído.`,
-                          mostrarMensagem, aoConcluir: recarregar
-                        })}>Excluir</button>
-                      )}
                       <BotaoSolicitarAjuste entidade="setor" idRegistro={s.id_setor} rotulo={s.nome}
                         aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />
                     </td>

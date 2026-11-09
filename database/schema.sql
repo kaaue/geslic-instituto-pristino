@@ -472,17 +472,24 @@ CREATE TABLE usuario (
   senha_hash              VARCHAR(255) NOT NULL,
   situacao                VARCHAR(10)  NOT NULL DEFAULT 'ativo',
   troca_senha_obrigatoria BOOLEAN      NOT NULL DEFAULT FALSE,
+  -- prazo da senha provisória gerada pelo Administrador
+  senha_provisoria_expira_em DATETIME,
   criada_em               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   senha_alterada_em       DATETIME,
   id_aprovador            INT,
   aprovada_em             DATETIME,
+  -- dados do colaborador informados na solicitação de acesso; o colaborador
+  -- só é criado na aprovação
+  cadastro_id_setor       INT,
+  cadastro_cargo          VARCHAR(80),
   CONSTRAINT uq_usuario_login UNIQUE (login),
   CONSTRAINT uq_usuario_email UNIQUE (email),
   CONSTRAINT uq_usuario_colaborador UNIQUE (id_colaborador),
   CONSTRAINT ck_usuario_situacao CHECK (situacao IN ('pendente', 'ativo', 'inativo')),
   CONSTRAINT fk_usuario_perfil FOREIGN KEY (id_perfil) REFERENCES perfil (id_perfil),
   CONSTRAINT fk_usuario_colaborador FOREIGN KEY (id_colaborador) REFERENCES colaborador (id_colaborador),
-  CONSTRAINT fk_usuario_aprovador FOREIGN KEY (id_aprovador) REFERENCES usuario (id_usuario)
+  CONSTRAINT fk_usuario_aprovador FOREIGN KEY (id_aprovador) REFERENCES usuario (id_usuario),
+  CONSTRAINT fk_usuario_cadastro_setor FOREIGN KEY (cadastro_id_setor) REFERENCES setor (id_setor)
 );
 
 -- Sessões no servidor. O navegador guarda só o token, num cookie HttpOnly;

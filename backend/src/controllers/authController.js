@@ -12,6 +12,7 @@ const email = require('../utils/email');
 const limites = require('../middlewares/limiteTentativas');
 const Usuario = require('../models/usuarioModel');
 const Sessao = require('../models/sessaoModel');
+const Setor = require('../models/setorModel');
 const Recuperacao = require('../models/recuperacaoModel');
 const {
   normalizarLogin, normalizarEmail, validarSolicitacao, validarNovaSenha
@@ -51,6 +52,10 @@ async function login(req, res) {
   if (conta.situacao !== 'ativo') {
     throw AppError.proibido('Esta conta está desativada. Procure um Administrador.', 'CONTA_INATIVA');
   }
+  if (conta.provisoria_expirada) {
+    throw AppError.proibido(
+      'A senha provisória expirou. Peça a um Administrador para gerar uma nova.', 'SENHA_PROVISORIA_EXPIRADA');
+  }
 
   const token = await comTransacao((conexao) => Sessao.criar(conexao, conta.id_usuario));
   gravarCookieSessao(res, token);
@@ -87,6 +92,12 @@ async function solicitarCadastro(req, res) {
   res.status(201).json({
     mensagem: 'Solicitação enviada. Você poderá entrar assim que um Administrador aprovar o acesso.'
   });
+}
+
+// Lista pública mínima: só id e nome dos setores ativos, para o formulário
+// de solicitação de acesso identificar o colaborador
+async function setoresDaSolicitacao(req, res) {
+  res.json(await Setor.listarNomesAtivos());
 }
 
 // Resposta igual exista ou não a conta, para não revelar quais e-mails estão cadastrados
@@ -147,4 +158,4 @@ async function redefinirSenha(req, res) {
   res.json({ mensagem: 'Senha redefinida. Entre com a nova senha.' });
 }
 
-module.exports = { login, logout, me, atividade, solicitarCadastro, solicitarRecuperacao, redefinirSenha };
+module.exports = { login, logout, me, atividade, solicitarCadastro, setoresDaSolicitacao, solicitarRecuperacao, redefinirSenha };

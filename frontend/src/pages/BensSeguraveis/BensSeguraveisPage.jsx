@@ -301,13 +301,6 @@ export default function BensSeguraveisPage() {
                               sucesso: `${b.identificacao} reativado.`, mostrarMensagem, aoConcluir: recarregar
                             })}>Reativar</button>
                           )}
-                          {pode('cadastro.excluir') && (
-                            <button type="button" className="botao-texto botao-perigo" onClick={() => acaoDeLinha({
-                              confirmar: `Excluir ${b.identificacao}? Só bens que nunca foram segurados podem ser excluídos.`,
-                              acao: () => servico.excluir(b.id_bem), sucesso: `${b.identificacao} excluído.`,
-                              mostrarMensagem, aoConcluir: recarregar
-                            })}>Excluir</button>
-                          )}
                           <BotaoSolicitarAjuste entidade="bem" idRegistro={b.id_bem} rotulo={`${CATEGORIAS[b.categoria]} · ${identificacaoCompleta(b)}`}
                             aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />
                         </>

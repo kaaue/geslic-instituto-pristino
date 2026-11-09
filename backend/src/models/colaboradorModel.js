@@ -74,7 +74,7 @@ async function conferirSetor(conexao, idSetor, idSetorAtual) {
 // Só colaboradores ativos podem ser escolhidos como responsáveis
 async function listarAtivos() {
   const [linhas] = await pool.query(
-    `SELECT c.id_colaborador, c.nome, c.cargo, s.nome AS nome_setor
+    `SELECT c.id_colaborador, c.nome, c.cargo, c.id_setor, s.nome AS nome_setor
        FROM colaborador c
        JOIN setor s ON s.id_setor = c.id_setor
       WHERE c.ativo = TRUE

@@ -49,7 +49,7 @@ async function redefinir(token, novaSenha) {
       `SELECT u.id_usuario, u.login FROM recuperacao_senha r JOIN usuario u ON u.id_usuario = r.id_usuario
         WHERE r.token_hash = ?`, [hashToken(token)]);
     await conexao.query(
-      `UPDATE usuario SET senha_hash = ?, troca_senha_obrigatoria = FALSE, senha_alterada_em = NOW()
+      `UPDATE usuario SET senha_hash = ?, troca_senha_obrigatoria = FALSE, senha_provisoria_expira_em = NULL, senha_alterada_em = NOW()
         WHERE id_usuario = ?`, [gerarHashSenha(novaSenha), conta.id_usuario]);
     const encerradas = await Sessao.encerrarDaConta(conexao, conta.id_usuario, 'senha_redefinida');
     await Historico.registrar(conexao, {

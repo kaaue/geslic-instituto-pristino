@@ -28,8 +28,9 @@ export function alterarProjeto(id, dados) {
   return requisicao(`/api/projetos/${id}`, enviarJson('PUT', dados));
 }
 
-export function excluirProjeto(id) {
-  return requisicao(`/api/projetos/${id}`, { method: 'DELETE' });
+// Reabertura de projeto encerrado, com motivo; a resposta traz avisos de conferência
+export function reabrirProjeto(id, motivo) {
+  return requisicao(`/api/projetos/${id}/reabertura`, enviarJson('POST', { motivo }));
 }
 
 export function encerrarProjeto(id, dataEncerramento) {

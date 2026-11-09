@@ -6,7 +6,7 @@
 import { dataDaApi } from '../../utils/mascaras';
 
 // acoesExtras(eq): ações a mais na linha (o atalho "Solicitar ajuste", RF_B10)
-export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, aoInativar, aoReativar, acoesExtras, carregando }) {
+export default function TabelaEquipamentos({ equipamentos, aoEditar, aoInativar, aoReativar, acoesExtras, carregando }) {
   if (carregando && equipamentos.length === 0) {
     return <p className="estado-vazio">Carregando equipamentos...</p>;
   }
@@ -74,15 +74,6 @@ export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, 
                 {aoReativar && eq.situacao === 'inativo' && (
                   <button type="button" className="botao-texto" onClick={() => aoReativar(eq)}>
                     Reativar
-                  </button>
-                )}
-                {aoExcluir && (
-                  <button
-                    type="button"
-                    className="botao-texto botao-perigo"
-                    onClick={() => aoExcluir(eq)}
-                  >
-                    Excluir
                   </button>
                 )}
                 {acoesExtras?.(eq)}

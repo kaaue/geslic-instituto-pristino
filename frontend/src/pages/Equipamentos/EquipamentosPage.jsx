@@ -26,7 +26,7 @@ import useAbrirPorLink from '../../hooks/useAbrirPorLink';
 import { acaoDeLinha } from '../../hooks/usePainelCadastro';
 import {
   listarEquipamentos, incluirEquipamento, alterarEquipamento,
-  excluirEquipamento, previaInativacao, inativarEquipamento, reativarEquipamento
+  previaInativacao, inativarEquipamento, reativarEquipamento
 } from '../../services/equipamentoService';
 import { listarSetores } from '../../services/setorService';
 import { listarColaboradores } from '../../services/colaboradorService';
@@ -49,7 +49,6 @@ export default function EquipamentosPage() {
   const { pode } = useAuth();
   const podeIncluir = pode('cadastro.incluir');
   const podeAlterar = pode('cadastro.alterar');
-  const podeExcluir = pode('cadastro.excluir');
   const podeInativar = pode('cadastro.inativar');
 
   const [equipamentos, setEquipamentos] = useState([]);
@@ -199,7 +198,7 @@ export default function EquipamentosPage() {
         {!podeAlterar && (
           <p className="nota nota-perfil">
             Seu perfil pode consultar, cadastrar e inativar equipamentos. Para corrigir dados cadastrais, use
-            “Solicitar ajuste”: alterar e excluir são exclusivos do perfil Administrador.
+            “Solicitar ajuste”: alterar e reativar são exclusivos do perfil Administrador.
           </p>
         )}
 
@@ -217,11 +216,6 @@ export default function EquipamentosPage() {
         <TabelaEquipamentos
           equipamentos={equipamentos}
           aoEditar={podeAlterar ? abrirEdicao : null}
-          aoExcluir={podeExcluir ? (eq) => acaoDeLinha({
-            confirmar: `Excluir o equipamento ${eq.etiqueta_instituto} — ${eq.identificacao}?`,
-            acao: () => excluirEquipamento(eq.id_equipamento),
-            sucesso: `Equipamento ${eq.etiqueta_instituto} excluído.`, mostrarMensagem, aoConcluir: buscar
-          }) : null}
           aoInativar={podeInativar ? abrirInativacao : null}
           aoReativar={podeAlterar ? (eq) => acaoDeLinha({
             confirmar: `Reativar o equipamento ${eq.etiqueta_instituto}? As instâncias inativadas no descarte continuam inativas.`,

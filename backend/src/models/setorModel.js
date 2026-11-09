@@ -177,4 +177,10 @@ async function excluir(id, idUsuario) {
   });
 }
 
-module.exports = { listarAtivos, listar, buscar, incluir, alterar, inativar, reativar, excluir };
+// Só id e nome dos setores ativos (lista pública da solicitação de acesso)
+async function listarNomesAtivos() {
+  const [linhas] = await pool.query('SELECT id_setor, nome FROM setor WHERE ativo = TRUE ORDER BY nome');
+  return linhas;
+}
+
+module.exports = { listarNomesAtivos, listarAtivos, listar, buscar, incluir, alterar, inativar, reativar, excluir };

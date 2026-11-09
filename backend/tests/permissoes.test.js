@@ -13,7 +13,7 @@ const EQUIPAMENTO = {
   etiqueta_instituto: 'IP0150', identificacao: 'Notebook de teste', tipo: 'Notebook', id_setor: 2, id_responsavel: 3
 };
 
-test('operador inclui e consulta equipamentos, mas não altera nem exclui', async () => {
+test('operador inclui e consulta equipamentos, mas não altera; não há exclusão', async () => {
   const op = await t.entrarOperador();
   assert.equal((await op.get('/equipamentos')).status, 200);
   const criado = await op.post('/equipamentos', EQUIPAMENTO);
@@ -22,7 +22,7 @@ test('operador inclui e consulta equipamentos, mas não altera nem exclui', asyn
 
   const alterar = await op.put(`/equipamentos/${id}`, { ...EQUIPAMENTO, identificacao: 'Outro nome' });
   assert.equal(alterar.status, 403);
-  assert.equal((await op.delete(`/equipamentos/${id}`)).status, 403);
+  assert.equal((await op.delete(`/equipamentos/${id}`)).status, 405);
 
   const [{ identificacao }] = await t.sql('SELECT identificacao FROM bem WHERE id_bem = ?', [id]);
   assert.equal(identificacao, 'Notebook de teste');
@@ -59,16 +59,16 @@ test('operador inativa equipamento (descarte) com data efetiva e motivo, e a RN0
   assert.equal(alocacao.fim, dataEfetiva);
 });
 
-test('administrador altera e exclui equipamento; exclusão com vínculo segue bloqueada (RN22)', async () => {
+test('administrador altera equipamento; nenhum cadastro é excluído (405), nem pelo Administrador', async () => {
   const admin = await t.entrarAdmin();
   const criado = await admin.post('/equipamentos', { ...EQUIPAMENTO, etiqueta_instituto: 'IP0151' });
   const id = criado.corpo.id_equipamento;
   assert.equal((await admin.put(`/equipamentos/${id}`, { ...EQUIPAMENTO, etiqueta_instituto: 'IP0151', tipo: 'Desktop' })).status, 200);
-  assert.equal((await admin.delete(`/equipamentos/${id}`)).status, 200);
-  assert.equal((await admin.delete('/equipamentos/1')).status, 409);
+  assert.equal((await admin.delete(`/equipamentos/${id}`)).status, 405);
+  assert.equal((await admin.delete('/equipamentos/1')).status, 405);
 });
 
-test('operador inclui, prorroga e encerra projetos, mas não altera nem exclui', async () => {
+test('operador inclui, prorroga e encerra projetos, mas não altera; não há exclusão', async () => {
   const op = await t.entrarOperador();
   const criado = await op.post('/projetos', {
     codigo: '1700', nome: 'Projeto do Operador', fonte_financiadora: 'Teste',
@@ -80,7 +80,7 @@ test('operador inclui, prorroga e encerra projetos, mas não altera nem exclui',
   assert.equal((await op.put(`/projetos/${id}`, {
     codigo: '1700', nome: 'Renomeado', fonte_financiadora: 'Teste', data_inicio: '2026-01-01', id_responsavel: 1
   })).status, 403);
-  assert.equal((await op.delete(`/projetos/${id}`)).status, 403);
+  assert.equal((await op.delete(`/projetos/${id}`)).status, 405);
 
   assert.equal((await op.post(`/projetos/${id}/prorrogacao`, { data_fim_prevista: '2027-06-30' })).status, 200);
   assert.equal((await op.post(`/projetos/${id}/encerramento`, { data_encerramento: '2026-03-01' })).status, 200);

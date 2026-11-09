@@ -16,6 +16,5 @@ rotas.post('/', p('cadastro.incluir'), asyncHandler(controller.incluir));
 rotas.put('/:id', p('cadastro.alterar'), asyncHandler(controller.alterar));
 rotas.post('/:id/inativacao', p('cadastro.inativar'), asyncHandler(controller.inativar));
 rotas.post('/:id/reativacao', p('cadastro.alterar'), asyncHandler(controller.reativar));
-rotas.delete('/:id', p('cadastro.excluir'), asyncHandler(controller.excluir));
 
 module.exports = rotas;

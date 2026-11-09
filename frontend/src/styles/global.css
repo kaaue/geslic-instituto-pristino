@@ -1027,3 +1027,118 @@ textarea.com-erro { border-color: var(--vermelho); background: var(--vermelho-cl
   .autenticacao-marca { padding: 28px 24px; gap: 18px; }
   .autenticacao-chamada h2 { font-size: 26px; }
 }
+
+/* =========================================================
+   Painéis de gerenciamento (projetos e usuários)
+   ========================================================= */
+
+.secao-painel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texto-suave);
+  margin: 6px 0 -4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--borda);
+}
+.secao-painel:first-of-type { border-top: none; padding-top: 0; }
+.sublinha { display: block; font-size: 12px; color: var(--texto-suave); }
+.acoes-painel { display: flex; flex-wrap: wrap; gap: 8px; }
+.acoes-painel:empty { display: none; }
+
+/* Operações sensíveis, separadas das de edição */
+.zona-sensivel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--vermelho-borda);
+  background: var(--vermelho-claro);
+  border-radius: var(--raio-pequeno);
+  padding: 12px 14px;
+}
+.zona-sensivel strong { display: block; font-size: 14px; }
+.zona-sensivel p { margin: 3px 0 0; font-size: 13px; color: var(--texto-suave); }
+.zona-sensivel + .zona-sensivel { margin-top: -4px; }
+.botao-perigo-contorno {
+  border-radius: var(--raio-pequeno);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  background: var(--superficie);
+  color: var(--vermelho);
+  border: 1px solid var(--vermelho-borda);
+}
+.botao-perigo-contorno:hover { background: #fff7f6; }
+.botao-perigo-contorno:disabled { opacity: 0.55; cursor: default; }
+
+.campo-check { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; cursor: pointer; }
+.campo-check input { margin-top: 3px; }
+.aviso ul { margin: 6px 0 0; padding-left: 18px; }
+.aviso li + li { margin-top: 3px; }
+
+/* Busca de colaborador por parte do nome */
+.busca-colaborador { position: relative; }
+.busca-colaborador input { width: 100%; }
+.busca-resultados {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-pequeno);
+  box-shadow: var(--sombra-flutuante);
+}
+.busca-resultados li { padding: 7px 11px; cursor: pointer; font-size: 13.5px; }
+.busca-resultados li:hover { background: var(--destaque-claro); }
+.busca-resultados li small { display: block; font-size: 12px; color: var(--texto-suave); }
+.busca-resultados .busca-vazio { color: var(--texto-suave); cursor: default; }
+.busca-resultados .busca-vazio:hover { background: none; }
+
+/* Inclusão de participantes: individual ou por setor */
+.seletor-colaboradores { display: flex; flex-direction: column; gap: 8px; }
+.alternador { display: inline-flex; align-self: flex-start; border: 1px solid var(--borda-forte); border-radius: var(--raio-pequeno); overflow: hidden; }
+.alternador button { background: var(--superficie); border: none; padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 600; color: var(--texto-suave); cursor: pointer; }
+.alternador button + button { border-left: 1px solid var(--borda-forte); }
+.alternador button.ativo { background: var(--destaque-claro); color: var(--destaque-texto); }
+.inclusao-setor { display: flex; flex-direction: column; gap: 8px; }
+.inclusao-setor-acoes { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.inclusao-setor > .botao-secundario { align-self: flex-start; }
+.lista-marcavel { list-style: none; margin: 0; padding: 0; border: 1px solid var(--borda); border-radius: var(--raio-pequeno); max-height: 220px; overflow-y: auto; }
+.lista-marcavel li + li { border-top: 1px solid var(--borda); }
+.lista-marcavel label { display: flex; gap: 9px; align-items: flex-start; padding: 7px 11px; font-size: 13.5px; cursor: pointer; }
+.lista-marcavel small { display: block; font-size: 12px; color: var(--texto-suave); }
+
+/* Histórico resumido dentro do painel */
+.linha-do-tempo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.linha-do-tempo li { display: grid; grid-template-columns: 82px 1fr; gap: 10px; font-size: 13px; }
+.linha-do-tempo-data { color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.linha-do-tempo small { display: block; font-size: 12px; color: var(--texto-suave); }
+
+/* Senha provisória: mostrada uma única vez, com cópia */
+.senha-copia { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.senha-copiada { color: var(--destaque-texto); font-size: 13px; font-weight: 600; }
+
+/* Resumo da transferência de privilégios */
+.etapas { display: flex; gap: 6px; list-style: none; margin: 0 0 4px; padding: 0; font-size: 12.5px; }
+.etapas li { flex: 1; padding: 6px 8px; border-radius: var(--raio-pequeno); background: var(--superficie-suave); color: var(--texto-suave); border: 1px solid var(--borda); }
+.etapas li.atual { background: var(--destaque-claro); color: var(--destaque-texto); border-color: var(--destaque-borda); font-weight: 600; }
+.etapas li.feita { color: var(--texto); }
+.opcao-cartao { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--borda); border-radius: var(--raio-pequeno); padding: 10px 12px; cursor: pointer; font-size: 13.5px; }
+.opcao-cartao.marcada { border-color: var(--destaque-borda); background: var(--destaque-claro); }
+.opcao-cartao input { margin-top: 3px; }
+.opcao-cartao small { display: block; color: var(--texto-suave); font-size: 12.5px; }
+.resumo-transferencia { border-left: 3px solid var(--destaque); padding: 8px 12px; background: var(--superficie-suave); font-size: 14px; line-height: 1.5; }
+.resumo-transferencia p { margin: 0; }
+.resumo-transferencia p + p { margin-top: 6px; }

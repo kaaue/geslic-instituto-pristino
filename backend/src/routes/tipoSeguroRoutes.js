@@ -16,7 +16,6 @@ rotas.post('/', p('cadastro.incluir'), asyncHandler(controller.incluir));
 rotas.put('/:id', p('cadastro.alterar'), asyncHandler(controller.alterar));
 rotas.post('/:id/inativacao', p('cadastro.inativar'), asyncHandler(controller.inativar));
 rotas.post('/:id/reativacao', p('cadastro.alterar'), asyncHandler(controller.reativar));
-rotas.delete('/:id', p('cadastro.excluir'), asyncHandler(controller.excluir));
 
 // Coberturas de cada tipo de seguro
 rotas.get('/:id/coberturas', p('cadastro.consultar'), asyncHandler(controller.listarCoberturas));
@@ -24,6 +23,5 @@ rotas.post('/:id/coberturas', p('cadastro.incluir'), asyncHandler(controller.inc
 rotas.put('/coberturas/:idCobertura', p('cadastro.alterar'), asyncHandler(controller.alterarCobertura));
 rotas.post('/coberturas/:idCobertura/inativacao', p('cadastro.inativar'), asyncHandler(controller.inativarCobertura));
 rotas.post('/coberturas/:idCobertura/reativacao', p('cadastro.alterar'), asyncHandler(controller.reativarCobertura));
-rotas.delete('/coberturas/:idCobertura', p('cadastro.excluir'), asyncHandler(controller.excluirCobertura));
 
 module.exports = rotas;

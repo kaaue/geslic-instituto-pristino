@@ -163,7 +163,7 @@ function DialogoDesligamento({ registro, controle, aoConfirmar }) {
       {previa?.conta?.situacao === 'ativo' && (
         <p className="aviso-info">
           A conta de acesso <strong>{previa.conta.login}</strong> continua ativa: o cadastro de colaborador e a conta são separados.
-          Desative a conta em Contas e perfis, se for o caso.
+          Desative a conta em Gerenciar usuários, se for o caso.
         </p>
       )}
     </DialogoInativacao>
@@ -286,13 +286,6 @@ export default function ColaboradoresPage() {
                           acao: () => servico.reativar(c.id_colaborador), sucesso: `${c.nome} reativado.`,
                           mostrarMensagem, aoConcluir: recarregar
                         })}>Reativar</button>
-                      )}
-                      {pode('cadastro.excluir') && (
-                        <button type="button" className="botao-texto botao-perigo" onClick={() => acaoDeLinha({
-                          confirmar: `Excluir ${c.nome}? Só colaboradores sem vínculos podem ser excluídos.`,
-                          acao: () => servico.excluir(c.id_colaborador), sucesso: `${c.nome} excluído.`,
-                          mostrarMensagem, aoConcluir: recarregar
-                        })}>Excluir</button>
                       )}
                       <BotaoSolicitarAjuste entidade="colaborador" idRegistro={c.id_colaborador} rotulo={`${c.nome} · ${c.nome_setor}`}
                         aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />

@@ -196,9 +196,10 @@ async function criarUsuariosTeste(conexao) {
 // uma pendente e outra concluída pela Administradora de teste.
 async function criarExemplosDoPainel(conexao) {
   await conexao.query(
-    `INSERT INTO usuario (id_perfil, nome, login, email, senha_hash, situacao, senha_alterada_em, criada_em)
+    `INSERT INTO usuario (id_perfil, nome, login, email, senha_hash, situacao, senha_alterada_em, criada_em,
+                          cadastro_id_setor, cadastro_cargo)
      SELECT id_perfil, 'Luciana Prado', 'luciana.prado', 'luciana.prado@pristino.org.br', ?, 'pendente', NOW(),
-            DATE_SUB(NOW(), INTERVAL 1 DAY)
+            DATE_SUB(NOW(), INTERVAL 1 DAY), 1, 'Assistente'
        FROM perfil WHERE nome = 'Operador'`,
     [gerarHashSenha(contas.senhaUsuariosTeste)]);
 

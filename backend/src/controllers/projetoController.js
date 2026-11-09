@@ -45,8 +45,8 @@ async function encerrar(req, res) {
   res.json(await Projeto.encerrar(Number(req.params.id), req.body, responsavel(req)));
 }
 
-async function excluir(req, res) {
-  res.json(await Projeto.excluir(Number(req.params.id), responsavel(req)));
+async function reabrir(req, res) {
+  res.json(await Projeto.reabrir(Number(req.params.id), req.body, responsavel(req)));
 }
 
-module.exports = { listar, listarFontes, listarAnos, buscar, incluir, alterar, prorrogar, encerrar, excluir };
+module.exports = { listar, listarFontes, listarAnos, buscar, incluir, alterar, prorrogar, encerrar, reabrir };

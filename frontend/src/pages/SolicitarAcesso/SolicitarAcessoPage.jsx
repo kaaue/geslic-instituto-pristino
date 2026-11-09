@@ -1,17 +1,20 @@
 // Solicitação de acesso (autocadastro). A conta nasce pendente, como
-// Operador, e só entra no sistema depois que um Administrador aprovar,
-// escolhendo o perfil e, se for o caso, o colaborador vinculado.
+// Operador, e só entra no sistema depois que um Administrador aprovar.
+// Setor e cargo identificam o colaborador: na aprovação, o Administrador
+// liga a conta a um cadastro existente ou cria o colaborador com esses dados,
+// sem precisar passar pela tela de colaboradores. Nada é criado antes da
+// aprovação.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PaginaAutenticacao from '../../components/common/PaginaAutenticacao.jsx';
 import Campo from '../../components/common/Campo.jsx';
 import CampoSenha from '../../components/common/CampoSenha.jsx';
-import { solicitarAcesso } from '../../services/authService';
+import { solicitarAcesso, setoresDaSolicitacao } from '../../services/authService';
 import { mensagemDeErro } from '../../services/api';
 import { errosDeSenha } from '../../utils/senha';
 
-const VAZIO = { nome: '', email: '', login: '', senha: '', confirmacao: '' };
+const VAZIO = { nome: '', email: '', login: '', id_setor: '', cargo: '', senha: '', confirmacao: '' };
 const FORMATO_LOGIN = /^[a-z0-9][a-z0-9._-]{2,39}$/;
 const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -26,6 +29,7 @@ function validar(form) {
   if (!FORMATO_LOGIN.test(form.login.trim().toLowerCase())) {
     erros.login = 'Use de 3 a 40 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado.';
   }
+  if (!form.id_setor) erros.id_setor = 'Selecione o seu setor.';
   return { ...erros, ...errosDeSenha(form.senha, form.confirmacao) };
 }
 
@@ -35,6 +39,11 @@ export default function SolicitarAcessoPage() {
   const [erro, setErro] = useState('');
   const [enviado, setEnviado] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [setores, setSetores] = useState([]);
+
+  useEffect(() => {
+    setoresDaSolicitacao().then(setSetores).catch(() => setSetores([]));
+  }, []);
 
   const mudar = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
 
@@ -47,7 +56,9 @@ export default function SolicitarAcessoPage() {
 
     setEnviando(true);
     try {
-      const { mensagem } = await solicitarAcesso({ ...form, login: form.login.trim().toLowerCase() });
+      const { mensagem } = await solicitarAcesso({
+        ...form, login: form.login.trim().toLowerCase(), id_setor: Number(form.id_setor)
+      });
       setEnviado(mensagem);
     } catch (e) {
       setErros(e.corpo?.erros || {});
@@ -87,6 +98,17 @@ export default function SolicitarAcessoPage() {
           </Campo>
         </div>
         <div className="dupla">
+          <Campo rotulo="Setor" erro={erros.id_setor}>
+            <select value={form.id_setor} onChange={mudar('id_setor')} className={erros.id_setor ? 'com-erro' : ''}>
+              <option value="">Selecione</option>
+              {setores.map((s) => <option key={s.id_setor} value={s.id_setor}>{s.nome}</option>)}
+            </select>
+          </Campo>
+          <Campo rotulo="Cargo (opcional)" erro={erros.cargo}>
+            <input type="text" value={form.cargo} maxLength={80} onChange={mudar('cargo')} autoComplete="organization-title" />
+          </Campo>
+        </div>
+        <div className="dupla">
           <CampoSenha valor={form.senha} aoMudar={(v) => setForm({ ...form, senha: v })} erro={erros.senha} />
           <CampoSenha
             rotulo="Confirmação da senha"
@@ -97,8 +119,8 @@ export default function SolicitarAcessoPage() {
           />
         </div>
         <p className="nota">
-          O perfil de acesso e o vínculo com o cadastro de colaborador são definidos pelo
-          Administrador na aprovação.
+          Setor e cargo servem para o Administrador identificar o seu cadastro de colaborador
+          na aprovação. O perfil de acesso também é definido nesse momento.
         </p>
         <button type="submit" className="botao-principal" disabled={enviando}>
           {enviando ? 'Enviando...' : 'Enviar solicitação'}

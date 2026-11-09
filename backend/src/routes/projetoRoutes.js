@@ -22,6 +22,6 @@ rotas.post('/', p('cadastro.incluir'), asyncHandler(controller.incluir));
 rotas.put('/:id', p('cadastro.alterar'), asyncHandler(controller.alterar));
 rotas.post('/:id/prorrogacao', p('projeto.prorrogar'), asyncHandler(controller.prorrogar));
 rotas.post('/:id/encerramento', p('projeto.encerrar'), asyncHandler(controller.encerrar));
-rotas.delete('/:id', p('cadastro.excluir'), asyncHandler(controller.excluir));
+rotas.post('/:id/reabertura', p('projeto.encerrar'), asyncHandler(controller.reabrir));
 
 module.exports = rotas;
