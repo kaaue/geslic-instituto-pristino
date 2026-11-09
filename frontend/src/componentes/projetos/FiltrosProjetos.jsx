@@ -2,14 +2,15 @@
 // situação, responsável, fonte financiadora, prazo do término previsto e
 // período de vigência (ano inteiro ou semestre).
 
-export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaboradores, fontes, total }) {
+export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaboradores, fontes, anos, total }) {
   function mudar(campo, valor) {
     aoMudar({ ...filtros, [campo]: valor });
   }
 
-  // Ano: só dígitos, até 4. Sem ano, o semestre não se aplica.
-  function mudarAno(valor) {
-    const ano = valor.replace(/\D/g, '').slice(0, 4);
+  // O ano é escolhido numa lista com os anos em que houve projeto em
+  // andamento, então não há como digitar um ano inválido ou sem projetos.
+  // Sem ano escolhido, o semestre não se aplica e volta para "ano inteiro".
+  function mudarAno(ano) {
     aoMudar({ ...filtros, ano, semestre: ano ? filtros.semestre : '' });
   }
 
@@ -47,22 +48,21 @@ export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaborado
           </select>
         </label>
 
-        <label className="campo campo-ano">
+        <label className="campo">
           <span>Vigente em</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="aaaa"
-            value={filtros.ano}
-            onChange={(e) => mudarAno(e.target.value)}
-          />
+          <select value={filtros.ano} onChange={(e) => mudarAno(e.target.value)}>
+            <option value="">Todos os anos</option>
+            {anos.map((ano) => (
+              <option key={ano} value={String(ano)}>{ano}</option>
+            ))}
+          </select>
         </label>
 
         <label className="campo">
           <span>Período</span>
           <select
             value={filtros.semestre}
-            disabled={filtros.ano.length !== 4}
+            disabled={filtros.ano === ''}
             onChange={(e) => mudar('semestre', e.target.value)}
           >
             <option value="">Ano inteiro</option>
