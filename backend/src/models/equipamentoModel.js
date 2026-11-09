@@ -1,0 +1,281 @@
+// Model da RF_B3 - Gerenciar equipamentos: acesso ao banco e regras dos dados.
+// O equipamento é especialização de bem, então toda escrita mexe em duas tabelas
+// dentro de uma transação: ou as duas gravam, ou nenhuma grava. Cada escrita
+// registra no histórico (RF_F13) a conta responsável.
+
+const { pool, comTransacao } = require('../config/database');
+const AppError = require('../utils/AppError');
+const Historico = require('./historicoModel');
+
+// Colunas devolvidas na listagem e na busca por id.
+// Junta bem, equipamento, setor e colaborador, e conta quantas instâncias de
+// licença estão alocadas ao equipamento neste momento (alocação com data_fim nula).
+const COLUNAS = `
+    e.id_equipamento,
+    e.etiqueta_instituto,
+    e.etiqueta_netscanner,
+    e.tipo,
+    e.uso_geral,
+    e.id_responsavel,
+    c.nome AS nome_responsavel,
+    b.categoria,
+    b.identificacao,
+    b.situacao,
+    b.id_setor,
+    s.nome AS nome_setor,
+    (SELECT COUNT(*) FROM alocacao a
+      WHERE a.id_equipamento = e.id_equipamento AND a.data_fim IS NULL)
+      AS instancias_alocadas`;
+
+const TABELAS = `
+    FROM equipamento e
+    JOIN bem b              ON b.id_bem = e.id_equipamento
+    JOIN setor s            ON s.id_setor = b.id_setor
+    LEFT JOIN colaborador c ON c.id_colaborador = e.id_responsavel`;
+
+const NAO_ENCONTRADO = 'Equipamento não encontrado.';
+
+// Monta a consulta da listagem aplicando só os filtros que vieram preenchidos.
+// Os valores vão como parâmetros (?) e nunca concatenados, para evitar injeção de SQL.
+function montarConsulta(filtros) {
+  const condicoes = [];
+  const valores = [];
+
+  // Busca livre: etiqueta, identificação ou tipo
+  if (filtros.busca) {
+    condicoes.push(`(
+      e.etiqueta_instituto LIKE ? OR
+      e.etiqueta_netscanner LIKE ? OR
+      b.identificacao LIKE ? OR
+      e.tipo LIKE ?
+    )`);
+    const termo = `%${filtros.busca.trim()}%`;
+    valores.push(termo, termo, termo, termo);
+  }
+
+  if (filtros.id_setor) {
+    condicoes.push('b.id_setor = ?');
+    valores.push(Number(filtros.id_setor));
+  }
+
+  if (filtros.situacao) {
+    condicoes.push('b.situacao = ?');
+    valores.push(filtros.situacao);
+  }
+
+  // O filtro de uso geral chega como texto 'sim' ou 'nao'
+  if (filtros.uso_geral === 'sim') {
+    condicoes.push('e.uso_geral = TRUE');
+  } else if (filtros.uso_geral === 'nao') {
+    condicoes.push('e.uso_geral = FALSE');
+  }
+
+  const sql = `SELECT ${COLUNAS} ${TABELAS}
+    ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''}
+    ORDER BY e.etiqueta_instituto`;
+
+  return { sql, valores };
+}
+
+// Verifica se a etiqueta já pertence a outro equipamento.
+// idAtual é passado na edição, para o próprio registro não acusar duplicidade.
+async function etiquetaEmUso(conexao, coluna, valor, idAtual) {
+  if (!valor) return false;
+  const [linhas] = await conexao.query(
+    `SELECT id_equipamento FROM equipamento
+      WHERE ${coluna} = ? AND id_equipamento <> ?`,
+    [valor, idAtual || 0]
+  );
+  return linhas.length > 0;
+}
+
+// Etiquetas únicas (RN20). Lança o erro no campo correspondente.
+async function conferirEtiquetas(conexao, dados, idAtual) {
+  if (await etiquetaEmUso(conexao, 'etiqueta_instituto', dados.etiqueta_instituto, idAtual)) {
+    throw AppError.campos({ etiqueta_instituto: 'Já existe um equipamento com esta etiqueta.' });
+  }
+  if (await etiquetaEmUso(conexao, 'etiqueta_netscanner', dados.etiqueta_netscanner, idAtual)) {
+    throw AppError.campos({ etiqueta_netscanner: 'Já existe um equipamento com esta etiqueta NetScanner.' });
+  }
+}
+
+// Busca o equipamento ou lança 404. `conexao` pode ser o pool ou a de uma transação.
+async function buscarOuFalhar(conexao, id) {
+  const [linhas] = await conexao.query(`SELECT ${COLUNAS} ${TABELAS} WHERE e.id_equipamento = ?`, [id]);
+  if (linhas.length === 0) throw AppError.naoEncontrado(NAO_ENCONTRADO);
+  return linhas[0];
+}
+
+// Campos que o histórico guarda antes e depois de cada alteração
+function retrato(e) {
+  return {
+    etiqueta_instituto: e.etiqueta_instituto, etiqueta_netscanner: e.etiqueta_netscanner,
+    identificacao: e.identificacao, tipo: e.tipo, categoria: e.categoria, id_setor: e.id_setor,
+    id_responsavel: e.id_responsavel, uso_geral: Boolean(e.uso_geral), situacao: e.situacao
+  };
+}
+
+// RN08: inativar equipamento significa descarte. As instâncias não
+// transferíveis alocadas a ele passam a inativas; as transferíveis
+// continuam ativas e podem ser liberadas ou transferidas depois.
+async function inativarInstanciasNaoTransferiveis(conexao, id) {
+  const [resultado] = await conexao.query(
+    `UPDATE instancia i
+        JOIN alocacao a ON a.id_instancia = i.id_instancia
+        JOIN licenca l  ON l.id_licenca = i.id_licenca
+        SET i.situacao = 'inativa',
+            i.data_inativacao = CURDATE(),
+            i.motivo_inativacao = 'descarte do equipamento'
+      WHERE a.id_equipamento = ?
+        AND a.data_fim IS NULL
+        AND l.transferivel = FALSE
+        AND i.situacao = 'ativa'`,
+    [id]
+  );
+  return resultado.affectedRows;
+}
+
+const textoInativacao = (quantidade) => (quantidade
+  ? `; ${quantidade} instância(s) não transferível(is) inativada(s) (RN08)` : '');
+
+async function listar(filtros) {
+  const { sql, valores } = montarConsulta(filtros);
+  const [linhas] = await pool.query(sql, valores);
+  return linhas;
+}
+
+async function buscarPorId(id) {
+  return buscarOuFalhar(pool, id);
+}
+
+async function incluir(dados, idResponsavel) {
+  return comTransacao(async (conexao) => {
+    await conferirEtiquetas(conexao, dados, null);
+
+    // Grava primeiro o bem, depois o equipamento com o mesmo id gerado
+    const [resultadoBem] = await conexao.query(
+      // patrimonio e valor ficam nulos: a etiqueta do Instituto já identifica
+      // o patrimônio do equipamento, e o valor só interessa ao bem segurável
+      `INSERT INTO bem (categoria, identificacao, id_setor, situacao)
+       VALUES (?, ?, ?, ?)`,
+      [dados.categoria, dados.identificacao, dados.id_setor, dados.situacao]
+    );
+    const novoId = resultadoBem.insertId;
+
+    await conexao.query(
+      `INSERT INTO equipamento
+        (id_equipamento, etiqueta_instituto, etiqueta_netscanner, tipo, id_responsavel, uso_geral)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [novoId, dados.etiqueta_instituto, dados.etiqueta_netscanner,
+       dados.tipo, dados.id_responsavel, dados.uso_geral]
+    );
+
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'criacao', entidade: 'equipamento', idRegistro: novoId,
+      descricao: `Equipamento ${dados.etiqueta_instituto} cadastrado`, depois: retrato(dados)
+    });
+    return { id_equipamento: novoId };
+  });
+}
+
+// Correção dos dados cadastrais (exclusiva do Administrador, RN21)
+async function alterar(id, dados, idResponsavel) {
+  return comTransacao(async (conexao) => {
+    const atual = await buscarOuFalhar(conexao, id);
+
+    await conferirEtiquetas(conexao, dados, id);
+
+    await conexao.query(
+      `UPDATE bem
+          SET categoria = ?, identificacao = ?, id_setor = ?, situacao = ?
+        WHERE id_bem = ?`,
+      [dados.categoria, dados.identificacao, dados.id_setor, dados.situacao, id]
+    );
+
+    await conexao.query(
+      `UPDATE equipamento
+          SET etiqueta_instituto = ?, etiqueta_netscanner = ?,
+              tipo = ?, id_responsavel = ?, uso_geral = ?
+        WHERE id_equipamento = ?`,
+      [dados.etiqueta_instituto, dados.etiqueta_netscanner,
+       dados.tipo, dados.id_responsavel, dados.uso_geral, id]
+    );
+
+    // Passar de ativo para inativo pela edição também aplica a RN08
+    let instanciasInativadas = 0;
+    if (atual.situacao === 'ativo' && dados.situacao === 'inativo') {
+      instanciasInativadas = await inativarInstanciasNaoTransferiveis(conexao, id);
+    }
+
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'correcao', entidade: 'equipamento', idRegistro: id,
+      descricao: `Equipamento ${dados.etiqueta_instituto}: dados corrigidos${textoInativacao(instanciasInativadas)}`,
+      antes: retrato(atual), depois: retrato(dados)
+    });
+    return { id_equipamento: id, instancias_inativadas: instanciasInativadas };
+  });
+}
+
+// Inativação (descarte) como ação própria: o Operador inativa sem poder
+// alterar os demais dados cadastrais (RN21). Aplica a RN08.
+async function inativar(id, idResponsavel) {
+  return comTransacao(async (conexao) => {
+    const atual = await buscarOuFalhar(conexao, id);
+    if (atual.situacao === 'inativo') throw AppError.conflito('Este equipamento já está inativo.');
+
+    await conexao.query(`UPDATE bem SET situacao = 'inativo' WHERE id_bem = ?`, [id]);
+    const instanciasInativadas = await inativarInstanciasNaoTransferiveis(conexao, id);
+
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'inativacao', entidade: 'equipamento', idRegistro: id,
+      descricao: `Equipamento ${atual.etiqueta_instituto} inativado (descarte)${textoInativacao(instanciasInativadas)}`,
+      antes: retrato(atual), depois: retrato({ ...atual, situacao: 'inativo' })
+    });
+    return { id_equipamento: id, instancias_inativadas: instanciasInativadas };
+  });
+}
+
+// Só é permitido excluir cadastro sem vínculos (RN22). Com instância
+// alocada, o caminho é inativar o equipamento, não apagar o histórico.
+async function excluir(id, idResponsavel) {
+  return comTransacao(async (conexao) => {
+    const atual = await buscarOuFalhar(conexao, id);
+
+    const [vinculos] = await conexao.query(
+      'SELECT COUNT(*) AS total FROM alocacao WHERE id_equipamento = ?', [id]);
+    if (vinculos[0].total > 0) {
+      throw AppError.conflito(
+        'Este equipamento já recebeu licenças e não pode ser excluído. ' +
+        'Para tirá-lo de uso, inative o equipamento.');
+    }
+
+    // a exclusão em bem remove o equipamento junto, por causa do ON DELETE CASCADE
+    const [resultado] = await conexao.query('DELETE FROM bem WHERE id_bem = ?', [id]);
+    if (resultado.affectedRows === 0) throw AppError.naoEncontrado(NAO_ENCONTRADO);
+
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: 'exclusao', entidade: 'equipamento', idRegistro: id,
+      descricao: `Equipamento ${atual.etiqueta_instituto} excluído`, antes: retrato(atual)
+    });
+    return { excluido: true };
+  });
+}
+
+// Prévia da inativação: usada pela interface para avisar o usuário antes de
+// confirmar, conforme a RN08.
+async function previaInativacao(id) {
+  const [linhas] = await pool.query(
+    `SELECT l.nome_software, l.transferivel, i.identificacao
+       FROM alocacao a
+       JOIN instancia i ON i.id_instancia = a.id_instancia
+       JOIN licenca l   ON l.id_licenca = i.id_licenca
+      WHERE a.id_equipamento = ? AND a.data_fim IS NULL`,
+    [id]
+  );
+  return {
+    nao_transferiveis: linhas.filter((l) => !l.transferivel),
+    transferiveis: linhas.filter((l) => l.transferivel)
+  };
+}
+
+module.exports = { listar, buscarPorId, incluir, alterar, inativar, excluir, previaInativacao };
