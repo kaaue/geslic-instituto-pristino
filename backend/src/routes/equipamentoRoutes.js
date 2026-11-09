@@ -14,6 +14,7 @@ rotas.get('/:id', p('cadastro.consultar'), asyncHandler(controller.buscar));
 rotas.post('/', p('cadastro.incluir'), asyncHandler(controller.incluir));
 rotas.put('/:id', p('cadastro.alterar'), asyncHandler(controller.alterar));
 rotas.post('/:id/inativacao', p('cadastro.inativar'), asyncHandler(controller.inativar));
+rotas.post('/:id/reativacao', p('cadastro.alterar'), asyncHandler(controller.reativar));
 rotas.delete('/:id', p('cadastro.excluir'), asyncHandler(controller.excluir));
 // Prévia da inativação, para a interface avisar antes de confirmar (RN08)
 rotas.get('/:id/previa-inativacao', p('cadastro.consultar'), asyncHandler(controller.previaInativacao));

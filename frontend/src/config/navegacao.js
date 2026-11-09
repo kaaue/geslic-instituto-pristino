@@ -6,6 +6,8 @@
 // permissões nas rotas: aqui é só para o menu e o bloqueio de acesso direto.
 // `pendente` marca as telas cuja função ainda está em desenvolvimento.
 // `secao` é o trecho do caminho de navegação ("Instituto Prístino / Cadastros / ...").
+// `expansivel` mostra o grupo como uma entrada que abre e fecha (Cadastros).
+// As solicitações de ajuste (RF_B10) não têm item de menu: ficam no painel.
 // Para adicionar uma tela: inclua aqui e em routes/AppRoutes.jsx.
 
 export const GRUPOS_MENU = [
@@ -34,16 +36,19 @@ export const GRUPOS_MENU = [
     ]
   },
   {
+    // Entrada única e expansível Cadastros (seção 2.3.2, Protótipo 5)
     titulo: 'Cadastros',
     secao: 'Cadastros',
+    expansivel: true,
+    icone: '▦',
     itens: [
-      { caminho: '/softwares', rotulo: 'Softwares', funcao: 'RF_B2', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
-      { caminho: '/fornecedores', rotulo: 'Fornecedores e seguradoras', funcao: 'RF_B1', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
-      { caminho: '/equipamentos', rotulo: 'Equipamentos', funcao: 'RF_B3', permissao: 'cadastro.consultar', icone: '▢' },
-      { caminho: '/bens-seguraveis', rotulo: 'Bens seguráveis', funcao: 'RF_B6', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
-      { caminho: '/colaboradores', rotulo: 'Colaboradores', funcao: 'RF_B4', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
-      { caminho: '/setores', rotulo: 'Setores', funcao: 'RF_B5', permissao: 'cadastro.consultar', icone: '▢', pendente: true },
-      { caminho: '/tipos-seguro', rotulo: 'Tipos e coberturas', funcao: 'RF_B7', permissao: 'cadastro.consultar', icone: '▢', pendente: true }
+      { caminho: '/softwares', rotulo: 'Softwares', funcao: 'RF_B2', permissao: 'cadastro.consultar' },
+      { caminho: '/fornecedores', rotulo: 'Fornecedores e seguradoras', funcao: 'RF_B1', permissao: 'cadastro.consultar' },
+      { caminho: '/equipamentos', rotulo: 'Equipamentos', funcao: 'RF_B3', permissao: 'cadastro.consultar' },
+      { caminho: '/bens-seguraveis', rotulo: 'Bens seguráveis', funcao: 'RF_B6', permissao: 'cadastro.consultar' },
+      { caminho: '/colaboradores', rotulo: 'Colaboradores', funcao: 'RF_B4', permissao: 'cadastro.consultar' },
+      { caminho: '/setores', rotulo: 'Setores', funcao: 'RF_B5', permissao: 'cadastro.consultar' },
+      { caminho: '/tipos-seguro', rotulo: 'Tipos e coberturas', funcao: 'RF_B7', permissao: 'cadastro.consultar' }
     ]
   },
   {
@@ -58,7 +63,7 @@ export const GRUPOS_MENU = [
     titulo: 'Conta',
     secao: 'Conta',
     itens: [
-      { caminho: '/minha-conta', rotulo: 'Minha conta', funcao: 'RF_B8 e RF_B9', icone: '◉' },
+      { caminho: '/minha-conta', rotulo: 'Minha conta', titulo: 'Minha conta', funcao: 'RF_B8 e RF_B9', icone: '◉' },
       { caminho: '/contas', rotulo: 'Contas e perfis', funcao: 'RF_B8', permissao: 'usuario.gerenciar', icone: '⚙' }
     ]
   }

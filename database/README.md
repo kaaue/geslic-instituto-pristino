@@ -64,6 +64,7 @@ o `db:setup` só as registra como aplicadas.
 |---|---|
 | `001_autenticacao.sql` | conta com `situacao` (pendente, ativo, inativo) no lugar de `ativo`, `troca_senha_obrigatoria`, `criada_em`, `senha_alterada_em` e `ultimo_acesso_em`; tabelas `sessao` e `recuperacao_senha`; `permissao.grupo` e `permissao.exclusiva_administrador`; catálogo de permissões e matriz por perfil |
 | `002_gatilhos_restauraveis.sql` | recria os gatilhos que tornam o histórico imutável (RN22) com `BEGIN ... END`. Na forma antiga, o MySQL guardava um `;` dentro do corpo, e o arquivo gerado pelo `mysqldump` falhava na restauração |
+| `003_funcoes_basicas.sql` | funções básicas da ERS 2.6: `setor.id_coordenador` e `data_inativacao`; campos por categoria e `data_inativacao` em `bem`; `software.observacoes`; `usuario` sem `ultimo_acesso_em` e com `id_aprovador`/`aprovada_em`; `permissao.exclusiva_operador` e matriz fixa refeita; `tipo_notificacao`, `preferencia_notificacao` (por tipo) e `prazo_notificacao`; `solicitacao_ajuste` e `presenca_solicitacao` com gatilhos; `movimentacao.id_solicitacao`. Conferida da mesma forma: um banco no formato anterior, migrado, ficou idêntico a um criado do zero |
 
 As duas migrações foram conferidas assim:
 
@@ -193,5 +194,3 @@ erDiagram
 - **Alterou o schema?** Crie uma migração, atualize o `schema.sql` e este
   README.
 
-
-Os códigos RF deste documento seguem a ERS 2.5 reordenada. A base do schema continua sendo o modelo 2.4 com extensões de autenticação; autorizações e solicitações de ajuste ainda exigem implementação. A atualização dos comentários não executa migrações.

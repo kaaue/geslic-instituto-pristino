@@ -89,7 +89,11 @@ function validarEquipamento(corpo) {
       etiqueta_netscanner: etiquetaNetscanner,
       tipo,
       id_responsavel: usoGeral ? null : idResponsavel,
-      uso_geral: usoGeral
+      uso_geral: usoGeral,
+      // Só usados quando a edição passa o equipamento a inativo (RN37):
+      // o model exige os dois nesse caso
+      data_efetiva: corpo.data_efetiva,
+      motivo: corpo.motivo
     }
   };
 }

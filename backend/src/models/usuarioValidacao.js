@@ -9,6 +9,8 @@ const { problemaNaSenha } = require('../utils/senha');
 // Login: minúsculas, números, ponto, hífen e sublinhado; começa com letra ou número
 const FORMATO_LOGIN = /^[a-z0-9][a-z0-9._-]{2,39}$/;
 const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// As contas usam o correio eletrônico institucional (RN41, CA23)
+const DOMINIO_INSTITUCIONAL = '@pristino.org.br';
 
 const normalizarLogin = (valor) => String(valor ?? '').trim().toLowerCase();
 const normalizarEmail = (valor) => String(valor ?? '').trim().toLowerCase();
@@ -25,6 +27,7 @@ function validarIdentificacao(corpo, erros) {
 
   if (!email) erros.email = 'O e-mail é obrigatório.';
   else if (email.length > 120 || !FORMATO_EMAIL.test(email)) erros.email = 'Informe um e-mail válido.';
+  else if (!email.endsWith(DOMINIO_INSTITUCIONAL)) erros.email = `Use o e-mail institucional (${DOMINIO_INSTITUCIONAL}).`;
 
   if (!login) erros.login = 'O login é obrigatório.';
   else if (!FORMATO_LOGIN.test(login)) {
@@ -122,15 +125,46 @@ function validarSituacao(corpo) {
   return { erros, dados: { situacao, motivo } };
 }
 
-// Minha conta: cada pessoa atualiza nome e e-mail (login e perfil, não)
+// Minha conta: cada pessoa atualiza nome e e-mail (login e perfil, não) e,
+// no mesmo bloco, pode trocar a senha (Protótipo 4): com nova senha, a atual
+// e a confirmação passam a ser exigidas
 function validarDadosProprios(corpo) {
   const erros = {};
   const { nome, email } = validarIdentificacao({ ...corpo, login: 'login.valido' }, erros);
-  return { erros, dados: { nome, email } };
+  const dados = { nome, email };
+  if (corpo.senha || corpo.senha_atual || corpo.confirmacao) {
+    if (!corpo.senha_atual) erros.senha_atual = 'Informe a senha atual.';
+    validarNovaSenha(corpo.senha, corpo.confirmacao, erros);
+    dados.senha_atual = corpo.senha_atual;
+    dados.senha = corpo.senha;
+  }
+  return { erros, dados };
+}
+
+// Transferência de privilégios de administrador (Protótipo 13.1, RN27):
+// concede o perfil a uma conta e revoga de outra numa única operação
+function validarTransferencia(corpo) {
+  const erros = {};
+  const idConcedida = Number(corpo.id_concedida);
+  const idRevogada = Number(corpo.id_revogada);
+  if (!Number.isInteger(idConcedida) || idConcedida <= 0) erros.id_concedida = 'Selecione a conta da nova gestora.';
+  if (!Number.isInteger(idRevogada) || idRevogada <= 0) erros.id_revogada = 'Selecione a conta da gestora que sai.';
+  else if (idRevogada === idConcedida) erros.id_revogada = 'Escolha contas diferentes para conceder e revogar.';
+  const destino = corpo.destino_revogada;
+  if (!['operador', 'inativar'].includes(destino)) erros.destino_revogada = 'Escolha rebaixar a Operador ou inativar a conta.';
+  const motivo = textoOuNulo(corpo.motivo);
+  if (!motivo) erros.motivo = 'Informe o motivo.';
+  else if (motivo.length > 255) erros.motivo = 'O motivo deve ter no máximo 255 caracteres.';
+  const dataEfetiva = textoOuNulo(corpo.data_efetiva);
+  if (!dataValida(dataEfetiva)) erros.data_efetiva = 'Informe uma data válida.';
+  return {
+    erros,
+    dados: { id_concedida: idConcedida, id_revogada: idRevogada, destino_revogada: destino, motivo, data_efetiva: dataEfetiva }
+  };
 }
 
 module.exports = {
   normalizarLogin, normalizarEmail, validarSolicitacao, validarNovaSenha,
   validarDadosConta, validarCriacao, validarAprovacao, validarAlteracaoPerfil,
-  validarSituacao, validarDadosProprios
+  validarSituacao, validarDadosProprios, validarTransferencia, DOMINIO_INSTITUCIONAL
 };

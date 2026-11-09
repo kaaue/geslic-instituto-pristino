@@ -3,7 +3,7 @@
 // aqui são públicas, exceto /me e /logout.
 
 const { comTransacao } = require('../config/database');
-const { frontendUrl, recuperacao } = require('../config/env');
+const { frontendUrl, recuperacao, sessao: configSessao } = require('../config/env');
 const AppError = require('../utils/AppError');
 const { lancarSeHouverErros } = require('../utils/AppError');
 const { verificarSenhaOuFicticio } = require('../utils/senha');
@@ -52,13 +52,13 @@ async function login(req, res) {
     throw AppError.proibido('Esta conta está desativada. Procure um Administrador.', 'CONTA_INATIVA');
   }
 
-  const token = await comTransacao(async (conexao) => {
-    await Usuario.registrarAcesso(conexao, conta.id_usuario);
-    return Sessao.criar(conexao, conta.id_usuario);
-  });
+  const token = await comTransacao((conexao) => Sessao.criar(conexao, conta.id_usuario));
   gravarCookieSessao(res, token);
-  res.json({ usuario: await Usuario.carregarAutenticado(conta.id_usuario) });
+  res.json({ usuario: await Usuario.carregarAutenticado(conta.id_usuario), sessao: dadosDaSessao() });
 }
+
+// Regras da sessão que a interface precisa conhecer (RN32)
+const dadosDaSessao = () => ({ inatividade_minutos: configSessao.inatividadeMinutos });
 
 async function logout(req, res) {
   await Sessao.encerrar(req.sessao.idSessao, 'logout');
@@ -68,7 +68,15 @@ async function logout(req, res) {
 
 // Conta da sessão, com perfil e permissões atuais (vindos do banco)
 async function me(req, res) {
-  res.json({ usuario: req.usuario });
+  res.json({ usuario: req.usuario, sessao: dadosDaSessao() });
+}
+
+// Atividade humana sem outra requisição (digitar num formulário, por
+// exemplo): a interface avisa, no máximo uma vez por minuto, para a sessão
+// não expirar enquanto a pessoa trabalha (RN32). O próprio autenticar já
+// atualizou o último uso.
+async function atividade(req, res) {
+  res.json({ ativa: true, sessao: dadosDaSessao() });
 }
 
 // Autocadastro: a conta nasce pendente e sem acesso até a aprovação
@@ -139,4 +147,4 @@ async function redefinirSenha(req, res) {
   res.json({ mensagem: 'Senha redefinida. Entre com a nova senha.' });
 }
 
-module.exports = { login, logout, me, solicitarCadastro, solicitarRecuperacao, redefinirSenha };
+module.exports = { login, logout, me, atividade, solicitarCadastro, solicitarRecuperacao, redefinirSenha };

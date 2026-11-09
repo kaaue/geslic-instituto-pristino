@@ -17,6 +17,9 @@ import Sobreposicao from '../../components/common/Sobreposicao.jsx';
 import useAuth from '../../hooks/useAuth';
 import useMensagem from '../../hooks/useMensagem';
 import useBuscaComAtraso from '../../hooks/useBuscaComAtraso';
+import useAbrirPorLink from '../../hooks/useAbrirPorLink';
+import BotaoSolicitarAjuste from '../../components/solicitacoes/BotaoSolicitarAjuste.jsx';
+import FaixaCorrecao from '../../components/solicitacoes/FaixaCorrecao.jsx';
 import {
   listarProjetos, buscarProjeto, listarFontesFinanciadoras, listarAnosProjetos, incluirProjeto,
   alterarProjeto, excluirProjeto, encerrarProjeto, prorrogarProjeto
@@ -102,6 +105,9 @@ export default function ProjetosPage() {
     setEdicao(null);
     setErros({});
   }
+
+  // Aberto pelo "Abrir cadastro" de uma solicitação de ajuste (RF_B10)
+  const { idSolicitacao } = useAbrirPorLink(projetos, 'id_projeto', abrirEdicao);
 
   function abrirAcao(tipo, projeto) {
     setErros({});
@@ -206,6 +212,7 @@ export default function ProjetosPage() {
           </p>
         )}
 
+        <FaixaCorrecao idSolicitacao={idSolicitacao} />
         <Mensagem mensagem={mensagem} />
 
         <FiltrosProjetos
@@ -240,6 +247,11 @@ export default function ProjetosPage() {
             salvando={salvando}
             aoSalvar={salvar}
             aoCancelar={fecharPainel}
+            atalhoAjuste={edicao && (
+              <BotaoSolicitarAjuste entidade="projeto" idRegistro={edicao.id_projeto}
+                rotulo={`${edicao.codigo} · ${edicao.nome}`} texto="Solicitar ajuste deste projeto" className="botao-secundario"
+                aoEmitida={(r) => { fecharPainel(); mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`); }} />
+            )}
           />
         </Sobreposicao>
       )}

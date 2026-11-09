@@ -21,6 +21,8 @@ function validar(form) {
   const nome = form.nome.trim();
   if (nome.length < 3) erros.nome = 'Informe o nome completo (ao menos 3 caracteres).';
   if (!FORMATO_EMAIL.test(form.email.trim())) erros.email = 'Informe um e-mail válido.';
+  // RN41: somente o correio institucional (a API confere de novo)
+  else if (!form.email.trim().toLowerCase().endsWith('@pristino.org.br')) erros.email = 'Use o e-mail institucional (@pristino.org.br).';
   if (!FORMATO_LOGIN.test(form.login.trim().toLowerCase())) {
     erros.login = 'Use de 3 a 40 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado.';
   }
@@ -76,7 +78,8 @@ export default function SolicitarAcessoPage() {
           <input type="text" value={form.nome} onChange={mudar('nome')} autoComplete="name" className={erros.nome ? 'com-erro' : ''} />
         </Campo>
         <div className="dupla">
-          <Campo rotulo="E-mail" erro={erros.email}>
+          <Campo rotulo="E-mail institucional" erro={erros.email} dica="Somente endereços @pristino.org.br são aceitos.">
+
             <input type="email" value={form.email} onChange={mudar('email')} autoComplete="email" className={erros.email ? 'com-erro' : ''} />
           </Campo>
           <Campo rotulo="Login" erro={erros.login} dica="Ex.: maria.silva">

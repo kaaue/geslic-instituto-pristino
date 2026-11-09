@@ -25,18 +25,21 @@ const ADMINISTRADOR = 'Administrador';
 const OPERADOR = 'Operador';
 const NAO_ENCONTRADA = 'Conta não encontrada.';
 
-// Dados públicos da conta: nunca inclui senha_hash nem tokens
+// Dados públicos da conta: nunca inclui senha_hash nem tokens. Não há
+// registro de último acesso (RN41: só os dados técnicos da sessão).
 const COLUNAS = `
     u.id_usuario, u.nome, u.login, u.email, u.situacao,
     u.troca_senha_obrigatoria, u.id_perfil, p.nome AS perfil,
     p.visualiza_dados_sensiveis, u.id_colaborador, c.nome AS nome_colaborador,
-    DATE_FORMAT(u.criada_em, '%Y-%m-%dT%H:%i:%s')        AS criada_em,
-    DATE_FORMAT(u.ultimo_acesso_em, '%Y-%m-%dT%H:%i:%s') AS ultimo_acesso_em`;
+    DATE_FORMAT(u.criada_em, '%Y-%m-%dT%H:%i:%s')   AS criada_em,
+    DATE_FORMAT(u.aprovada_em, '%Y-%m-%dT%H:%i:%s') AS aprovada_em,
+    ua.nome AS nome_aprovador`;
 
 const TABELAS = `
     FROM usuario u
     JOIN perfil p           ON p.id_perfil = u.id_perfil
-    LEFT JOIN colaborador c ON c.id_colaborador = u.id_colaborador`;
+    LEFT JOIN colaborador c ON c.id_colaborador = u.id_colaborador
+    LEFT JOIN usuario ua    ON ua.id_usuario = u.id_aprovador`;
 
 function publico(linha) {
   if (!linha) return null;
@@ -151,10 +154,6 @@ async function buscarParaLogin(identificador) {
   return linhas[0] || null;
 }
 
-async function registrarAcesso(conexao, idUsuario) {
-  await conexao.query('UPDATE usuario SET ultimo_acesso_em = NOW() WHERE id_usuario = ?', [idUsuario]);
-}
-
 // Autocadastro: conta pendente, perfil Operador, sem colaborador. O perfil
 // definitivo e o vínculo com colaborador são decididos na aprovação.
 async function solicitarCadastro(dados) {
@@ -174,46 +173,57 @@ async function solicitarCadastro(dados) {
 // Minha conta
 // ---------------------------------------------------------------
 
-async function alterarDadosProprios(idUsuario, dados) {
+// Dados da própria conta e, no mesmo bloco, a troca de senha (Protótipo 4):
+// tudo numa transação. Com troca de senha, a atual é conferida e as outras
+// sessões abertas da conta são encerradas.
+async function alterarDadosProprios(idUsuario, dados, idSessaoAtual = null) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, idUsuario, { bloquear: true });
     const erros = {};
     await conferirUnicidade(conexao, { email: dados.email }, idUsuario, erros);
     lancarSeHouverErros(erros);
-    await conexao.query('UPDATE usuario SET nome = ?, email = ? WHERE id_usuario = ?',
-      [dados.nome, dados.email, idUsuario]);
-    const depois = { ...atual, ...dados };
-    await Historico.registrar(conexao, {
-      idUsuario, tipo: 'correcao', entidade: 'usuario', idRegistro: idUsuario,
-      descricao: `Conta ${atual.login}: dados atualizados pela própria conta`,
-      antes: retrato(atual), depois: retrato(depois)
-    });
-    return buscar(conexao, idUsuario);
+    const mudouDados = atual.nome !== dados.nome || atual.email !== dados.email;
+    if (mudouDados) {
+      await conexao.query('UPDATE usuario SET nome = ?, email = ? WHERE id_usuario = ?',
+        [dados.nome, dados.email, idUsuario]);
+      await Historico.registrar(conexao, {
+        idUsuario, tipo: 'correcao', entidade: 'usuario', idRegistro: idUsuario,
+        descricao: `Conta ${atual.login}: dados atualizados pela própria conta`,
+        antes: retrato(atual), depois: retrato({ ...atual, nome: dados.nome, email: dados.email })
+      });
+    }
+    let encerradas = null;
+    if (dados.senha) encerradas = await trocarSenha(conexao, idUsuario, dados.senha_atual, dados.senha, idSessaoAtual);
+    return { senha_alterada: Boolean(dados.senha), sessoes_encerradas: encerradas ?? 0 };
   });
 }
 
 // Troca da própria senha, após conferir a atual. Encerra as outras sessões
 // da conta e mantém a atual.
-async function alterarSenhaPropria(idUsuario, senhaAtual, novaSenha, idSessaoAtual) {
-  return comTransacao(async (conexao) => {
-    const [[conta]] = await conexao.query(
-      'SELECT login, senha_hash FROM usuario WHERE id_usuario = ? FOR UPDATE', [idUsuario]);
-    if (!conta || !verificarSenha(senhaAtual, conta.senha_hash)) {
-      throw AppError.campos({ senha_atual: 'A senha atual não confere.' });
-    }
-    if (verificarSenha(novaSenha, conta.senha_hash)) {
-      throw AppError.campos({ senha: 'A nova senha deve ser diferente da atual.' });
-    }
-    await conexao.query(
-      `UPDATE usuario SET senha_hash = ?, troca_senha_obrigatoria = FALSE, senha_alterada_em = NOW()
-        WHERE id_usuario = ?`, [gerarHashSenha(novaSenha), idUsuario]);
-    const encerradas = await Sessao.encerrarDaConta(conexao, idUsuario, 'troca_senha', idSessaoAtual);
-    await Historico.registrar(conexao, {
-      idUsuario, tipo: 'senha', entidade: 'usuario', idRegistro: idUsuario,
-      descricao: `Conta ${conta.login}: senha alterada pela própria conta` +
-        (encerradas ? `; ${encerradas} outra(s) sessão(ões) encerrada(s)` : '')
-    });
+async function trocarSenha(conexao, idUsuario, senhaAtual, novaSenha, idSessaoAtual) {
+  const [[conta]] = await conexao.query(
+    'SELECT login, senha_hash FROM usuario WHERE id_usuario = ? FOR UPDATE', [idUsuario]);
+  if (!conta || !verificarSenha(senhaAtual, conta.senha_hash)) {
+    throw AppError.campos({ senha_atual: 'A senha atual não confere.' });
+  }
+  if (verificarSenha(novaSenha, conta.senha_hash)) {
+    throw AppError.campos({ senha: 'A nova senha deve ser diferente da atual.' });
+  }
+  await conexao.query(
+    `UPDATE usuario SET senha_hash = ?, troca_senha_obrigatoria = FALSE, senha_alterada_em = NOW()
+      WHERE id_usuario = ?`, [gerarHashSenha(novaSenha), idUsuario]);
+  const encerradas = await Sessao.encerrarDaConta(conexao, idUsuario, 'troca_senha', idSessaoAtual);
+  await Historico.registrar(conexao, {
+    idUsuario, tipo: 'senha', entidade: 'usuario', idRegistro: idUsuario,
+    descricao: `Conta ${conta.login}: senha alterada pela própria conta` +
+      (encerradas ? `; ${encerradas} outra(s) sessão(ões) encerrada(s)` : '')
   });
+  return encerradas;
+}
+
+// Troca só da senha (usada também na troca obrigatória da senha provisória)
+async function alterarSenhaPropria(idUsuario, senhaAtual, novaSenha, idSessaoAtual) {
+  return comTransacao((conexao) => trocarSenha(conexao, idUsuario, senhaAtual, novaSenha, idSessaoAtual));
 }
 
 // ---------------------------------------------------------------
@@ -308,8 +318,9 @@ async function aprovar(id, dados, idResponsavel) {
     exigirMotivoAoConcederAdmin(perfil, dados.motivo);
 
     await conexao.query(
-      `UPDATE usuario SET situacao = 'ativo', id_perfil = ?, id_colaborador = ? WHERE id_usuario = ?`,
-      [perfil.id_perfil, dados.id_colaborador, id]);
+      `UPDATE usuario SET situacao = 'ativo', id_perfil = ?, id_colaborador = ?, id_aprovador = ?, aprovada_em = NOW()
+        WHERE id_usuario = ?`,
+      [perfil.id_perfil, dados.id_colaborador, idResponsavel, id]);
     const depois = await buscar(conexao, id);
     await Historico.registrar(conexao, {
       idUsuario: idResponsavel, tipo: 'aprovacao', entidade: 'usuario', idRegistro: id,
@@ -425,62 +436,100 @@ async function definirSenhaProvisoria(id, idResponsavel) {
 // Perfis e permissões
 // ---------------------------------------------------------------
 
-// Perfis com suas permissões, e o catálogo de permissões (para a matriz)
+// Matriz explicativa e não editável (Protótipo 13.2; RN21, RN41): cada linha
+// é uma operação do dia a dia, ligada às permissões que a API exige. O
+// "permitido" de cada perfil vem das permissões reais no banco, para a
+// matriz nunca dizer uma coisa e a API fazer outra.
+const MATRIZ = [
+  { operacao: 'Consultar licenças, apólices, projetos e cadastros nos módulos (consulta operacional)',
+    codigos: ['cadastro.consultar', 'licenca.consultar', 'apolice.consultar'] },
+  { operacao: 'Incluir cadastros, registrar licenças e apólices e realizar movimentações',
+    codigos: ['cadastro.incluir', 'licenca.registrar', 'apolice.registrar', 'licenca.movimentar'] },
+  { operacao: 'Informar participantes ao criar projeto', codigos: ['cadastro.incluir'] },
+  { operacao: 'Inativar cadastros com data efetiva, prorrogar e encerrar projetos',
+    codigos: ['cadastro.inativar', 'projeto.prorrogar', 'projeto.encerrar'] },
+  { operacao: 'Alterar participantes de projeto existente', codigos: ['cadastro.alterar'],
+    nao: { Operador: 'solicita ajuste' } },
+  { operacao: 'Alterar e excluir dados cadastrais e desligar colaboradores', codigos: ['cadastro.alterar', 'cadastro.excluir'],
+    nao: { Operador: 'solicita ajuste' } },
+  { operacao: 'Registrar resultado de autorização', codigos: ['autorizacao.registrar'] },
+  { operacao: 'Emitir autorização operacional', codigos: ['autorizacao.emitir'] },
+  { operacao: 'Emitir solicitação de ajuste cadastral', codigos: ['ajuste.solicitar'],
+    nao: { Administrador: 'corrige diretamente' } },
+  { operacao: 'Corrigir o cadastro e concluir solicitação de ajuste', codigos: ['cadastro.alterar', 'ajuste.concluir'] },
+  { operacao: 'Relatórios (RF_S2 a RF_S6) e histórico de auditoria (RF_S7)', codigos: ['relatorio.consultar', 'auditoria.consultar'] },
+  { operacao: 'Contas e perfis · aprovar solicitações de acesso', codigos: ['usuario.gerenciar'] }
+];
+
 async function listarPerfis() {
   const [perfis] = await pool.query(
     `SELECT p.id_perfil, p.nome, p.visualiza_dados_sensiveis,
             (SELECT COUNT(*) FROM usuario u WHERE u.id_perfil = p.id_perfil AND u.situacao = 'ativo') AS contas_ativas
        FROM perfil p ORDER BY p.id_perfil`);
-  const [permissoes] = await pool.query(
-    'SELECT codigo, descricao, grupo, exclusiva_administrador FROM permissao ORDER BY grupo, id_permissao');
   for (const perfil of perfis) {
     perfil.visualiza_dados_sensiveis = Boolean(perfil.visualiza_dados_sensiveis);
     perfil.permissoes = await permissoesDoPerfil(pool, perfil.id_perfil);
   }
-  return {
-    perfis,
-    permissoes: permissoes.map((p) => ({ ...p, exclusiva_administrador: Boolean(p.exclusiva_administrador) }))
-  };
+  const matriz = MATRIZ.map((linha) => ({
+    operacao: linha.operacao,
+    perfis: Object.fromEntries(perfis.map((p) => [p.nome, {
+      permitido: linha.codigos.every((c) => p.permissoes.includes(c)),
+      observacao: linha.nao?.[p.nome] || null
+    }]))
+  }));
+  return { perfis, matriz, editavel: false };
 }
 
-// Definição das permissões do Operador (RF_B8). O Administrador tem sempre
-// todas (RN21), e as exclusivas dele não podem ir para o Operador.
-async function definirPermissoes(idPerfil, codigos, idResponsavel) {
+// Troca de gestão numa única operação (Protótipo 13.1, RN27): concede o
+// perfil Administrador a uma conta e revoga de outra, que passa a Operador ou
+// é inativada. Exige data efetiva e motivo, encerra as sessões das duas
+// contas e fica no histórico. Como uma conta ganha o perfil enquanto a outra
+// perde, sempre sobra ao menos um Administrador ativo.
+async function transferirAdministrador(dados, idResponsavel) {
   return comTransacao(async (conexao) => {
-    const [[perfil]] = await conexao.query('SELECT id_perfil, nome FROM perfil WHERE id_perfil = ? FOR UPDATE', [idPerfil]);
-    if (!perfil) throw AppError.naoEncontrado('Perfil não encontrado.');
-    if (perfil.nome === ADMINISTRADOR) {
-      throw AppError.conflito('O perfil Administrador tem sempre todas as permissões (RN21).');
+    const concedida = await buscarOuFalhar(conexao, dados.id_concedida, { bloquear: true });
+    const revogada = await buscarOuFalhar(conexao, dados.id_revogada, { bloquear: true });
+    if (concedida.situacao !== 'ativo') throw AppError.campos({ id_concedida: 'A conta da nova gestora precisa estar ativa.' });
+    if (concedida.perfil === ADMINISTRADOR) throw AppError.campos({ id_concedida: 'Esta conta já é Administrador.' });
+    if (revogada.perfil !== ADMINISTRADOR || revogada.situacao !== 'ativo') {
+      throw AppError.campos({ id_revogada: 'Escolha um Administrador ativo para revogar.' });
     }
-    const [catalogo] = await conexao.query('SELECT id_permissao, codigo, exclusiva_administrador FROM permissao');
-    const porCodigo = new Map(catalogo.map((p) => [p.codigo, p]));
-    const desconhecidas = codigos.filter((c) => !porCodigo.has(c));
-    if (desconhecidas.length) throw AppError.campos({ permissoes: `Permissão inexistente: ${desconhecidas.join(', ')}.` });
-    const exclusivas = codigos.filter((c) => porCodigo.get(c).exclusiva_administrador);
-    if (exclusivas.length) {
-      throw AppError.campos({ permissoes: `Exclusiva do Administrador (RN21): ${exclusivas.join(', ')}.` });
-    }
+    const [[admin]] = await conexao.query('SELECT id_perfil FROM perfil WHERE nome = ?', [ADMINISTRADOR]);
+    const [[operador]] = await conexao.query('SELECT id_perfil FROM perfil WHERE nome = ?', [OPERADOR]);
 
-    const antes = await permissoesDoPerfil(conexao, idPerfil);
-    await conexao.query('DELETE FROM perfil_permissao WHERE id_perfil = ?', [idPerfil]);
-    if (codigos.length) {
-      await conexao.query('INSERT INTO perfil_permissao (id_perfil, id_permissao) VALUES ?',
-        [codigos.map((c) => [idPerfil, porCodigo.get(c).id_permissao])]);
+    await conexao.query('UPDATE usuario SET id_perfil = ? WHERE id_usuario = ?', [admin.id_perfil, concedida.id_usuario]);
+    if (dados.destino_revogada === 'inativar') {
+      await conexao.query(`UPDATE usuario SET situacao = 'inativo' WHERE id_usuario = ?`, [revogada.id_usuario]);
+    } else {
+      await conexao.query('UPDATE usuario SET id_perfil = ? WHERE id_usuario = ?', [operador.id_perfil, revogada.id_usuario]);
     }
-    const depois = await permissoesDoPerfil(conexao, idPerfil);
+    await Sessao.encerrarDaConta(conexao, concedida.id_usuario, 'perfil_alterado');
+    await Sessao.encerrarDaConta(conexao, revogada.id_usuario, dados.destino_revogada === 'inativar' ? 'conta_inativada' : 'perfil_alterado');
+    await garantirOutroAdministrador(conexao, null);
+
+    const concedidaDepois = await buscar(conexao, concedida.id_usuario);
+    const revogadaDepois = await buscar(conexao, revogada.id_usuario);
     await Historico.registrar(conexao, {
-      idUsuario: idResponsavel, tipo: 'permissao', entidade: 'perfil', idRegistro: idPerfil,
-      descricao: `Permissões do perfil ${perfil.nome} alteradas`,
-      antes: { permissoes: antes }, depois: { permissoes: depois }
+      idUsuario: idResponsavel, tipo: 'perfil', entidade: 'usuario', idRegistro: concedida.id_usuario,
+      dataEvento: dados.data_efetiva, motivo: dados.motivo,
+      descricao: `Troca de gestão: ${concedida.login} recebe o perfil Administrador`,
+      antes: retrato(concedida), depois: retrato(concedidaDepois)
     });
-    return depois;
+    await Historico.registrar(conexao, {
+      idUsuario: idResponsavel, tipo: dados.destino_revogada === 'inativar' ? 'inativacao' : 'perfil',
+      entidade: 'usuario', idRegistro: revogada.id_usuario, dataEvento: dados.data_efetiva, motivo: dados.motivo,
+      descricao: `Troca de gestão: ${revogada.login} ` +
+        (dados.destino_revogada === 'inativar' ? 'tem a conta inativada' : 'passa a Operador'),
+      antes: retrato(revogada), depois: retrato(revogadaDepois)
+    });
+    return { concedida: concedidaDepois, revogada: revogadaDepois };
   });
 }
 
 module.exports = {
   ADMINISTRADOR, OPERADOR,
-  carregarAutenticado, buscarParaLogin, registrarAcesso, solicitarCadastro,
+  carregarAutenticado, buscarParaLogin, solicitarCadastro,
   alterarDadosProprios, alterarSenhaPropria,
   listar, buscarPorId, criar, atualizar, aprovar, rejeitar, alterarPerfil,
-  alterarSituacao, definirSenhaProvisoria, listarPerfis, definirPermissoes
+  alterarSituacao, definirSenhaProvisoria, listarPerfis, transferirAdministrador
 };

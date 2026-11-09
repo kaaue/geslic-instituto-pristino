@@ -815,10 +815,205 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
 .links-autenticacao a:hover { text-decoration: underline; }
 
 /* =========================================================
+   Menu: entrada única e expansível Cadastros (seção 2.3.2)
+   ========================================================= */
+
+.menu-expansivel {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-seta { font-size: 10px; opacity: 0.8; transition: transform 0.15s; }
+.menu-expansivel[aria-expanded="true"] .menu-seta { transform: rotate(90deg); }
+.menu-subitens { display: flex; flex-direction: column; gap: 1px; margin: 1px 0 4px; }
+.menu-subitens .menu-link { padding-left: 36px; font-size: 13.5px; }
+
+/* =========================================================
+   Padrão dos cadastros: pesquisa acima, listagem e painel lateral
+   ========================================================= */
+
+.subtitulo-pagina { margin: 6px 0 0; font-size: 14px; color: var(--texto-suave); max-width: 760px; }
+.resumo-filtro strong { color: var(--texto); }
+.nota-filtro { margin: 6px 0 0; font-size: 13px; color: var(--texto-suave); }
+
+.linha-inativa .situacao, .linha-inativa .marca-alocado { opacity: 0.85; }
+.texto-inativo { display: block; font-size: 12px; color: var(--texto-suave); margin-top: 2px; }
+
+.etiqueta-categoria {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--borda-forte);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--superficie-suave);
+}
+.categoria-veiculo { background: var(--azul-claro); color: var(--azul-texto); border-color: var(--azul-borda); }
+.categoria-drone { background: var(--roxo-claro); color: var(--roxo-texto); border-color: var(--roxo-borda); }
+.categoria-imovel { background: #fdf0e1; color: #8a4b08; border-color: #f0cfa6; }
+.categoria-equipamento { background: var(--verde-claro); color: var(--verde-texto); border-color: var(--verde-borda); }
+
+.lista-pares { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
+.lista-pares dt { color: var(--texto-suave); }
+.lista-pares dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.titulo-secao-painel { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; font-size: 15px; font-weight: 700; }
+.tabela-interna { border: 1px solid var(--borda); border-radius: var(--raio-pequeno); overflow: hidden; }
+.tabela-interna .tabela th { font-size: 12.5px; }
+
+/* Faixas de aviso com ícone, como nos protótipos */
+.aviso, .aviso-info, .aviso-sucesso { position: relative; }
+.aviso-sucesso {
+  margin: 0;
+  background: var(--verde-claro);
+  border: 1px solid var(--verde-borda);
+  color: var(--verde-texto);
+  border-radius: var(--raio);
+  padding: 11px 14px;
+  font-size: 13.5px;
+}
+
+/* Pílulas pequenas: presença, prazos, "somente leitura" */
+.pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie-suave);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pilula-presenca { background: var(--roxo-claro); color: #6a2fa0; border-color: #ddc6f2; font-weight: 500; }
+.pilula-presenca::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #9b51d1; }
+.pilula-prazo { background: var(--verde-claro); color: var(--verde-texto); border-color: var(--verde-borda); }
+.pilula-desativada { color: var(--texto-fraco); }
+.pilulas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* Controle segmentado (tipo do fornecedor, troca de gestão) */
+.segmentado { display: inline-flex; border: 1px solid var(--borda-forte); border-radius: var(--raio-pequeno); overflow: hidden; width: fit-content; }
+.segmentado button {
+  border: 0;
+  background: var(--superficie);
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+  color: var(--texto);
+}
+.segmentado button + button { border-left: 1px solid var(--borda-forte); }
+.segmentado button[aria-pressed="true"] { background: var(--destaque); color: #fff; font-weight: 600; }
+.segmentado.com-erro { border-color: var(--vermelho); }
+
+/* Janela aberta sobre um painel lateral: escurece também o painel */
+.fundo-janela { z-index: 30; }
+.janela { z-index: 31; }
+.situacao-aguardando, .situacao-pendente, .situacao-concluida { text-transform: none; }
+
+/* No painel com rolagem, o conteúdo não encolhe (tabelas internas cortadas) */
+.painel-corpo > * { flex-shrink: 0; }
+
+.painel-largo { width: 560px; }
+.janela-larga { width: 720px; }
+.janela .painel-corpo { overflow-y: auto; }
+textarea { width: 100%; min-height: 84px; resize: vertical; font: inherit; }
+textarea.com-erro { border-color: var(--vermelho); background: var(--vermelho-claro); }
+
+/* =========================================================
+   Painel de acompanhamento (RF_S1, RN33) e solicitações de ajuste (RF_B10)
+   ========================================================= */
+
+.painel-blocos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.bloco {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  min-width: 0;
+}
+.bloco-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--borda); }
+.bloco-cabecalho h3 { margin: 0; font-size: 16px; }
+.bloco-corpo { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+.bloco-secao { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 11.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto-suave); margin-top: 4px; }
+.bloco-secao .paginacao-curta { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--destaque-texto); display: flex; gap: 6px; align-items: center; }
+.paginacao-curta button { border: 0; background: none; color: inherit; cursor: pointer; font: inherit; padding: 0 4px; }
+.paginacao-curta button:disabled { color: var(--texto-fraco); cursor: default; }
+.bloco-pendente { color: var(--texto-suave); font-size: 13.5px; }
+
+.demanda {
+  border: 1px solid var(--borda);
+  border-left: 4px solid var(--amarelo-borda);
+  border-radius: var(--raio-pequeno);
+  padding: 10px 12px;
+  background: #fffdf6;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.demanda-conta { border-left-color: #b48ee0; background: #fcf9ff; }
+.demanda-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.demanda-codigo { font-weight: 700; font-size: 13px; color: var(--texto-suave); display: flex; gap: 6px; align-items: center; }
+.demanda-tipo { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; padding: 1px 6px; border-radius: 4px; background: var(--azul-claro); color: var(--azul-texto); }
+.demanda-conta .demanda-tipo { background: var(--roxo-claro); color: #6a2fa0; }
+.demanda-descricao { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.demanda-meta { font-size: 12.5px; color: var(--texto-suave); }
+.demanda-acoes { display: flex; justify-content: flex-end; gap: 14px; flex-wrap: wrap; align-items: center; }
+.situacao-pendente { background: #fff1e0; color: #8a4b08; border-color: #f0cfa6; }
+.situacao-concluida { background: var(--verde-claro); color: var(--verde-texto); border-color: var(--verde-borda); }
+.situacao-aguardando { background: var(--roxo-claro); color: var(--roxo-texto); border-color: var(--roxo-borda); }
+
+.lista-concluidas { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; border-top: 1px dashed var(--borda-forte); }
+.lista-concluidas li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #edf1ef; font-size: 13px; }
+.lista-concluidas button { border: 0; background: none; padding: 0; text-align: left; font: inherit; color: var(--texto); cursor: pointer; }
+.lista-concluidas button:hover { color: var(--destaque-texto); text-decoration: underline; }
+
+/* =========================================================
+   Minha conta: preferências de aviso por tipo (RF_B9)
+   ========================================================= */
+
+.preferencias { width: 100%; border-collapse: collapse; }
+.preferencias th { text-align: left; font-size: 13px; color: var(--texto-suave); padding: 6px 8px; border-bottom: 1px solid var(--borda); }
+.preferencias td { padding: 10px 8px; border-bottom: 1px solid #edf1ef; vertical-align: top; }
+.preferencias .tipo-aviso strong { display: block; }
+.preferencias .tipo-aviso small { color: var(--texto-suave); font-size: 12.5px; }
+.preferencias small.erro { display: block; margin-top: 4px; }
+
+.interruptor { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.interruptor input { opacity: 0; width: 0; height: 0; }
+.interruptor span { position: absolute; inset: 0; background: #c9d1cd; border-radius: 999px; cursor: pointer; transition: background 0.15s; }
+.interruptor span::before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.15s; }
+.interruptor input:checked + span { background: var(--destaque); }
+.interruptor input:checked + span::before { transform: translateX(18px); }
+.interruptor input:focus-visible + span { outline: 2px solid var(--destaque-borda); outline-offset: 2px; }
+
+.pilula-prazo button { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 0 0 2px; font-size: 13px; line-height: 1; }
+.novo-prazo { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.novo-prazo input, .novo-prazo select { min-width: 0; padding: 4px 6px; font: inherit; font-size: 13px; }
+.novo-prazo input[type="number"] { width: 60px; border: 1px solid var(--borda-forte); border-radius: var(--raio-pequeno); }
+.novo-prazo select { width: auto; }
+
+/* Minha conta: conta e senha à esquerda, preferências (mais largas) à direita */
+.grade-conta { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(440px, 1.35fr); gap: 16px; align-items: start; }
+@media (max-width: 1180px) {
+  .grade-conta { grid-template-columns: 1fr; }
+}
+
+/* =========================================================
    Telas estreitas
    ========================================================= */
 
+@media (max-width: 1200px) {
+  .painel-blocos { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 900px) {
+  .menu-subitens .menu-link { padding-left: 10px; }
+  .painel, .painel-largo { width: 100%; }
   .aplicacao { flex-direction: column; }
   .menu-lateral { width: 100%; height: auto; position: static; }
   .menu-lateral nav { display: flex; flex-wrap: wrap; gap: 4px 18px; }

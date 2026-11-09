@@ -95,7 +95,15 @@ function zerarLimites() {
   require('../src/middlewares/limiteTentativas').limparTodos();
 }
 
+// Data AAAA-MM-DD no fuso local (o mesmo da API), deslocada em dias:
+// dataLocal(0) é hoje, dataLocal(-3) foi há três dias
+function dataLocal(dias = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 module.exports = {
   SENHAS, iniciar, encerrar, cliente, entrar, entrarAdmin, entrarAdministradora, entrarOperador,
-  sql, zerarLimites
+  sql, zerarLimites, dataLocal
 };

@@ -145,25 +145,114 @@ test('alterar o perfil encerra as sessões da conta alterada e vale na hora', as
   await admin.patch(`/usuarios/${idAna}/perfil`, { id_perfil: await perfilId('Administrador'), motivo: 'retorno' });
 });
 
-test('permissões do Operador são configuráveis, sem as exclusivas do Administrador', async () => {
+test('a matriz de perfis e permissões é explicativa e não editável (RN41, CA24)', async () => {
   const admin = await t.entrarAdmin();
   const op = await t.entrarOperador();
-  const idOperador = await perfilId('Operador');
   const { corpo } = await admin.get('/perfis');
-  const atuais = corpo.perfis.find((p) => p.nome === 'Operador').permissoes;
+  assert.equal(corpo.editavel, false);
 
-  const exclusiva = await admin.put(`/perfis/${idOperador}/permissoes`, { permissoes: [...atuais, 'cadastro.excluir'] });
-  assert.equal(exclusiva.status, 400);
-  const doAdmin = await admin.put(`/perfis/${await perfilId('Administrador')}/permissoes`, { permissoes: [] });
-  assert.equal(doAdmin.status, 409);
+  const linha = (texto) => corpo.matriz.find((l) => l.operacao.startsWith(texto));
+  // emitir ajuste: só o Operador; o Administrador corrige direto
+  assert.deepEqual(linha('Emitir solicitação de ajuste').perfis, {
+    Administrador: { permitido: false, observacao: 'corrige diretamente' },
+    Operador: { permitido: true, observacao: null }
+  });
+  assert.equal(linha('Alterar e excluir dados cadastrais').perfis.Operador.observacao, 'solicita ajuste');
+  assert.equal(linha('Relatórios').perfis.Operador.permitido, false);
+  assert.equal(linha('Contas e perfis').perfis.Administrador.permitido, true);
 
-  // retirar uma permissão vale na próxima requisição, sem novo login
+  // nenhuma operação personaliza as permissões, nem do Operador
+  const tentativa = await admin.put(`/perfis/${await perfilId('Operador')}/permissoes`, { permissoes: ['cadastro.excluir'] });
+  assert.equal(tentativa.status, 405);
+  assert.equal(tentativa.corpo.codigo, 'MATRIZ_NAO_EDITAVEL');
+  assert.equal((await op.delete('/fornecedores/1')).status, 403);
   assert.equal((await op.get('/equipamentos')).status, 200);
-  const sem = await admin.put(`/perfis/${idOperador}/permissoes`, { permissoes: atuais.filter((c) => c !== 'cadastro.consultar') });
-  assert.equal(sem.status, 200);
-  assert.equal((await op.get('/equipamentos')).status, 403);
-  await admin.put(`/perfis/${idOperador}/permissoes`, { permissoes: atuais });
-  assert.equal((await op.get('/equipamentos')).status, 200);
+});
+
+test('contas usam e-mail @pristino.org.br e a aprovação registra quem aprovou (CA23)', async () => {
+  const fora = await t.cliente().post('/auth/cadastro', {
+    nome: 'Fora do Domínio', email: 'fora@gmail.com', login: 'fora.dominio', senha: 'Senha2026', confirmacao: 'Senha2026'
+  });
+  assert.equal(fora.status, 400);
+  assert.match(fora.corpo.erros.email, /pristino\.org\.br/);
+
+  const admin = await t.entrarAdmin();
+  const criar = await admin.post('/usuarios', { nome: 'Conta Externa', email: 'externa@empresa.com', login: 'externa', id_perfil: await perfilId('Operador') });
+  assert.equal(criar.status, 400);
+  assert.ok(criar.corpo.erros.email);
+
+  // a solicitação pendente do exemplo é aprovada com perfil e colaborador vinculado
+  const id = await idDe('luciana.prado');
+  const aprovada = await admin.post(`/usuarios/${id}/aprovacao`, { id_perfil: await perfilId('Operador'), id_colaborador: 8 });
+  assert.equal(aprovada.status, 200);
+  assert.equal(aprovada.corpo.nome_aprovador, 'Administrador do sistema');
+  assert.ok(aprovada.corpo.aprovada_em);
+  assert.equal(aprovada.corpo.nome_colaborador, 'Luciana Prado');
+  assert.equal(aprovada.corpo.ultimo_acesso_em, undefined);
+  const [evento] = await t.sql(`SELECT tipo FROM movimentacao WHERE entidade = 'usuario' AND id_registro = ? AND tipo = 'aprovacao'`, [id]);
+  assert.ok(evento);
+});
+
+test('transferência de privilégios concede e revoga o Administrador numa só operação (RN27)', async () => {
+  const admin = await t.entrarAdmin();
+  const idCarlos = await idDe('carlos.alves');
+  const idAna = await idDe('ana.ribeiro');
+  const ana = await t.entrarAdministradora();
+
+  const semMotivo = await admin.post('/usuarios/transferencia-administrador', {
+    id_concedida: idCarlos, id_revogada: idAna, destino_revogada: 'operador', data_efetiva: t.dataLocal(0)
+  });
+  assert.equal(semMotivo.status, 400);
+  const invertida = await admin.post('/usuarios/transferencia-administrador', {
+    id_concedida: idAna, id_revogada: idCarlos, destino_revogada: 'operador', data_efetiva: t.dataLocal(0), motivo: 'x'
+  });
+  assert.equal(invertida.status, 400);
+
+  const motivo = 'Troca de gestão aprovada pela diretoria';
+  const r = await admin.post('/usuarios/transferencia-administrador', {
+    id_concedida: idCarlos, id_revogada: idAna, destino_revogada: 'operador', data_efetiva: t.dataLocal(0), motivo
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.concedida.perfil, 'Administrador');
+  assert.equal(r.corpo.revogada.perfil, 'Operador');
+  // as sessões das contas alteradas são encerradas
+  assert.equal((await ana.get('/auth/me')).status, 401);
+  const eventos = await t.sql(`SELECT id_registro FROM movimentacao WHERE tipo = 'perfil' AND motivo = ?`, [motivo]);
+  assert.deepEqual(eventos.map((e) => e.id_registro).sort(), [idCarlos, idAna].sort());
+
+  // devolve os perfis para os próximos testes
+  const volta = await admin.post('/usuarios/transferencia-administrador', {
+    id_concedida: idAna, id_revogada: idCarlos, destino_revogada: 'operador', data_efetiva: t.dataLocal(0), motivo: 'Retorno'
+  });
+  assert.equal(volta.status, 200);
+});
+
+test('Minha conta salva dados e senha num único bloco, conferindo a senha atual', async () => {
+  const op = await t.entrarOperador();
+  const errada = await op.put('/conta', {
+    nome: 'Carlos Eduardo Alves', email: 'carlos.alves@pristino.org.br',
+    senha_atual: 'errada', senha: 'NovaSenha2026', confirmacao: 'NovaSenha2026'
+  });
+  assert.equal(errada.status, 400);
+  assert.ok(errada.corpo.erros.senha_atual);
+  // nada foi gravado: o nome não mudou porque a senha atual não conferiu
+  const [antes] = await t.sql(`SELECT nome FROM usuario WHERE login = 'carlos.alves'`);
+  assert.equal(antes.nome, 'Carlos Eduardo Alves');
+
+  const ok = await op.put('/conta', {
+    nome: 'Carlos E. Alves', email: 'carlos.alves@pristino.org.br',
+    senha_atual: t.SENHAS.teste, senha: 'NovaSenha2026', confirmacao: 'NovaSenha2026'
+  });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.corpo.usuario.nome, 'Carlos E. Alves');
+  assert.ok((await t.cliente().post('/auth/login', { login: 'carlos.alves', senha: 'NovaSenha2026' })).status === 200);
+
+  // devolve nome e senha para os próximos testes
+  const volta = await op.put('/conta', {
+    nome: 'Carlos Eduardo Alves', email: 'carlos.alves@pristino.org.br',
+    senha_atual: 'NovaSenha2026', senha: t.SENHAS.teste, confirmacao: t.SENHAS.teste
+  });
+  assert.equal(volta.status, 200);
 });
 
 test('conta criada pelo Administrador recebe senha provisória e precisa trocá-la', async () => {

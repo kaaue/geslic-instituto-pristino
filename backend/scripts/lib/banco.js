@@ -188,6 +188,35 @@ async function criarUsuariosTeste(conexao) {
   }
   console.log(`  usuários de teste criados: ${USUARIOS_TESTE.map((u) => `${u.login} (${u.perfil})`).join(', ')}`);
   console.log('  senha dos usuários de teste: a de SENHA_USUARIOS_TESTE no .env (padrão no .env.example)');
+  await criarExemplosDoPainel(conexao);
+}
+
+// Exemplos para o painel (RF_B8 e RF_B10): uma solicitação pública de acesso
+// aguardando aprovação e duas solicitações de ajuste do Operador de teste,
+// uma pendente e outra concluída pela Administradora de teste.
+async function criarExemplosDoPainel(conexao) {
+  await conexao.query(
+    `INSERT INTO usuario (id_perfil, nome, login, email, senha_hash, situacao, senha_alterada_em, criada_em)
+     SELECT id_perfil, 'Luciana Prado', 'luciana.prado', 'luciana.prado@pristino.org.br', ?, 'pendente', NOW(),
+            DATE_SUB(NOW(), INTERVAL 1 DAY)
+       FROM perfil WHERE nome = 'Operador'`,
+    [gerarHashSenha(contas.senhaUsuariosTeste)]);
+
+  const [[operador]] = await conexao.query(`SELECT id_usuario FROM usuario WHERE login = 'carlos.alves'`);
+  const [[administradora]] = await conexao.query(`SELECT id_usuario FROM usuario WHERE login = 'ana.ribeiro'`);
+  await conexao.query(
+    `INSERT INTO solicitacao_ajuste
+       (id_solicitante, criada_em, entidade, id_registro, rotulo_registro, descricao,
+        situacao, id_concluinte, concluida_em, observacao_conclusao)
+     VALUES
+       (?, DATE_SUB(NOW(), INTERVAL 9 DAY), 'colaborador', 6, 'Beatriz Nogueira · Projetos Ambientais',
+        'O cargo está desatualizado: desde setembro ela é coordenadora de projetos.',
+        'concluida', ?, DATE_SUB(NOW(), INTERVAL 8 DAY), 'Cargo corrigido conforme a solicitação.'),
+       (?, DATE_SUB(NOW(), INTERVAL 2 HOUR), 'equipamento', 7, 'IP0107 · Notebook Positivo Motion',
+        'O notebook passou para o setor Projetos Ambientais; o responsável agora é Beatriz Nogueira.',
+        'pendente', NULL, NULL, NULL)`,
+    [operador.id_usuario, administradora.id_usuario, operador.id_usuario]);
+  console.log('  exemplos do painel: 1 solicitação de acesso e 2 solicitações de ajuste');
 }
 
 module.exports = {

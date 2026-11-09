@@ -1,7 +1,14 @@
 -- GESLIC - Instituto Prístino
--- Esquema do banco conforme o modelo relacional da ERS versão 2.4 (seção 3.3),
--- com as 28 tabelas. Rode pelo backend com `npm run db:setup`, que cria o
--- banco, roda este arquivo e depois as cargas (seed.sql e seed_dev.sql).
+-- Esquema do banco conforme o modelo relacional da ERS (seção 3.3): a base
+-- da versão 2.4, com a autenticação e, da versão 2.6, o que as funções
+-- básicas usam (coordenador e data de inativação do setor, campos por
+-- categoria do bem, preferências de aviso por tipo e prazo, solicitações de
+-- ajuste com presença informativa). Rode pelo backend com `npm run db:setup`,
+-- que cria o banco, roda este arquivo e depois as cargas (seed.sql e
+-- seed_dev.sql). Bancos já existentes são atualizados por `npm run db:migrate`.
+-- As tabelas do modelo 2.6 ligadas a funções ainda não implementadas
+-- (autorizações, RF_F15; períodos de financiamento das apólices, RF_F16)
+-- entram junto com essas funções.
 --
 -- Nomes mantidos de propósito, porque o código da RF_B3 já os usa:
 --   equipamento.id_equipamento (no modelo: id_bem), equipamento.tipo
@@ -23,12 +30,17 @@ SET NAMES utf8mb4;
 -- Parte 1 - cadastros, projetos, licenças, vigências e instâncias
 -- ===============================================================
 
+-- Setor (RF_B5). O coordenador, quando informado, é um colaborador ativo
+-- (regra na camada de serviços); a chave estrangeira entra depois da tabela
+-- colaborador. A inativação guarda a data efetiva (RN37).
 CREATE TABLE setor (
-  id_setor      INT AUTO_INCREMENT PRIMARY KEY,
-  nome          VARCHAR(80)  NOT NULL,
-  ativo         BOOLEAN      NOT NULL DEFAULT TRUE,
-  responsavel   VARCHAR(120),
-  CONSTRAINT uq_setor_nome UNIQUE (nome)
+  id_setor        INT AUTO_INCREMENT PRIMARY KEY,
+  nome            VARCHAR(80)  NOT NULL,
+  ativo           BOOLEAN      NOT NULL DEFAULT TRUE,
+  id_coordenador  INT,
+  data_inativacao DATE,
+  CONSTRAINT uq_setor_nome UNIQUE (nome),
+  CONSTRAINT ck_setor_inativacao CHECK (data_inativacao IS NULL OR ativo = FALSE)
 );
 
 CREATE TABLE colaborador (
@@ -46,6 +58,9 @@ CREATE TABLE colaborador (
   CONSTRAINT fk_colaborador_setor FOREIGN KEY (id_setor) REFERENCES setor (id_setor)
 );
 
+ALTER TABLE setor ADD CONSTRAINT fk_setor_coordenador
+  FOREIGN KEY (id_coordenador) REFERENCES colaborador (id_colaborador);
+
 -- ---------------------------------------------------------------
 -- Bem e equipamento
 -- O equipamento é uma especialização de bem: a chave primária dele
@@ -54,20 +69,39 @@ CREATE TABLE colaborador (
 -- não precisa ser cadastrado duas vezes.
 -- ---------------------------------------------------------------
 
+-- Bem segurável (RF_B6, RN20, RN40): campos comuns (categoria,
+-- identificação, valor, setor e situação), específicos da categoria (placa
+-- do veículo, número de série do drone e do equipamento, endereço do imóvel)
+-- e opcionais (patrimônio, Renavam, ano/modelo, matrícula, área). Não tem
+-- coluna de projeto: a relação com os projetos vem das apólices que cobrem o
+-- bem. Só a placa do veículo é obrigatória; as demais obrigatoriedades por
+-- categoria ainda serão validadas com o Instituto (ERS, Quadro 8).
 CREATE TABLE bem (
-  id_bem         INT AUTO_INCREMENT PRIMARY KEY,
-  categoria      VARCHAR(20)  NOT NULL,
-  identificacao  VARCHAR(120) NOT NULL,
-  patrimonio     VARCHAR(30),
-  placa          VARCHAR(10),
-  valor          DECIMAL(12,2),
+  id_bem             INT AUTO_INCREMENT PRIMARY KEY,
+  categoria          VARCHAR(20)  NOT NULL,
+  identificacao      VARCHAR(120) NOT NULL,
+  patrimonio         VARCHAR(30),
+  placa              VARCHAR(10),
+  numero_serie       VARCHAR(60),
+  endereco           VARCHAR(200),
+  renavam            VARCHAR(11),
+  ano_modelo         VARCHAR(9),
+  matricula          VARCHAR(60),
+  area_construida_m2 DECIMAL(10,2),
+  valor              DECIMAL(12,2),
   -- no modelo o setor do bem é opcional (um imóvel ou veículo pode não ter setor)
-  id_setor       INT,
-  situacao       VARCHAR(10)  NOT NULL DEFAULT 'ativo',
+  id_setor           INT,
+  situacao           VARCHAR(10)  NOT NULL DEFAULT 'ativo',
+  -- data efetiva da inativação (RN37); a data e a hora do registro ficam no histórico
+  data_inativacao    DATE,
+  CONSTRAINT uq_bem_placa UNIQUE (placa),
   CONSTRAINT ck_bem_categoria
     CHECK (categoria IN ('veiculo','imovel','drone','equipamento','outro')),
   CONSTRAINT ck_bem_situacao
     CHECK (situacao IN ('ativo','inativo')),
+  CONSTRAINT ck_bem_inativacao CHECK (data_inativacao IS NULL OR situacao = 'inativo'),
+  CONSTRAINT ck_bem_valor CHECK (valor IS NULL OR valor >= 0),
+  CONSTRAINT ck_bem_area CHECK (area_construida_m2 IS NULL OR area_construida_m2 > 0),
   CONSTRAINT fk_bem_setor FOREIGN KEY (id_setor) REFERENCES setor (id_setor)
 );
 
@@ -160,6 +194,7 @@ CREATE TABLE software (
   versao       VARCHAR(30),
   fabricante   VARCHAR(80)  NOT NULL,
   categoria    VARCHAR(40),
+  observacoes  VARCHAR(500),
   ativo        BOOLEAN      NOT NULL DEFAULT TRUE
 );
 
@@ -396,15 +431,19 @@ CREATE TABLE perfil (
   CONSTRAINT uq_perfil_nome UNIQUE (nome)
 );
 
--- Permissão por operação. `exclusiva_administrador` marca as que a RN21
--- reserva ao Administrador: elas não podem ser concedidas ao Operador.
+-- Permissão por operação. Os perfis têm permissões fixas (RN21, RN41): a
+-- matriz é explicativa e não editável. `exclusiva_administrador` marca as
+-- que só o Administrador tem; `exclusiva_operador`, as que só o Operador tem
+-- (emitir solicitação de ajuste: o Administrador corrige diretamente).
 CREATE TABLE permissao (
   id_permissao            INT AUTO_INCREMENT PRIMARY KEY,
   codigo                  VARCHAR(40)  NOT NULL,
   descricao               VARCHAR(120) NOT NULL,
   grupo                   VARCHAR(40)  NOT NULL DEFAULT 'Geral',
   exclusiva_administrador BOOLEAN      NOT NULL DEFAULT FALSE,
-  CONSTRAINT uq_permissao_codigo UNIQUE (codigo)
+  exclusiva_operador      BOOLEAN      NOT NULL DEFAULT FALSE,
+  CONSTRAINT uq_permissao_codigo UNIQUE (codigo),
+  CONSTRAINT ck_permissao_exclusiva CHECK (NOT (exclusiva_administrador AND exclusiva_operador))
 );
 
 CREATE TABLE perfil_permissao (
@@ -419,7 +458,10 @@ CREATE TABLE perfil_permissao (
 -- a no máximo um colaborador, e o colaborador a no máximo uma conta.
 -- Situação: pendente (autocadastro aguardando aprovação), ativo ou inativo.
 -- troca_senha_obrigatoria: a conta entrou com senha provisória e precisa
--- trocá-la antes de usar o sistema.
+-- trocá-la antes de usar o sistema. id_aprovador e aprovada_em registram
+-- quem aprovou a solicitação pública de acesso. O e-mail é do domínio
+-- @pristino.org.br (RN41, conferido pela aplicação). Não há registro de
+-- último acesso: o sistema guarda só os dados técnicos da sessão (RN41).
 CREATE TABLE usuario (
   id_usuario              INT AUTO_INCREMENT PRIMARY KEY,
   id_perfil               INT          NOT NULL,
@@ -432,13 +474,15 @@ CREATE TABLE usuario (
   troca_senha_obrigatoria BOOLEAN      NOT NULL DEFAULT FALSE,
   criada_em               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   senha_alterada_em       DATETIME,
-  ultimo_acesso_em        DATETIME,
+  id_aprovador            INT,
+  aprovada_em             DATETIME,
   CONSTRAINT uq_usuario_login UNIQUE (login),
   CONSTRAINT uq_usuario_email UNIQUE (email),
   CONSTRAINT uq_usuario_colaborador UNIQUE (id_colaborador),
   CONSTRAINT ck_usuario_situacao CHECK (situacao IN ('pendente', 'ativo', 'inativo')),
   CONSTRAINT fk_usuario_perfil FOREIGN KEY (id_perfil) REFERENCES perfil (id_perfil),
-  CONSTRAINT fk_usuario_colaborador FOREIGN KEY (id_colaborador) REFERENCES colaborador (id_colaborador)
+  CONSTRAINT fk_usuario_colaborador FOREIGN KEY (id_colaborador) REFERENCES colaborador (id_colaborador),
+  CONSTRAINT fk_usuario_aprovador FOREIGN KEY (id_aprovador) REFERENCES usuario (id_usuario)
 );
 
 -- Sessões no servidor. O navegador guarda só o token, num cookie HttpOnly;
@@ -472,14 +516,53 @@ CREATE TABLE recuperacao_senha (
     REFERENCES usuario (id_usuario) ON DELETE CASCADE
 );
 
--- Antecedências escolhidas por conta, em meses (RF_B9)
+-- Tipos de aviso (RN24). modo: antecedencia (vencimentos e término de
+-- projeto, com prazos antes da data), imediato (no momento do evento) ou
+-- lembrete (prazos depois do evento). prazos_padrao valem enquanto a conta
+-- não salvar as próprias preferências. Os exclusivos do Administrador só
+-- são oferecidos a contas com esse perfil.
+CREATE TABLE tipo_notificacao (
+  id_tipo_notificacao     INT AUTO_INCREMENT PRIMARY KEY,
+  codigo                  VARCHAR(30)  NOT NULL,
+  nome                    VARCHAR(80)  NOT NULL,
+  descricao               VARCHAR(80)  NOT NULL,
+  modo                    VARCHAR(12)  NOT NULL,
+  momento                 VARCHAR(30),
+  exclusivo_administrador BOOLEAN      NOT NULL DEFAULT FALSE,
+  prazos_padrao           JSON,
+  ordem                   TINYINT      NOT NULL,
+  CONSTRAINT uq_tipo_notificacao_codigo UNIQUE (codigo),
+  CONSTRAINT ck_tipo_notificacao_modo CHECK (modo IN ('antecedencia', 'imediato', 'lembrete'))
+);
+
+-- Preferências de aviso da conta (RF_B9): uma por conta e tipo, ativa ou
+-- não, com um ou mais prazos quando o tipo os utiliza. Valem para os
+-- próximos avisos; não alteram avisos já emitidos nem o painel (RN24).
 CREATE TABLE preferencia_notificacao (
-  id_preferencia     INT AUTO_INCREMENT PRIMARY KEY,
-  id_usuario         INT     NOT NULL,
-  antecedencia_meses TINYINT NOT NULL,
-  CONSTRAINT uq_preferencia UNIQUE (id_usuario, antecedencia_meses),
-  CONSTRAINT ck_preferencia_meses CHECK (antecedencia_meses BETWEEN 1 AND 24),
-  CONSTRAINT fk_preferencia_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario)
+  id_preferencia      INT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario          INT      NOT NULL,
+  id_tipo_notificacao INT      NOT NULL,
+  ativo               BOOLEAN  NOT NULL DEFAULT TRUE,
+  atualizada_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT uq_preferencia_tipo UNIQUE (id_usuario, id_tipo_notificacao),
+  CONSTRAINT fk_preferencia_usuario FOREIGN KEY (id_usuario)
+    REFERENCES usuario (id_usuario) ON DELETE CASCADE,
+  CONSTRAINT fk_preferencia_tipo FOREIGN KEY (id_tipo_notificacao)
+    REFERENCES tipo_notificacao (id_tipo_notificacao)
+);
+
+-- Prazos de cada preferência: antecedência ou lembrete após o evento, em
+-- dias, semanas ou meses, positivos e sem repetição
+CREATE TABLE prazo_notificacao (
+  id_prazo       INT AUTO_INCREMENT PRIMARY KEY,
+  id_preferencia INT        NOT NULL,
+  quantidade     SMALLINT   NOT NULL,
+  unidade        VARCHAR(6) NOT NULL,
+  CONSTRAINT uq_prazo_notificacao UNIQUE (id_preferencia, quantidade, unidade),
+  CONSTRAINT ck_prazo_quantidade CHECK (quantidade > 0),
+  CONSTRAINT ck_prazo_unidade CHECK (unidade IN ('dia', 'semana', 'mes')),
+  CONSTRAINT fk_prazo_preferencia FOREIGN KEY (id_preferencia)
+    REFERENCES preferencia_notificacao (id_preferencia) ON DELETE CASCADE
 );
 
 -- Documento: só os metadados e o caminho do PDF na pasta central (RN23).
@@ -539,8 +622,60 @@ CREATE TABLE notificacao (
   CONSTRAINT fk_notificacao_projeto FOREIGN KEY (id_projeto) REFERENCES projeto (id_projeto)
 );
 
+-- ===============================================================
+-- Parte 4 - solicitações de ajuste cadastral (RF_B10)
+-- ===============================================================
+
+-- Solicitação de ajuste (RN36): o Operador aponta o cadastro afetado e
+-- descreve a correção; solicitante e data são gerados pelo sistema. O
+-- cadastro afetado é guardado como entidade + id, com o rótulo do momento
+-- da solicitação, para continuar legível mesmo que o registro mude. Só há
+-- Pendente e Concluída; concluinte e data são gravados uma única vez (o
+-- gatilho abaixo recusa qualquer alteração depois da conclusão).
+CREATE TABLE solicitacao_ajuste (
+  id_solicitacao       INT AUTO_INCREMENT PRIMARY KEY,
+  id_solicitante       INT           NOT NULL,
+  criada_em            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  entidade             VARCHAR(20)   NOT NULL,
+  id_registro          INT           NOT NULL,
+  rotulo_registro      VARCHAR(160)  NOT NULL,
+  descricao            VARCHAR(1000) NOT NULL,
+  situacao             VARCHAR(10)   NOT NULL DEFAULT 'pendente',
+  id_concluinte        INT,
+  concluida_em         DATETIME,
+  observacao_conclusao VARCHAR(500),
+  CONSTRAINT ck_solicitacao_entidade CHECK (entidade IN
+    ('fornecedor', 'software', 'equipamento', 'colaborador', 'setor', 'projeto', 'bem', 'tipo_seguro')),
+  CONSTRAINT ck_solicitacao_situacao CHECK (situacao IN ('pendente', 'concluida')),
+  CONSTRAINT ck_solicitacao_conclusao CHECK (
+    (situacao = 'pendente' AND id_concluinte IS NULL AND concluida_em IS NULL AND observacao_conclusao IS NULL) OR
+    (situacao = 'concluida' AND id_concluinte IS NOT NULL AND concluida_em IS NOT NULL)),
+  CONSTRAINT fk_solicitacao_solicitante FOREIGN KEY (id_solicitante) REFERENCES usuario (id_usuario),
+  CONSTRAINT fk_solicitacao_concluinte FOREIGN KEY (id_concluinte) REFERENCES usuario (id_usuario)
+);
+
+CREATE INDEX ix_solicitacao_situacao ON solicitacao_ajuste (situacao, criada_em);
+CREATE INDEX ix_solicitacao_registro ON solicitacao_ajuste (entidade, id_registro);
+
+-- Presença informativa (RN42): quem está visualizando ou atualizando a
+-- solicitação. Registro temporário, renovado pela tela enquanto ela está
+-- aberta; não bloqueia gravações nem cria etapa de assumir.
+CREATE TABLE presenca_solicitacao (
+  id_solicitacao INT         NOT NULL,
+  id_usuario     INT         NOT NULL,
+  acao           VARCHAR(12) NOT NULL,
+  atualizada_em  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_solicitacao, id_usuario),
+  CONSTRAINT ck_presenca_acao CHECK (acao IN ('visualizando', 'atualizando')),
+  CONSTRAINT fk_presenca_solicitacao FOREIGN KEY (id_solicitacao)
+    REFERENCES solicitacao_ajuste (id_solicitacao) ON DELETE CASCADE,
+  CONSTRAINT fk_presenca_usuario FOREIGN KEY (id_usuario)
+    REFERENCES usuario (id_usuario) ON DELETE CASCADE
+);
+
 -- Trilha de auditoria (RF_F14, RN22): data efetiva do evento, momento do
--- registro e dados anteriores e posteriores em JSON.
+-- registro e dados anteriores e posteriores em JSON. id_solicitacao liga a
+-- criação e a conclusão das solicitações de ajuste (RN36).
 CREATE TABLE movimentacao (
   id_movimentacao   INT AUTO_INCREMENT PRIMARY KEY,
   id_usuario        INT          NOT NULL,
@@ -550,6 +685,7 @@ CREATE TABLE movimentacao (
   id_licenca        INT,
   id_instancia      INT,
   id_apolice        INT,
+  id_solicitacao    INT,
   data_evento       DATE         NOT NULL,
   registrado_em     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   descricao         VARCHAR(255) NOT NULL,
@@ -559,8 +695,11 @@ CREATE TABLE movimentacao (
   CONSTRAINT fk_mov_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario),
   CONSTRAINT fk_mov_licenca FOREIGN KEY (id_licenca) REFERENCES licenca (id_licenca),
   CONSTRAINT fk_mov_instancia FOREIGN KEY (id_instancia) REFERENCES instancia (id_instancia),
-  CONSTRAINT fk_mov_apolice FOREIGN KEY (id_apolice) REFERENCES apolice (id_apolice)
+  CONSTRAINT fk_mov_apolice FOREIGN KEY (id_apolice) REFERENCES apolice (id_apolice),
+  CONSTRAINT fk_mov_solicitacao FOREIGN KEY (id_solicitacao) REFERENCES solicitacao_ajuste (id_solicitacao)
 );
+
+CREATE INDEX ix_mov_registro ON movimentacao (entidade, id_registro, registrado_em);
 
 -- Eventos do histórico não podem ser alterados nem excluídos (RN22). Em
 -- produção a conta da aplicação recebe só INSERT e SELECT nesta tabela; os
@@ -577,4 +716,20 @@ CREATE TRIGGER tg_movimentacao_sem_exclusao BEFORE DELETE ON movimentacao
 FOR EACH ROW
 BEGIN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Eventos do histórico não podem ser excluídos (RN22).';
+END;
+
+-- A primeira conclusão prevalece (RN36): depois de concluída, a solicitação
+-- não muda mais, nem direto no banco. Solicitações não são excluídas.
+CREATE TRIGGER tg_solicitacao_conclusao_unica BEFORE UPDATE ON solicitacao_ajuste
+FOR EACH ROW
+BEGIN
+  IF OLD.situacao = 'concluida' THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Solicitação já concluída: autoria e data da conclusão não mudam (RN36).';
+  END IF;
+END;
+
+CREATE TRIGGER tg_solicitacao_sem_exclusao BEFORE DELETE ON solicitacao_ajuste
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Solicitações de ajuste não podem ser excluídas (RN36).';
 END;

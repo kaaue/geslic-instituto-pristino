@@ -10,6 +10,8 @@ const rotas = express.Router();
 rotas.use(exigirPermissao('usuario.gerenciar'));
 
 rotas.get('/', asyncHandler(controller.listar));
+// Troca de gestão: concede e revoga o perfil Administrador numa só operação (RN27)
+rotas.post('/transferencia-administrador', asyncHandler(controller.transferirAdministrador));
 rotas.get('/:id', asyncHandler(controller.buscar));
 rotas.post('/', asyncHandler(controller.criar));
 rotas.put('/:id', asyncHandler(controller.atualizar));

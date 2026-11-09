@@ -23,24 +23,32 @@ async function criar(conexao, idUsuario) {
   return token;
 }
 
-// Devolve { idSessao, idUsuario } da sessão válida, ou null.
+// Confere a sessão do token. Devolve { idSessao, idUsuario } quando vale ou
+// { motivo } quando não vale (inexistente, inatividade, validade, logout...).
 // Sessão vencida por inatividade ou validade é encerrada aqui mesmo.
-async function validar(token) {
-  if (!token) return null;
+//
+// RN32: a sessão termina após o tempo de inatividade sem atividade humana.
+// Por isso o último uso só é atualizado (tocar) nas requisições feitas por
+// ação da pessoa; as consultas automáticas da tela (painel, presença) passam
+// tocar = false e não prolongam a sessão.
+async function validar(token, { tocar = true } = {}) {
+  if (!token) return { motivo: 'inexistente' };
   const [linhas] = await pool.query(
-    `SELECT id_sessao, id_usuario, encerrada_em,
+    `SELECT id_sessao, id_usuario, encerrada_em, motivo_encerramento,
             expira_em <= NOW() AS vencida,
             ultimo_uso_em <= DATE_SUB(NOW(), INTERVAL ? MINUTE) AS ociosa,
             ultimo_uso_em <= DATE_SUB(NOW(), INTERVAL ? SECOND) AS tocar
        FROM sessao WHERE token_hash = ?`,
     [config.inatividadeMinutos, INTERVALO_TOQUE_SEGUNDOS, hashToken(token)]);
   const s = linhas[0];
-  if (!s || s.encerrada_em) return null;
+  if (!s) return { motivo: 'inexistente' };
+  if (s.encerrada_em) return { motivo: s.motivo_encerramento || 'encerrada' };
   if (s.vencida || s.ociosa) {
-    await encerrar(s.id_sessao, s.vencida ? 'validade' : 'inatividade');
-    return null;
+    const motivo = s.vencida ? 'validade' : 'inatividade';
+    await encerrar(s.id_sessao, motivo);
+    return { motivo };
   }
-  if (s.tocar) {
+  if (tocar && s.tocar) {
     await pool.query('UPDATE sessao SET ultimo_uso_em = NOW() WHERE id_sessao = ?', [s.id_sessao]);
   }
   return { idSessao: s.id_sessao, idUsuario: s.id_usuario };

@@ -20,6 +20,9 @@ INSERT INTO setor (nome) VALUES
   ('Campo e Monitoramento'),
   ('Comunicação');
 
+-- Setor inativo, com a data efetiva da inativação (RN37) e sem vínculos
+INSERT INTO setor (nome, ativo, data_inativacao) VALUES ('Educação Ambiental', FALSE, '2026-06-30');
+
 INSERT INTO colaborador (nome, cargo, email, id_setor) VALUES
   ('Ana Paula Ribeiro',   'Gestora',              'ana.ribeiro@pristino.org.br',   1),
   ('Marina Castro Lima',  'Gestora',              'marina.lima@pristino.org.br',   1),
@@ -29,6 +32,15 @@ INSERT INTO colaborador (nome, cargo, email, id_setor) VALUES
   ('Beatriz Nogueira',    'Analista de projetos', 'beatriz.nogueira@pristino.org.br', 3),
   ('Tiago Fernandes',     'Designer',             'tiago.fernandes@pristino.org.br', 5),
   ('Luciana Prado',       'Assistente',           'luciana.prado@pristino.org.br', 1);
+
+-- Colaborador desligado, com a data efetiva do desligamento (RN07, RN37)
+INSERT INTO colaborador (nome, cargo, email, id_setor, ativo, data_desligamento) VALUES
+  ('Rafael Antunes', 'Técnico de campo', 'rafael.antunes@pristino.org.br', 4, FALSE, '2026-09-30');
+
+-- Coordenadores dos setores: colaboradores ativos (RF_B5)
+UPDATE setor SET id_coordenador = CASE id_setor
+    WHEN 1 THEN 1 WHEN 2 THEN 3 WHEN 3 THEN 4 WHEN 4 THEN 5 WHEN 5 THEN 7 END
+ WHERE id_setor BETWEEN 1 AND 5;
 
 -- ---------------------------------------------------------------
 -- Equipamentos (RF_B3): grava primeiro em bem e depois em equipamento,
@@ -70,6 +82,10 @@ INSERT INTO equipamento
   (14, 'IP0092', NULL,        'Notebook',       NULL, FALSE),
   (15, 'IP0113', 'NS-100080', 'Servidor',          3, FALSE);
 
+-- Datas efetivas do descarte dos dois equipamentos inativos (RN37)
+UPDATE bem SET data_inativacao = '2025-11-20' WHERE id_bem = 13;
+UPDATE bem SET data_inativacao = '2026-03-12' WHERE id_bem = 14;
+
 -- ---------------------------------------------------------------
 -- Projetos (RF_F1)
 -- - 1023 termina em poucos meses (aviso de término próximo)
@@ -106,15 +122,21 @@ SELECT c.id, p.id_projeto
 -- comportamentos previstos na RN08 ao inativar um equipamento.
 -- ---------------------------------------------------------------
 
-INSERT INTO fornecedor (razao_social, nome_fantasia, cnpj, tipo, contato, email) VALUES
-  ('Brasoftware Informática Ltda.',  'Brasoftware', '00111222000101', 'software',   'Comercial', 'comercial@brasoftware.example'),
-  ('Imagem Geosistemas Ltda.',       'Imagem',      '00333444000102', 'software',   'Comercial', 'vendas@imagem.example'),
-  ('Seguradora Exemplo S.A.',        'Exemplo Seguros', '00555666000103', 'seguradora', 'Corretor', 'corretor@seguros.example');
+INSERT INTO fornecedor (razao_social, nome_fantasia, cnpj, tipo, contato, telefone, email) VALUES
+  ('Brasoftware Informática Ltda.',  'Brasoftware', '00111222000101', 'software',   'Comercial', '(11) 3030-1000', 'comercial@brasoftware.example'),
+  ('Imagem Geosistemas Ltda.',       'Imagem',      '00333444000102', 'software',   'Comercial', '(12) 3946-8800', 'vendas@imagem.example'),
+  ('Seguradora Exemplo S.A.',        'Exemplo Seguros', '00555666000103', 'seguradora', 'Corretor', '(31) 3222-0000', 'corretor@seguros.example'),
+  ('Serra Verde Seguros S.A.',       'Serra Verde', '00777888000104', 'seguradora', 'Corretora', '(31) 3555-2000', 'atendimento@serraverde.example');
 
-INSERT INTO software (nome, fabricante, categoria) VALUES
-  ('Microsoft 365 Business', 'Microsoft', 'Escritório'),
-  ('ArcGIS Desktop',         'Esri',      'Geoprocessamento'),
-  ('Adobe Creative Cloud',   'Adobe',     'Design');
+INSERT INTO software (nome, versao, fabricante, categoria, observacoes) VALUES
+  ('Microsoft 365 Business', NULL,   'Microsoft', 'Escritório',       NULL),
+  ('ArcGIS Desktop',         '10.8', 'Esri',      'Geoprocessamento', 'Usado pelo NUGEO e pelos projetos de monitoramento.'),
+  ('Adobe Creative Cloud',   '2024', 'Adobe',     'Design',           NULL),
+  ('QGIS',                   '3.34', 'OSGeo',     'Geoprocessamento', 'Software livre, sem licença registrada.');
+
+-- Software fora de uso: inativo, sai das listas de novos cadastros
+INSERT INTO software (nome, versao, fabricante, categoria, ativo) VALUES
+  ('CorelDRAW', 'X7', 'Corel', 'Design', FALSE);
 
 -- Responsável pelas licenças: Carlos Eduardo Alves (3), Analista de TI.
 -- Projeto adquirente por código: 1023, 2041 e 1022 (este já encerrado, RN18).
@@ -159,3 +181,82 @@ INSERT INTO alocacao (id_instancia, id_equipamento, data_inicio) VALUES
   (1,  1, '2026-03-10'),
   (2,  6, '2026-04-02'),
   (3,  9, '2026-05-20');
+
+-- ---------------------------------------------------------------
+-- Bens seguráveis (RF_B6), tipos de seguro e coberturas (RF_B7) e duas
+-- apólices de exemplo. O drone DJI Mavic 3 é coberto pelas duas apólices
+-- e, por meio delas, relaciona-se a dois projetos (RN40, CA18). O bem não
+-- tem campo de projeto.
+-- ---------------------------------------------------------------
+
+INSERT INTO bem (categoria, identificacao, placa, renavam, ano_modelo, valor, id_setor) VALUES
+  ('veiculo', 'Toyota Hilux', 'QAB-1D23', '01234567890', '2023/2024', 285000.00, 4);
+
+INSERT INTO bem (categoria, identificacao, numero_serie, patrimonio, valor, id_setor) VALUES
+  ('drone', 'DJI Mavic 3',   '1581F4QF', '0451', 21500.00, 3),
+  ('drone', 'DJI Phantom 4', '0AXDE8',   NULL,    9800.00, 4);
+
+INSERT INTO bem (categoria, identificacao, endereco, matricula, area_construida_m2, valor, id_setor) VALUES
+  ('imovel', 'Base de campo de Três Marias', 'Rua das Garças, 120 · Três Marias – MG',
+   '12.345 · 1º CRI', 180.00, 610000.00, 1);
+
+INSERT INTO tipo_seguro (descricao) VALUES
+  ('Automóvel / frota'), ('Equipamentos'), ('Vida em grupo'), ('Responsabilidade civil'), ('Imóvel');
+
+INSERT INTO cobertura (id_tipo_seguro, descricao)
+SELECT t.id_tipo_seguro, c.descricao
+  FROM (SELECT 'Automóvel / frota' AS tipo, 'Colisão' AS descricao, 1 AS ordem UNION ALL
+        SELECT 'Automóvel / frota', 'Roubo', 2 UNION ALL
+        SELECT 'Automóvel / frota', 'Terceiros', 3 UNION ALL
+        SELECT 'Automóvel / frota', 'Vidros', 4 UNION ALL
+        SELECT 'Equipamentos', 'Danos elétricos', 5 UNION ALL
+        SELECT 'Equipamentos', 'Roubo e furto qualificado', 6 UNION ALL
+        SELECT 'Equipamentos', 'Quebra acidental', 7 UNION ALL
+        SELECT 'Vida em grupo', 'Morte', 8 UNION ALL
+        SELECT 'Vida em grupo', 'Invalidez', 9 UNION ALL
+        SELECT 'Responsabilidade civil', 'Danos a terceiros', 10 UNION ALL
+        SELECT 'Imóvel', 'Incêndio', 11 UNION ALL
+        SELECT 'Imóvel', 'Danos elétricos', 12 UNION ALL
+        SELECT 'Imóvel', 'Vendaval', 13) c
+  JOIN tipo_seguro t ON t.descricao = c.tipo
+ ORDER BY c.ordem;
+
+-- Apólices de exemplo, com a vigência 1 e o projeto que a financia
+INSERT INTO apolice (id_seguradora, numero, id_tipo_seguro, id_responsavel, id_setor, id_projeto_responsavel)
+SELECT f.id_fornecedor, a.numero, t.id_tipo_seguro, a.responsavel, a.setor, p.id_projeto
+  FROM (SELECT 'AP-003' AS numero, 'Seguradora Exemplo S.A.' AS seguradora, 'Equipamentos' AS tipo,
+               5 AS responsavel, 4 AS setor, '1301' AS projeto UNION ALL
+        SELECT 'AP-007', 'Serra Verde Seguros S.A.', 'Responsabilidade civil', 3, 3, '2041') a
+  JOIN fornecedor f  ON f.razao_social = a.seguradora
+  JOIN tipo_seguro t ON t.descricao = a.tipo
+  JOIN projeto p     ON p.codigo = a.projeto
+ ORDER BY a.numero;
+
+INSERT INTO vigencia_apolice (id_apolice, numero, data_inicio, data_fim, valor_premio, id_projeto_pagador)
+SELECT ap.id_apolice, 1, v.inicio, v.fim, v.premio, ap.id_projeto_responsavel
+  FROM (SELECT 'AP-003' AS numero, '2025-12-16' AS inicio, '2026-12-15' AS fim, 4200.00 AS premio UNION ALL
+        SELECT 'AP-007', '2026-03-01', '2027-02-28', 2600.00) v
+  JOIN apolice ap ON ap.numero = v.numero
+ ORDER BY v.numero;
+
+-- Coberturas contratadas: todas as do tipo de seguro de cada apólice
+INSERT INTO vigencia_cobertura (id_vigencia_apolice, id_cobertura)
+SELECT va.id_vigencia_apolice, c.id_cobertura
+  FROM vigencia_apolice va
+  JOIN apolice ap  ON ap.id_apolice = va.id_apolice
+  JOIN cobertura c ON c.id_tipo_seguro = ap.id_tipo_seguro;
+
+INSERT INTO item_segurado (id_vigencia_apolice, id_bem, valor_segurado)
+SELECT va.id_vigencia_apolice, b.id_bem, i.valor
+  FROM (SELECT 'AP-003' AS numero, 'DJI Mavic 3' AS bem, 21500.00 AS valor UNION ALL
+        SELECT 'AP-003', 'DJI Phantom 4', 9800.00 UNION ALL
+        SELECT 'AP-007', 'DJI Mavic 3', 50000.00) i
+  JOIN apolice ap          ON ap.numero = i.numero
+  JOIN vigencia_apolice va ON va.id_apolice = ap.id_apolice AND va.numero = 1
+  JOIN bem b               ON b.identificacao = i.bem;
+
+-- Cada item coberto por todas as coberturas contratadas na vigência
+INSERT INTO item_cobertura (id_item, id_cobertura)
+SELECT it.id_item, vc.id_cobertura
+  FROM item_segurado it
+  JOIN vigencia_cobertura vc ON vc.id_vigencia_apolice = it.id_vigencia_apolice;

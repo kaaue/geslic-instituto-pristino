@@ -30,8 +30,8 @@ module.exports = {
   sessao: {
     // validade máxima, contada do login
     duracaoHoras: numero(process.env.SESSAO_DURACAO_HORAS, 8),
-    // encerra a sessão sem uso por este tempo
-    inatividadeMinutos: numero(process.env.SESSAO_INATIVIDADE_MINUTOS, 60),
+    // encerra a sessão após este tempo sem atividade humana (RN32: dez minutos)
+    inatividadeMinutos: numero(process.env.SESSAO_INATIVIDADE_MINUTOS, 10),
     // em HTTPS (produção), o cookie só trafega cifrado
     cookieSeguro: process.env.COOKIE_SEGURO === undefined ? producao : sim(process.env.COOKIE_SEGURO)
   },

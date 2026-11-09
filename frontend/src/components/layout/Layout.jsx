@@ -3,7 +3,7 @@
 // permissões da conta, com a conta e o botão Sair no rodapé; barra superior
 // com o caminho de navegação, o sino de notificações e a conta.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { menuDaConta, telaDoCaminho } from '../../config/navegacao';
@@ -19,6 +19,11 @@ export default function Layout() {
   const { pathname } = useLocation();
   const navegar = useNavigate();
   const tela = telaDoCaminho(pathname);
+  // A entrada Cadastros abre sozinha quando a tela atual é um cadastro
+  const [cadastrosAbertos, setCadastrosAbertos] = useState(tela?.secao === 'Cadastros');
+  useEffect(() => {
+    if (tela?.secao === 'Cadastros') setCadastrosAbertos(true);
+  }, [tela?.secao]);
 
   // A cada troca de tela, relê perfil e permissões na API: uma mudança feita
   // por um Administrador aparece no menu sem precisar sair e entrar.
@@ -40,7 +45,34 @@ export default function Layout() {
         </Link>
 
         <nav aria-label="Menu principal">
-          {!trocaSenhaObrigatoria && menuDaConta(pode).map((grupo, i) => (
+          {!trocaSenhaObrigatoria && menuDaConta(pode).map((grupo, i) => (grupo.expansivel ? (
+            <div className="menu-grupo" key={grupo.titulo}>
+              <button
+                type="button"
+                className="menu-link menu-expansivel"
+                aria-expanded={cadastrosAbertos}
+                onClick={() => setCadastrosAbertos(!cadastrosAbertos)}
+              >
+                <span className="menu-icone" aria-hidden="true">{grupo.icone}</span>
+                <span className="menu-rotulo">{grupo.titulo}</span>
+                <span className="menu-seta" aria-hidden="true">▸</span>
+              </button>
+              {cadastrosAbertos && (
+                <div className="menu-subitens">
+                  {grupo.itens.map((item) => (
+                    <NavLink
+                      key={item.caminho}
+                      to={item.caminho}
+                      className={({ isActive }) => (isActive ? 'menu-link menu-link-ativo' : 'menu-link')}
+                    >
+                      <span className="menu-rotulo">{item.rotulo}</span>
+                      {item.pendente && <span className="marca-pendente" title="Em desenvolvimento" aria-label="em desenvolvimento" />}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
             <div className={`menu-grupo ${grupo.modulo ? `menu-${grupo.modulo}` : ''}`} key={grupo.titulo ?? i}>
               {grupo.titulo && <span className="menu-titulo">{grupo.titulo}</span>}
               {grupo.itens.map((item) => (
@@ -56,7 +88,7 @@ export default function Layout() {
                 </NavLink>
               ))}
             </div>
-          ))}
+          )))}
           {!trocaSenhaObrigatoria && (
             <p className="menu-legenda"><span className="marca-pendente" aria-hidden="true" /> em desenvolvimento</p>
           )}

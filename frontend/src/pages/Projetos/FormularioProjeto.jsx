@@ -17,8 +17,9 @@ const VAZIO = {
   participantes: []
 };
 
+// atalhoAjuste: botão "Solicitar ajuste deste projeto" (RF_B10), mostrado na consulta pelo Operador
 export default function FormularioProjeto({
-  edicao, somenteLeitura, colaboradores, fontes, erros, salvando, aoSalvar, aoCancelar
+  edicao, somenteLeitura, colaboradores, fontes, erros, salvando, aoSalvar, aoCancelar, atalhoAjuste = null
 }) {
   const [form, setForm] = useState(VAZIO);
 
@@ -84,10 +85,14 @@ export default function FormularioProjeto({
 
       <div className="painel-corpo">
         {somenteLeitura && (
-          <p className="aviso-info">
-            Perfil Operador: alterar os dados cadastrais do projeto é exclusivo do
-            perfil Administrador. Para prorrogar o término ou encerrar, use as ações da listagem.
-          </p>
+          <>
+            <p className="aviso-info">
+              Após a criação, somente o Administrador altera os dados e os participantes. Para incluir ou retirar
+              alguém, ou corrigir um dado, emita uma solicitação de ajuste (RN38). Para prorrogar o término ou
+              encerrar, use as ações da listagem.
+            </p>
+            {atalhoAjuste}
+          </>
         )}
 
         <div className="dupla dupla-codigo">

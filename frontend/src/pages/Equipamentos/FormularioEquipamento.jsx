@@ -3,6 +3,7 @@
 // em "edicao", preenche os campos; quando recebe null, começa em branco.
 
 import { useEffect, useState } from 'react';
+import { hojeLocal } from '../../services/api';
 import {
   mascaraEtiquetaInstituto,
   mascaraEtiquetaNetscanner
@@ -24,7 +25,7 @@ const TIPOS = ['Notebook', 'Desktop', 'Tablet', 'Servidor', 'Estação gráfica'
   'Impressora', 'Projetor', 'Outro'];
 
 export default function FormularioEquipamento({
-  edicao, setores, colaboradores, erros, aoSalvar, aoCancelar, salvando, avisoInativacao
+  edicao, setores, colaboradores, erros, erroGeral, aoSalvar, aoCancelar, salvando, avisoInativacao
 }) {
   const [form, setForm] = useState(VAZIO);
 
@@ -61,15 +62,18 @@ export default function FormularioEquipamento({
     }));
   }
 
-  function enviar(evento) {
-    evento.preventDefault();
+  const inativando = edicao && edicao.situacao === 'ativo' && form.situacao === 'inativo';
+  // Passar a inativo pela edição exige data efetiva e motivo (RN37)
+  const [evento, setEvento] = useState({ data_efetiva: hojeLocal(), motivo: '' });
+
+  function enviar(evento_) {
+    evento_.preventDefault();
     aoSalvar({
       ...form,
-      id_responsavel: form.id_responsavel || null
+      id_responsavel: form.id_responsavel || null,
+      ...(inativando ? evento : {})
     });
   }
-
-  const inativando = edicao && edicao.situacao === 'ativo' && form.situacao === 'inativo';
 
   return (
     <form className="painel" onSubmit={enviar}>
@@ -79,6 +83,7 @@ export default function FormularioEquipamento({
       </header>
 
       <div className="painel-corpo">
+        {erroGeral && <div className="mensagem mensagem-erro">{erroGeral}</div>}
         {!edicao && (
           <p className="nota">
             O ID interno é gerado pelo sistema quando o equipamento é gravado.
@@ -183,16 +188,38 @@ export default function FormularioEquipamento({
           {erros.id_responsavel && <small className="erro">{erros.id_responsavel}</small>}
         </label>
 
-        <label className="campo">
-          <span>Situação</span>
-          <select value={form.situacao} onChange={(e) => mudar('situacao', e.target.value)}>
-            <option value="ativo">Ativo</option>
-            <option value="inativo">Inativo (descartado)</option>
-          </select>
-          <small className="dica">
-            Não há situação de manutenção. Inativo significa descarte ou sem retorno ao uso.
-          </small>
-        </label>
+        {edicao && (
+          <label className="campo">
+            <span>Situação</span>
+            <select value={form.situacao} onChange={(e) => mudar('situacao', e.target.value)}>
+              <option value="ativo">Ativo</option>
+              <option value="inativo">Inativo (descartado)</option>
+            </select>
+            <small className="dica">
+              Não há situação de manutenção. Inativo significa descarte ou sem retorno ao uso.
+            </small>
+          </label>
+        )}
+
+        {inativando && (
+          <div className="dupla">
+            <label className="campo">
+              <span>Data efetiva da inativação *</span>
+              <input type="date" value={evento.data_efetiva} max={hojeLocal()}
+                onChange={(e) => setEvento({ ...evento, data_efetiva: e.target.value })}
+                className={erros.data_efetiva ? 'com-erro' : ''} />
+              {erros.data_efetiva ? <small className="erro">{erros.data_efetiva}</small>
+                : <small className="dica">Quando o equipamento deixou de ser usado.</small>}
+            </label>
+            <label className="campo">
+              <span>Motivo *</span>
+              <input type="text" value={evento.motivo} maxLength={255}
+                onChange={(e) => setEvento({ ...evento, motivo: e.target.value })}
+                className={erros.motivo ? 'com-erro' : ''} />
+              {erros.motivo && <small className="erro">{erros.motivo}</small>}
+            </label>
+          </div>
+        )}
 
         {/* Aviso da RN08: ao inativar, as instâncias não transferíveis
             alocadas ao equipamento passam a inativas */}

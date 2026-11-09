@@ -23,7 +23,13 @@ export function previaInativacao(id) {
   return requisicao(`/api/equipamentos/${id}/previa-inativacao`);
 }
 
-// Inativação (descarte) como ação própria, permitida ao Operador (RN21, RN08)
-export function inativarEquipamento(id) {
-  return requisicao(`/api/equipamentos/${id}/inativacao`, { method: 'POST' });
+// Inativação (descarte) como ação própria, permitida ao Operador (RN21, RN08),
+// com data efetiva e motivo (RN37)
+export function inativarEquipamento(id, evento) {
+  return requisicao(`/api/equipamentos/${id}/inativacao`, enviarJson('POST', evento));
+}
+
+// Reativação (correção de um descarte registrado por engano), só do Administrador
+export function reativarEquipamento(id) {
+  return requisicao(`/api/equipamentos/${id}/reativacao`, { method: 'POST' });
 }

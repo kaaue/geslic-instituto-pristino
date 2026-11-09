@@ -15,5 +15,6 @@ rotas.post('/redefinicao', asyncHandler(controller.redefinirSenha));
 
 rotas.get('/me', autenticar, asyncHandler(controller.me));
 rotas.post('/logout', autenticar, asyncHandler(controller.logout));
+rotas.post('/atividade', autenticar, asyncHandler(controller.atividade));
 
 module.exports = rotas;

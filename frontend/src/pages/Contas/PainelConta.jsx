@@ -34,7 +34,9 @@ function formInicial(tipo, conta, perfis) {
   };
 }
 
-export default function PainelConta({ tipo, conta, perfis, colaboradores, erros, salvando, idContaAtual, aoConfirmar, aoCancelar }) {
+export default function PainelConta({
+  tipo, conta, perfis, colaboradores, erros, erroGeral, salvando, idContaAtual, aoConfirmar, aoCancelar, aoTrocarAcao
+}) {
   const [form, setForm] = useState(() => formInicial(tipo, conta, perfis));
   const mudar = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
 
@@ -76,7 +78,7 @@ export default function PainelConta({ tipo, conta, perfis, colaboradores, erros,
   );
 
   const campoPerfil = (
-    <Campo rotulo="Perfil" erro={erros.id_perfil}>
+    <Campo rotulo="Perfil *" erro={erros.id_perfil} dica="Administrador ou Operador; as permissões de cada perfil são fixas.">
       <select value={form.id_perfil} onChange={mudar('id_perfil')} className={erros.id_perfil ? 'com-erro' : ''}>
         <option value="">Selecione</option>
         {perfis.map((p) => (
@@ -100,10 +102,17 @@ export default function PainelConta({ tipo, conta, perfis, colaboradores, erros,
     <form className="painel" onSubmit={enviar} noValidate>
       <header className="painel-cabecalho">
         <h2>{TITULOS[tipo]}</h2>
-        {conta && <span className="id-interno">{conta.login}</span>}
+        {conta && (
+          <span className="id-interno">
+            {tipo === 'aprovar' || tipo === 'recusar'
+              ? `${conta.nome} · solicitada em ${new Date(conta.criada_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`
+              : conta.login}
+          </span>
+        )}
       </header>
 
       <div className="painel-corpo">
+        {erroGeral && <div className="mensagem mensagem-erro">{erroGeral}</div>}
         {(tipo === 'nova' || tipo === 'editar') && (
           <>
             <Campo rotulo="Nome" erro={erros.nome}>
@@ -131,13 +140,23 @@ export default function PainelConta({ tipo, conta, perfis, colaboradores, erros,
 
         {tipo === 'aprovar' && (
           <>
-            <div className="resumo-projeto">
-              <div><span>Nome</span><strong>{conta.nome}</strong></div>
-              <div><span>E-mail</span><strong>{conta.email}</strong></div>
-            </div>
+            <dl className="lista-pares">
+              <dt>Login</dt><dd>{conta.login}</dd>
+              <dt>E-mail</dt>
+              <dd>
+                {conta.email}{' '}
+                {conta.email.endsWith('@pristino.org.br')
+                  ? <span className="pilula pilula-prazo">domínio válido</span>
+                  : <span className="pilula">fora do domínio</span>}
+              </dd>
+            </dl>
             {campoPerfil}
             {campoColaborador}
             {campoMotivo}
+            <p className="aviso-info">
+              Pedido gerado pela solicitação pública de acesso. Não é solicitação de ajuste cadastral.
+              A aprovação ou a recusa ficam na auditoria.
+            </p>
           </>
         )}
 
@@ -190,10 +209,14 @@ export default function PainelConta({ tipo, conta, perfis, colaboradores, erros,
       </div>
 
       <footer className="painel-rodape">
-        <button type="button" className="botao-secundario" onClick={aoCancelar}>Cancelar</button>
+        {tipo === 'aprovar' ? (
+          <button type="button" className="botao-secundario botao-perigo" onClick={() => aoTrocarAcao('recusar')}>Recusar</button>
+        ) : (
+          <button type="button" className="botao-secundario" onClick={aoCancelar}>Cancelar</button>
+        )}
         <button type="submit" className={`botao-principal ${['recusar'].includes(tipo) || form.situacao === 'inativo' && tipo === 'situacao' ? 'botao-principal-perigo' : ''}`} disabled={salvando}>
           {salvando ? 'Salvando...' : {
-            nova: 'Criar conta', editar: 'Salvar', aprovar: 'Aprovar', recusar: 'Recusar solicitação',
+            nova: 'Criar conta', editar: 'Salvar', aprovar: 'Aprovar conta', recusar: 'Recusar solicitação',
             perfil: 'Alterar perfil', situacao: form.situacao === 'inativo' ? 'Desativar' : 'Reativar'
           }[tipo]}
         </button>

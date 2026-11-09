@@ -19,9 +19,14 @@ const ROTULO_TIPO = {
   criacao: 'Criação', correcao: 'Correção', exclusao: 'Exclusão', inativacao: 'Inativação',
   reativacao: 'Reativação', encerramento: 'Encerramento', prorrogacao: 'Prorrogação',
   aprovacao: 'Aprovação de acesso', rejeicao: 'Recusa de acesso', perfil: 'Alteração de perfil',
-  senha: 'Senha', permissao: 'Permissões'
+  senha: 'Senha', permissao: 'Permissões', desligamento: 'Desligamento',
+  solicitacao: 'Solicitação de ajuste', conclusao: 'Conclusão de solicitação'
 };
-const ROTULO_ENTIDADE = { equipamento: 'Equipamento', projeto: 'Projeto', usuario: 'Conta', perfil: 'Perfil' };
+const ROTULO_ENTIDADE = {
+  equipamento: 'Equipamento', projeto: 'Projeto', usuario: 'Conta', perfil: 'Perfil',
+  fornecedor: 'Fornecedor ou seguradora', software: 'Software', colaborador: 'Colaborador', setor: 'Setor',
+  bem: 'Bem segurável', tipo_seguro: 'Tipo de seguro', solicitacao_ajuste: 'Solicitação de ajuste'
+};
 
 const rotulo = (mapa, valor) => mapa[valor] || valor;
 

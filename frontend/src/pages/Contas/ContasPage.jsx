@@ -1,10 +1,13 @@
-// Contas e perfis de acesso (Protótipos 13 e 13.1; RF_B8, RN21, RN27).
+// Contas e perfis de acesso (Protótipos 13, 13.1 e 13.2; RF_B8, RN21, RN27, RN41).
 // Tela exclusiva do Administrador (permissão usuario.gerenciar): solicitações
-// de acesso, contas, perfis e a matriz de permissões. As regras (último
-// Administrador, motivo ao conceder o perfil, encerramento de sessões) são
-// aplicadas pela API; a tela explica e mostra o resultado.
+// de acesso, contas, troca de gestão e a matriz explicativa (não editável) de
+// perfis e permissões. As regras (último Administrador, motivo ao conceder o
+// perfil, encerramento de sessões, e-mail @pristino.org.br) são aplicadas
+// pela API; a tela explica e mostra o resultado. Não há "último acesso".
+// O painel abre a aprovação direto por /contas?aprovar=ID.
 
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import useMensagem from '../../hooks/useMensagem';
 import useBuscaComAtraso from '../../hooks/useBuscaComAtraso';
@@ -13,6 +16,7 @@ import Sobreposicao from '../../components/common/Sobreposicao.jsx';
 import TabelaContas from './TabelaContas.jsx';
 import PainelConta from './PainelConta.jsx';
 import MatrizPermissoes from './MatrizPermissoes.jsx';
+import ModalTransferencia from './ModalTransferencia.jsx';
 import * as servico from '../../services/usuarioService';
 import { listarColaboradores } from '../../services/colaboradorService';
 import { mensagemDeErro } from '../../services/api';
@@ -23,7 +27,9 @@ export default function ContasPage() {
   const { usuario } = useAuth();
   const [aba, setAba] = useState('contas');
   const [contas, setContas] = useState([]);
-  const [perfis, setPerfis] = useState({ perfis: [], permissoes: [] });
+  const [perfis, setPerfis] = useState({ perfis: [], matriz: [] });
+  const [parametros, setParametros] = useSearchParams();
+  const [erroGeral, setErroGeral] = useState('');
   const [colaboradores, setColaboradores] = useState([]);
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [carregando, setCarregando] = useState(true);
@@ -57,13 +63,27 @@ export default function ContasPage() {
 
   function abrir(tipo, conta = null) {
     setErros({});
+    setErroGeral('');
     setAcao({ tipo, conta });
   }
 
   function fechar() {
     setAcao(null);
     setErros({});
+    setErroGeral('');
   }
+
+  // Revisar e aprovar, vindo do painel (/contas?aprovar=ID)
+  const idAprovar = Number(parametros.get('aprovar')) || null;
+  useEffect(() => {
+    if (!idAprovar || carregando) return;
+    const conta = contas.find((x) => x.id_usuario === idAprovar && x.situacao === 'pendente');
+    const restantes = new URLSearchParams(parametros);
+    restantes.delete('aprovar');
+    setParametros(restantes, { replace: true });
+    if (conta) abrir('aprovar', conta);
+    else mostrarMensagem('aviso', 'Esta solicitação de acesso já foi tratada.');
+  }, [idAprovar, contas, carregando, parametros, setParametros, mostrarMensagem]);
 
   // Executa a ação do painel e trata os erros de campo
   async function confirmar(dados) {
@@ -90,13 +110,17 @@ export default function ContasPage() {
       } else if (tipo === 'situacao') {
         const r = await servico.alterarSituacao(conta.id_usuario, dados.situacao, dados.motivo);
         mostrarMensagem('sucesso', `Conta ${r.login} ${r.situacao === 'ativo' ? 'reativada' : 'desativada'}.`);
+      } else if (tipo === 'transferencia') {
+        const r = await servico.transferirAdministrador(dados);
+        mostrarMensagem('sucesso', `Troca de gestão registrada: ${r.concedida.nome} é Administrador; ${r.revogada.nome} ` +
+          `${r.revogada.situacao === 'inativo' ? 'teve a conta inativada' : 'passou a Operador'}. As sessões das duas contas foram encerradas.`);
       }
       fechar();
       buscar();
       carregarPerfis();
     } catch (e) {
       if (e.corpo?.erros) setErros(e.corpo.erros);
-      else mostrarMensagem('erro', mensagemDeErro(e));
+      else setErroGeral(mensagemDeErro(e));
     } finally {
       setSalvando(false);
     }
@@ -124,11 +148,14 @@ export default function ContasPage() {
         <div>
           <h2>Contas e perfis de acesso</h2>
           <p className="subtitulo">
-            RF_B8 · exclusivo do Administrador · {administradoresAtivos} administrador(es) ativo(s); o sistema mantém sempre ao menos um (RN27).
+            Exclusivo do Administrador · {administradoresAtivos} administrador(es) ativo(s); o sistema mantém sempre ao menos um (RN27).
           </p>
         </div>
         {aba === 'contas' && (
-          <button type="button" className="botao-principal" onClick={() => abrir('nova')}>Nova conta</button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button type="button" className="botao-secundario" onClick={() => abrir('transferencia')}>Transferir privilégios de administrador</button>
+            <button type="button" className="botao-principal" onClick={() => abrir('nova')}>Nova conta</button>
+          </div>
         )}
       </div>
 
@@ -144,15 +171,7 @@ export default function ContasPage() {
       <Mensagem mensagem={mensagem} />
 
       {aba === 'perfis' ? (
-        <MatrizPermissoes dados={perfis} aoSalvar={async (idPerfil, codigos) => {
-          try {
-            await servico.definirPermissoes(idPerfil, codigos);
-            mostrarMensagem('sucesso', 'Permissões do perfil atualizadas. Elas valem já na próxima ação de cada conta.');
-            carregarPerfis();
-          } catch (e) {
-            mostrarMensagem('erro', e.corpo?.erros?.permissoes || mensagemDeErro(e));
-          }
-        }} />
+        <MatrizPermissoes dados={perfis} />
       ) : (
         <>
           {pendentes > 0 && filtros.situacao !== 'pendente' && (
@@ -191,7 +210,9 @@ export default function ContasPage() {
                 <button type="button" className="botao-secundario" onClick={() => setFiltros(FILTROS_VAZIOS)}>Limpar</button>
               )}
             </div>
-            <p className="resumo-filtro">{contas.length} conta(s)</p>
+            <p className="resumo-filtro">
+              {contas.length} conta(s){pendentes ? ` · ${pendentes} aguardando aprovação` : ''}
+            </p>
           </div>
 
           <TabelaContas
@@ -204,7 +225,12 @@ export default function ContasPage() {
         </>
       )}
 
-      {acao && (
+      {acao?.tipo === 'transferencia' && (
+        <ModalTransferencia contas={contas} erros={erros} erroGeral={erroGeral} salvando={salvando}
+          aoConfirmar={confirmar} aoFechar={fechar} />
+      )}
+
+      {acao && acao.tipo !== 'transferencia' && (
         <Sobreposicao aoFechar={fechar}>
           <PainelConta
             tipo={acao.tipo}
@@ -212,8 +238,10 @@ export default function ContasPage() {
             perfis={perfis.perfis}
             colaboradores={colaboradores}
             erros={erros}
+            erroGeral={erroGeral}
             salvando={salvando}
             idContaAtual={usuario.id_usuario}
+            aoTrocarAcao={(tipo) => abrir(tipo, acao.conta)}
             aoConfirmar={confirmar}
             aoCancelar={fechar}
           />

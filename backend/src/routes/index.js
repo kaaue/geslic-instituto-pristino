@@ -22,6 +22,7 @@ rotas.use('/conta', require('./contaRoutes'));
 rotas.use('/usuarios', require('./usuarioRoutes'));
 rotas.use('/perfis', require('./perfilRoutes'));
 rotas.use('/historico', require('./historicoRoutes'));
+rotas.use('/solicitacoes-ajuste', require('./solicitacaoRoutes'));
 
 // Funções básicas (RF_B1 a RF_B7; contas RF_B8 e preferências RF_B9 acima)
 rotas.use('/fornecedores', require('./fornecedorRoutes'));

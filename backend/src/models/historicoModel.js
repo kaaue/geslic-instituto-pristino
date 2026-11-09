@@ -19,11 +19,12 @@ async function registrar(conexao, evento) {
   await conexao.query(
     `INSERT INTO movimentacao
        (id_usuario, tipo, entidade, id_registro, id_licenca, id_instancia, id_apolice,
-        data_evento, descricao, motivo, dados_anteriores, dados_posteriores)
-     VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURDATE()), ?, ?, ?, ?)`,
+        id_solicitacao, data_evento, descricao, motivo, dados_anteriores, dados_posteriores)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURDATE()), ?, ?, ?, ?)`,
     [
       evento.idUsuario, evento.tipo, evento.entidade, evento.idRegistro,
       evento.idLicenca || null, evento.idInstancia || null, evento.idApolice || null,
+      evento.idSolicitacao || null,
       evento.dataEvento || null, evento.descricao.slice(0, 255),
       evento.motivo ? String(evento.motivo).slice(0, 255) : null,
       evento.antes ? JSON.stringify(semSegredos(evento.antes)) : null,

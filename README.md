@@ -1,13 +1,15 @@
 # GESLIC — Sistema de Gestão de Licenças de Software e Apólices
 
-Sistema do Instituto Prístino especificado na ERS versão 2.5 reordenada (a versão 2.4 está em `docs/ERS_GESLIC_v2.4.pdf`).
+Sistema do Instituto Prístino especificado na ERS versão 2.6 (a versão 2.4 está em `docs/ERS_GESLIC_v2.4.pdf`).
 
-Os identificadores do código seguem a numeração reordenada: projetos são a função
-fundamental RF_F1; licenças, RF_F2 a RF_F7; apólices, RF_F8 a RF_F11;
-documentos, RF_F12; situações e avisos, RF_F13; auditoria, RF_F14.
-A correspondência com a numeração anterior está no apêndice da ERS.
-A renumeração não implica implementação das funções pendentes: autorizações
-(RF_F15) e solicitações de ajuste (RF_B10) ainda não foram implementadas.
+Os identificadores do código seguem a numeração da ERS 2.6: funções básicas
+RF_B1 a RF_B10; projetos são a função fundamental RF_F1; licenças, RF_F2 a
+RF_F7; apólices, RF_F8 a RF_F11; documentos, RF_F12; situações e avisos,
+RF_F13; auditoria, RF_F14; autorizações, RF_F15; financiador da apólice,
+RF_F16. A correspondência com a numeração anterior está no apêndice da ERS.
+As funções básicas (RF_B1 a RF_B10) estão implementadas; licenças, apólices,
+autorizações, os demais blocos do painel, relatórios e a central de
+notificações ainda não (veja "O que está pronto e o que está só estruturado").
 
 | Função | Autor |
 |---|---|
@@ -100,11 +102,11 @@ npm run db:reset            # APAGA o banco e recria tudo (aceita -- --exemplos)
 
 | Arquivo / etapa | Conteúdo |
 |---|---|
-| `schema.sql` | as 28 tabelas do modelo relacional da ERS 2.4, mais sessões e recuperação de senha |
-| `seed.sql` | perfis Administrador e Operador, catálogo de permissões e a matriz da RN21 |
+| `schema.sql` | as tabelas do modelo relacional (base da ERS 2.4, com sessões e recuperação de senha e, da ERS 2.6, o que as funções básicas usam: coordenador e datas efetivas, campos por categoria do bem, preferências por tipo e prazo, solicitações de ajuste e presença) |
+| `seed.sql` | perfis Administrador e Operador, catálogo de permissões com a matriz fixa por perfil (RN21, RN41) e os tipos de aviso (RN24) |
 | usuário `admin` | Administrador, com a senha de `ADMIN_SENHA` (`geslic123` em desenvolvimento). Com `ADMIN_SENHA` vazia, recebe senha provisória, mostrada uma vez, com troca obrigatória no primeiro acesso |
-| `seed_dev.sql` | só com exemplos: 5 setores, 8 colaboradores, 15 equipamentos, 7 projetos e 3 licenças alocadas |
-| usuários de teste | só com exemplos: `ana.ribeiro` (Administrador) e `carlos.alves` (Operador), senha `SENHA_USUARIOS_TESTE` (padrão `Geslic2026`) |
+| `seed_dev.sql` | só com exemplos: 6 setores (1 inativo) com coordenadores, 9 colaboradores (1 desligado), 15 equipamentos, 7 projetos, 3 licenças alocadas, 4 fornecedores e seguradoras, 5 softwares, 4 bens seguráveis, 5 tipos de seguro com coberturas e 2 apólices de exemplo (o drone DJI Mavic 3 é coberto pelas duas, RN40) |
+| usuários de teste | só com exemplos: `ana.ribeiro` (Administrador) e `carlos.alves` (Operador), senha `SENHA_USUARIOS_TESTE` (padrão `Geslic2026`); também uma solicitação de acesso pendente (`luciana.prado`) e duas solicitações de ajuste do Operador, uma pendente e uma concluída |
 
 O modelo de dados, as decisões de modelagem, as migrações e o procedimento
 de cópia de segurança estão em [`database/README.md`](database/README.md).
@@ -126,6 +128,7 @@ Rodar de novo não faz nada.
 |---|---|
 | `001_autenticacao.sql` | situação da conta (pendente, ativo, inativo), senha provisória, último acesso; tabelas `sessao` e `recuperacao_senha`; catálogo de permissões e matriz por perfil |
 | `002_gatilhos_restauraveis.sql` | recria os gatilhos do histórico (RN22) com `BEGIN ... END`. Os antigos gravavam um `;` dentro do corpo, e o arquivo do `mysqldump` não podia ser restaurado |
+| `003_funcoes_basicas.sql` | funções básicas da ERS 2.6: coordenador e data efetiva no setor (o antigo texto "responsável" vira o coordenador quando o nome confere com um colaborador ativo); campos por categoria e data efetiva no bem (equipamentos já inativados recebem a data do evento do histórico, quando existe); observações no software; sem "último acesso" e com quem aprovou a conta; matriz de permissões fixa e refeita por perfil; preferências por tipo e prazo (as antecedências antigas viram prazos); solicitações de ajuste com presença |
 
 Para mudar o banco daqui em diante: crie `database/migrations/NNN_descricao.sql`
 e aplique a mesma mudança no `schema.sql`, para instalações novas.
@@ -190,8 +193,15 @@ trabalho nunca é tocado. Cobrem: login válido e inválido, conta pendente e
 desativada, aprovação, tentativa de autoconcessão de privilégio, 401 e 403,
 Operador alterando ou excluindo cadastros, Operador no histórico e nas contas,
 token de recuperação expirado e reutilizado, invalidação de sessões, último
-Administrador, permissões configuráveis, limites de tentativas, imutabilidade
-do histórico e os fluxos de equipamentos e projetos.
+Administrador, matriz fixa e não editável, transferência de privilégios,
+e-mail @pristino.org.br, limites de tentativas, imutabilidade do histórico, os
+fluxos de equipamentos e projetos e as funções básicas: CNPJ único, nome e
+versão de software, homônimos e e-mail único, desligamento com data efetiva
+(RN07, RN37), coordenador ativo, campos por categoria do bem, bem com duas
+apólices (RN40, CA18), coberturas em uso, exclusão com vínculos (RN22, CA11),
+solicitações de ajuste com presença e conclusão concorrente (CA10, CA14,
+CA15), preferências de aviso (CA21, CA22) e a inatividade de dez minutos
+(RN32, CA04).
 
 ## Autenticação e sessões
 
@@ -208,14 +218,20 @@ Toda requisição confere a sessão no banco e recarrega a conta com o perfil e 
 permissões atuais. Por isso:
 
 - **expiração:** validade máxima (`SESSAO_DURACAO_HORAS`) e inatividade
-  (`SESSAO_INATIVIDADE_MINUTOS`);
+  (`SESSAO_INATIVIDADE_MINUTOS`, padrão de **dez minutos**, RN32). Só a
+  atividade humana conta: requisições feitas sozinhas pela tela (atualização
+  do painel, presença nas solicitações) vão com o cabeçalho
+  `X-Consulta-Automatica: 1` e não prolongam a sessão; enquanto a pessoa
+  digita ou mexe na tela sem outra requisição, a interface avisa a API
+  (`POST /api/auth/atividade`) no máximo uma vez por minuto. Parada além do
+  limite, a tela volta ao login com a explicação ("Sua sessão foi encerrada
+  após 10 minutos sem atividade");
 - **logout** encerra a sessão no servidor: o mesmo cookie deixa de valer;
 - **desativar a conta, alterar o perfil, redefinir a senha** (por e-mail ou
   senha provisória) encerram todas as sessões da conta. **Trocar a própria
   senha** encerra as outras e mantém a atual;
-- **mudar as permissões de um perfil** vale já na requisição seguinte, sem
-  novo login. A interface relê a conta a cada troca de tela e ao voltar para
-  a aba.
+- **mudar o perfil de uma conta** vale já na requisição seguinte. A interface
+  relê a conta a cada troca de tela e ao voltar para a aba.
 
 Perfil e permissões vêm sempre do servidor. Não existe mais o seletor de perfil
 nem o cabeçalho `X-Perfil`: um cliente que envie privilégios é ignorado
@@ -238,26 +254,34 @@ recuperação por endereço e 3 por e-mail. Acima disso, 429.
 
 ## Contas de acesso (RF_B8)
 
-- **Solicitar acesso** (tela pública): nome, e-mail, login, senha e
-  confirmação, validados na interface e na API. A conta nasce **pendente**,
-  como Operador e sem colaborador, e não entra até a aprovação. O que o cliente
-  enviar sobre perfil, situação ou colaborador é ignorado.
+- **Solicitar acesso** (tela pública): nome, e-mail institucional
+  (`@pristino.org.br`, RN41), login, senha e confirmação, validados na
+  interface e na API. A conta nasce **pendente**, como Operador e sem
+  colaborador, e não entra até a aprovação. O que o cliente enviar sobre
+  perfil, situação ou colaborador é ignorado. A solicitação aparece no painel
+  do Administrador ("Revisar e aprovar") e não é solicitação de ajuste.
 - **Contas e perfis** (exclusiva do Administrador): busca e filtros por perfil
   e situação; aprovar a solicitação escolhendo o perfil e o colaborador
   vinculado (opcional, validado: existe, está ativo e não tem outra conta) ou
   recusá-la (é removida e fica no histórico); criar conta (o sistema gera
   senha provisória, mostrada uma vez, com troca obrigatória); editar nome,
   e-mail, login e colaborador; alterar perfil, com motivo e data efetiva
-  (RN27); ativar e desativar; gerar senha provisória.
+  (RN27); **transferir privilégios de administrador** numa única operação
+  (Protótipo 13.1: concede a uma conta e revoga de outra, que passa a Operador
+  ou é inativada, com data efetiva e motivo); ativar e desativar; gerar senha
+  provisória. A aprovação registra quem aprovou. Não há "último acesso": o
+  sistema guarda só os dados técnicos da sessão (RN41).
 - **Proteções (RN27):** sempre resta um Administrador ativo. Rebaixar ou
   desativar o último é bloqueado, e ninguém desativa a própria conta. Conceder
   o perfil Administrador exige motivo. Ninguém concede perfil a si mesmo, já
   que só o Administrador gerencia perfis.
-- **Matriz de permissões:** o Administrador tem sempre todas. As do Operador
-  podem ser ajustadas, menos as exclusivas do Administrador (alterar e excluir
-  cadastros, contas e histórico).
-- **Minha conta:** cada pessoa atualiza nome e e-mail e troca a senha após
-  confirmar a atual.
+- **Perfis e permissões (Protótipo 13.2):** matriz **explicativa e não
+  editável** (RN21, RN41). O Administrador atribui o perfil às contas, mas não
+  personaliza permissões; a tentativa de editar pela API responde 405. Cada
+  linha da matriz é calculada das permissões que a API realmente exige.
+- **Minha conta (Protótipo 4):** dados (nome e e-mail institucional) e troca
+  de senha num único bloco, gravados juntos; à direita, as preferências de
+  aviso por tipo e prazo (RF_B9).
 - Conta de acesso e colaborador continuam conceitos separados: nenhum cria o
   outro, e o vínculo é opcional e único.
 - Todas as ações administrativas e as trocas de senha vão para o histórico,
@@ -301,20 +325,27 @@ acesso pela URL.
 
 | Função / tela | Acesso à página | Consultar | Incluir | Alterar | Excluir | Ações do domínio |
 |---|---|---|---|---|---|---|
-| Cadastros RF_B1 a RF_B7 | ambos (`cadastro.consultar`) | ambos | ambos (`cadastro.incluir`) | **Admin** (`cadastro.alterar`) | **Admin** (`cadastro.excluir`) | inativar / desligar: ambos (`cadastro.inativar`) |
-| RF_B3 Equipamentos | ambos | ambos | ambos | **Admin** | **Admin** | inativar (descarte, RN08): ambos |
+| Cadastros RF_B1 a RF_B7 | ambos (`cadastro.consultar`) | ambos | ambos (`cadastro.incluir`) | **Admin** (`cadastro.alterar`) | **Admin** (`cadastro.excluir`) | inativar com data efetiva: ambos (`cadastro.inativar`); reativar: **Admin** (`cadastro.alterar`) |
+| RF_B3 Equipamentos | ambos | ambos | ambos | **Admin** | **Admin** | inativar (descarte, RN08, com data efetiva e motivo): ambos |
+| RF_B4 Colaboradores | ambos | ambos | ambos | **Admin** | **Admin** | desligar (com data efetiva, RN07): **Admin** (`cadastro.alterar`) |
+| RF_B10 Solicitações de ajuste (no painel) | ambos (`painel.consultar`) | ambos: todas, de todos os operadores | emitir: **Operador** (`ajuste.solicitar`) | — | — | concluir e indicar presença: **Admin** (`ajuste.concluir`) |
 | RF_F1 Projetos | ambos | ambos | ambos | **Admin** | **Admin** | prorrogar (`projeto.prorrogar`) e encerrar (`projeto.encerrar`): ambos |
 | Licenças RF_F2 a RF_F7, RF_S2 | ambos (`licenca.consultar`) | ambos | registrar: ambos (`licenca.registrar`) | correção: **Admin** | **Admin** | movimentar, renovar e inativar: ambos; confirmar exceção (`excecao.confirmar`): ambos |
 | Apólices RF_F8 a RF_F11, RF_S4 | ambos (`apolice.consultar`) | ambos | registrar e vincular itens: ambos | correção: **Admin** | **Admin** | renovar e cancelar: ambos |
 | Documentos PDF RF_F12 | — | ambos (`documento.gerenciar`) | anexar: ambos | — | — | — |
-| Painel e relatórios RF_S1 a RF_S6 | ambos (`relatorio.consultar`) | ambos | — | — | — | — |
+| Painel RF_S1 | ambos (`painel.consultar`) | ambos, distinto por perfil | — | — | — | — |
+| Relatórios RF_S2 a RF_S6 | **Admin** (`relatorio.consultar`, RN41) | **Admin** | — | — | — | — |
 | Notificações RF_S8, preferências RF_B9, Minha conta | toda conta | só a própria | — | só a própria | — | — |
 | Histórico RF_S7 / RF_F14 | **Admin** (`auditoria.consultar`) | **Admin** | automático para todas as contas | imutável | imutável | — |
 | Contas e perfis RF_B8 | **Admin** (`usuario.gerenciar`) | **Admin** | **Admin** | **Admin** | só solicitação recusada | aprovar, perfil, situação, senha provisória: **Admin** |
 | Dados sensíveis (chave de ativação) | — | só perfil com `visualiza_dados_sensiveis` (Administrador) | — | — | — | — |
 
-"Ambos" = Operador e Administrador. As permissões do Operador podem ser
-ajustadas em Contas e perfis, sem incluir as exclusivas do Administrador.
+"Ambos" = Operador e Administrador. As permissões são fixas por perfil
+(`exclusiva_administrador` e `exclusiva_operador` na tabela `permissao`):
+só o Operador emite solicitação de ajuste, porque o Administrador corrige
+direto. As permissões de autorização (`autorizacao.emitir` e
+`autorizacao.registrar`) já fazem parte da matriz, embora a RF_F15 ainda
+esteja em desenvolvimento.
 Prorrogar, encerrar e inativar são ações operacionais com permissão própria:
 não são bloqueadas por "alterar cadastro" só porque gravam um UPDATE.
 Dados sensíveis são filtrados na API (`exigirDadosSensiveis` na rota da chave
@@ -327,33 +358,34 @@ senha, hash, token ou chave.
 
 - Autenticação: login, sessão, logout, expiração, restauração ao recarregar,
   troca obrigatória de senha provisória.
-- RF_B8 Contas e perfis: solicitação de acesso, aprovação, gerenciamento,
-  matriz de permissões e Minha conta.
+- **Funções básicas RF_B1 a RF_B10** (detalhes na seção "Funções básicas"):
+  fornecedores e seguradoras, softwares, equipamentos, colaboradores, setores,
+  bens seguráveis, tipos de seguro e coberturas, contas e perfis,
+  preferências de notificação e solicitações de ajuste.
 - Recuperação de senha por e-mail.
-- RF_B3 Equipamentos: CRUD, validações, RN08, RN22, inativação pelo Operador e
-  histórico.
 - RF_F1 Projetos: CRUD, participantes, prorrogação, encerramento, RN17, RN18,
   RN22 e histórico.
 - RF_S7 Histórico: consulta real com filtros e paginação, só para o
   Administrador.
-- RF_F14: gravação automática, por enquanto nas operações que existem (contas,
-  perfis, equipamentos e projetos).
+- RF_F14: gravação automática, por enquanto nas operações que existem
+  (contas, cadastros, projetos e solicitações de ajuste), com a data efetiva
+  separada da data e da hora do registro (RN37).
+- Painel (RF_S1): por enquanto só o bloco de solicitações (RF_B10) e das
+  contas aguardando aprovação, que se atualiza sozinho sem prolongar a sessão.
 
 **Estruturado (tela, serviço, rotas da API com autenticação e permissões,
 controller e model), com a API respondendo `501 Não implementado`:**
 
-- RF_B1 Fornecedores e seguradoras, RF_B2 Softwares, RF_B6 Bens seguráveis e
-  RF_B7 Tipos de seguro e coberturas.
-- RF_B4 Colaboradores e RF_B5 Setores: a lista dos ativos já funciona e
-  alimenta as telas de equipamentos e projetos; o cadastro completo responde
-  501.
-- RF_B9 Preferências de notificação (na tela Minha conta).
 - RF_F2 a RF_F7 Licenças, RF_F8 a RF_F11 Apólices e RF_F12 Documentos PDF.
-- RF_S1 Painel (a tela inicial mostra conta e atalhos, sem números simulados),
-  RF_S2 a RF_S6 Relatórios e RF_S8 Notificações.
+- RF_S1 Painel: indicadores, vencimentos e autorizações aparecem no painel
+  como blocos "em desenvolvimento", sem números simulados.
+- RF_S2 a RF_S6 Relatórios e RF_S8 Notificações.
 
-**Ainda não estruturado:** RF_F13, a rotina diária de situações e avisos. É
-uma função oculta, sem tela; fica para quando licenças e apólices existirem.
+**Ainda não estruturado:** RF_F13, a rotina de situações e avisos (inclusive
+os avisos imediatos de nova solicitação, conclusão e conta aguardando
+aprovação, que já têm preferência por tipo em Minha conta); RF_F15
+Autorizações operacionais; RF_F16 Projeto financiador da apólice. As tabelas
+dessas funções no modelo 2.6 entram junto com elas.
 
 As telas em desenvolvimento aparecem no menu com a marca "em breve" e mostram o
 que a função vai fazer e quais operações a conta poderá executar. Nenhuma
@@ -368,9 +400,16 @@ início de `frontend/src/styles/global.css`.
 - **Acesso ao sistema (Protótipo 1):** tela dividida, com o painel verde da
   marca à esquerda e o cartão "Entrar no sistema" à direita. As outras telas
   públicas usam a mesma moldura.
-- **Menu lateral (Protótipo 2):** fundo verde-escuro, grupos Painel, Licenças,
-  Apólices, Cadastros, Consultas e Conta, filtrados pelas permissões, com a
-  conta e o botão Sair no rodapé. Um ponto marca as telas em desenvolvimento.
+- **Menu lateral (Protótipo 2):** fundo verde-escuro, grupos Painel, Projetos,
+  Licenças, Apólices, a entrada única e **expansível Cadastros**, Consultas e
+  Conta, filtrados pelas permissões, com a conta e o botão Sair no rodapé. Um
+  ponto marca as telas em desenvolvimento. As solicitações de ajuste não têm
+  item de menu: ficam no painel.
+- **Padrão dos cadastros (Protótipos 5 a 12):** pesquisa e filtros acima,
+  listagem e painel lateral à direita, aberto somente por Novo, Editar ou uma
+  ação; inativação num painel com data efetiva e "Registro: gerado ao
+  confirmar"; registros inativos esmaecidos, com a data; para o Operador, o
+  atalho "Solicitar ajuste" em cada linha.
 - **Barra superior:** caminho de navegação ("Instituto Prístino / Cadastros /
   Equipamentos"), sino de notificações e a conta, com avatar e perfil.
 - **Módulos:** Licenças em verde e Apólices em azul, com o rótulo do módulo
@@ -379,8 +418,44 @@ início de `frontend/src/styles/global.css`.
   cartão, tabelas com cabeçalho cinza e etiquetas em pílula para situação,
   prazo e perfil. As operações abrem em painéis laterais e janelas flutuantes.
 
-As telas foram conferidas em 1280×800: o menu completo cabe na altura, e
-nenhuma tabela tem rolagem horizontal.
+As telas foram conferidas em 1280×800. Em telas mais estreitas, as tabelas
+mais largas (bens, equipamentos) rolam na horizontal dentro do próprio cartão.
+
+## Funções básicas (RF_B1 a RF_B10)
+
+Todas seguem o padrão: listar com filtros, consultar, incluir, corrigir (só
+Administrador), inativar com data efetiva (RN37), reativar (só
+Administrador) e excluir só sem vínculos (RN22: a resposta 409 diz quais
+vínculos impedem e orienta a inativar). Toda escrita grava o histórico com a
+conta responsável, a data efetiva e a data e a hora do registro.
+
+| Função | Endpoints (`/api`) | Regras principais |
+|---|---|---|
+| RF_B1 Fornecedores e seguradoras | `/fornecedores` | CNPJ obrigatório e único (14 dígitos); tipo software ou seguradora, que não muda contra os vínculos; com licenças ou apólices, não exclui |
+| RF_B2 Softwares | `/softwares`, `/softwares/categorias` | nome + versão não se repetem (RN19); observações; quantas licenças cada um tem; com licença, não exclui |
+| RF_B3 Equipamentos | `/equipamentos`, `/:id/previa-inativacao` | etiquetas (RN20); inativar = descarte com data efetiva e motivo: as instâncias não transferíveis ficam inativas na mesma data e os vínculos delas terminam (RN08); com licença alocada ou apólice, não exclui |
+| RF_B4 Colaboradores | `/colaboradores`, `/ativos`, `/homonimos`, `/:id/previa-desligamento`, `/:id/desligamento` | homônimo avisa e permite; e-mail repetido bloqueia (RN19); desligamento só pelo Administrador, com data efetiva: encerra as utilizações nessa data e deixa as instâncias ativas e vagas (RN07); quem coordenava um setor deixa de coordenar; participação em projetos só de leitura (RN38) |
+| RF_B5 Setores | `/setores`, `/ativos` | coordenador é colaborador ativo; contagem de colaboradores, equipamentos e bens; inativação com data efetiva (também pela edição do Administrador) |
+| RF_B6 Bens seguráveis | `/bens-seguraveis` | campos por categoria (RN20): placa obrigatória e única para veículo; série, endereço, Renavam, ano/modelo, matrícula e área opcionais (Quadro 8); sem campo de projeto: apólices e projetos financiadores aparecem na listagem e no painel (RN40, CA18); equipamentos aparecem aqui, mas inativação e exclusão seguem pela RF_B3 |
+| RF_B7 Tipos de seguro e coberturas | `/tipos-seguro`, `/:id/coberturas`, `/coberturas/:id` | descrição única; coberturas incluídas, renomeadas, inativadas e reativadas no painel do tipo; cobertura usada em apólice só é inativada |
+| RF_B8 Contas e perfis | `/usuarios`, `/usuarios/transferencia-administrador`, `/perfis`, `/conta` | veja "Contas de acesso" |
+| RF_B9 Preferências de notificação | `GET/PUT /conta/preferencias` | por tipo de aviso: ativo ou não e um ou mais prazos (dias, semanas ou meses; até 5) para vencimentos, término de projeto e lembrete da autorização pendente; o aviso de conta aguardando aprovação só existe para o Administrador; padrões: seis meses e um mês nos vencimentos e no término, uma semana no lembrete (RN24) |
+| RF_B10 Solicitações de ajuste | `/solicitacoes-ajuste`: `/painel`, `/entidades`, `/opcoes`, `/:id`, `/:id/conclusao`, `/:id/presenca` | o Operador emite pelo painel ou pelo atalho no cadastro; todos acompanham; o Administrador abre o cadastro já selecionado, corrige e conclui; só Pendente e Concluída; presença "visualizando"/"atualizando" informativa, sem bloqueio (RN42); a primeira conclusão prevalece e a segunda recebe 409 com quem concluiu e quando (RN36, CA14); conclusão imutável também no banco (gatilho) |
+
+**Decisões tomadas na implementação, a confirmar com o Instituto:**
+
+- **Desligamento de colaborador** só pelo Administrador, como no Protótipo 8
+  ("o desligamento, feito pelo Administrador"). As demais inativações seguem
+  permitidas ao Operador (`cadastro.inativar`).
+- **Obrigatoriedades por categoria de bem:** só a placa do veículo, a única
+  confirmada (Quadro 8). Número de série e endereço aparecem, mas são
+  opcionais até a validação.
+- **Prazos padrão** do término de projeto iguais aos dos vencimentos (seis
+  meses e um mês); os demais padrões dos novos tipos de aviso aguardam
+  confirmação (Quadro 8).
+- **Avisos:** as preferências já são gravadas e respeitam o perfil, mas a
+  emissão dos avisos (RF_F13) e a central de notificações (RF_S8) ainda não
+  existem.
 
 ## Divergências em relação à ERS
 

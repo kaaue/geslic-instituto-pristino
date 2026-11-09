@@ -1,13 +1,13 @@
-// Controller de setores (RF_B5). A listagem dos ativos alimenta as listas de
-// seleção; as demais operações estão em desenvolvimento (501).
+// Controller da RF_B5 - Gerenciar setores.
 
 const Setor = require('../models/setorModel');
-const { controllerPendente } = require('../utils/pendente');
+const { validarSetor } = require('../models/setorValidacao');
+const { controllerDeCadastro } = require('../utils/controllerCadastro');
 
-async function listar(req, res) {
-  res.json(await Setor.listarAtivos());
-}
-
-const { buscar, incluir, alterar, inativar, excluir } = controllerPendente(Setor);
-
-module.exports = { listar, buscar, incluir, alterar, inativar, excluir };
+module.exports = {
+  ...controllerDeCadastro(Setor, validarSetor),
+  // Lista dos ativos, para as listas de seleção das outras telas
+  async listarAtivos(req, res) {
+    res.json(await Setor.listarAtivos());
+  }
+};

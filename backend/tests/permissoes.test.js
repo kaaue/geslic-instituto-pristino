@@ -28,13 +28,35 @@ test('operador inclui e consulta equipamentos, mas não altera nem exclui', asyn
   assert.equal(identificacao, 'Notebook de teste');
 });
 
-test('operador inativa equipamento (descarte) e a RN08 continua valendo', async () => {
+test('operador inativa equipamento (descarte) com data efetiva e motivo, e a RN08 continua valendo', async () => {
   const op = await t.entrarOperador();
+  // sem data efetiva nem motivo, recusa (RN37)
+  const semDados = await op.post('/equipamentos/6/inativacao', {});
+  assert.equal(semDados.status, 400);
+  assert.ok(semDados.corpo.erros.data_efetiva && semDados.corpo.erros.motivo);
+  assert.equal((await op.post('/equipamentos/6/inativacao', { data_efetiva: '2999-01-01', motivo: 'x' })).status, 400);
+
   // IP0106 (id 6) tem instância NÃO transferível alocada
-  const r = await op.post('/equipamentos/6/inativacao');
+  const dataEfetiva = t.dataLocal(-3);
+  const r = await op.post('/equipamentos/6/inativacao', { data_efetiva: dataEfetiva, motivo: 'Placa-mãe danificada' });
   assert.equal(r.status, 200);
   assert.equal(r.corpo.instancias_inativadas, 1);
-  assert.equal((await op.post('/equipamentos/6/inativacao')).status, 409);
+  assert.equal((await op.post('/equipamentos/6/inativacao', { data_efetiva: dataEfetiva, motivo: 'de novo' })).status, 409);
+
+  // a data efetiva vai para o bem, para a instância e para o evento, separada do registro
+  const [bem] = await t.sql(`SELECT DATE_FORMAT(data_inativacao, '%Y-%m-%d') AS d FROM bem WHERE id_bem = 6`);
+  assert.equal(bem.d, dataEfetiva);
+  const [instancia] = await t.sql(`SELECT situacao, DATE_FORMAT(data_inativacao, '%Y-%m-%d') AS d FROM instancia WHERE id_instancia = 2`);
+  assert.deepEqual({ ...instancia }, { situacao: 'inativa', d: dataEfetiva });
+  const [evento] = await t.sql(
+    `SELECT DATE_FORMAT(data_evento, '%Y-%m-%d') AS d, DATE(registrado_em) = CURDATE() AS hoje, motivo
+       FROM movimentacao WHERE entidade = 'equipamento' AND id_registro = 6 AND tipo = 'inativacao'`);
+  assert.equal(evento.d, dataEfetiva);
+  assert.equal(evento.hoje, 1);
+  assert.equal(evento.motivo, 'Placa-mãe danificada');
+  // a alocação da instância inativada termina na data efetiva
+  const [alocacao] = await t.sql(`SELECT DATE_FORMAT(data_fim, '%Y-%m-%d') AS fim FROM alocacao WHERE id_instancia = 2`);
+  assert.equal(alocacao.fim, dataEfetiva);
 });
 
 test('administrador altera e exclui equipamento; exclusão com vínculo segue bloqueada (RN22)', async () => {
@@ -98,7 +120,7 @@ test('eventos do histórico não podem ser alterados nem excluídos, nem direto 
 
 test('funções ainda não implementadas respondem 501, depois da autorização', async () => {
   const admin = await t.entrarAdmin();
-  for (const caminho of ['/fornecedores', '/softwares', '/licencas', '/apolices', '/painel', '/relatorios/financeiro', '/notificacoes', '/conta/preferencias']) {
+  for (const caminho of ['/licencas', '/apolices', '/painel', '/relatorios/financeiro', '/notificacoes']) {
     const r = await admin.get(caminho);
     assert.equal(r.status, 501, caminho);
     assert.equal(r.corpo.codigo, 'NAO_IMPLEMENTADO');

@@ -3,6 +3,7 @@
 
 const ROTULO_SITUACAO = { pendente: 'aguardando aprovação', ativo: 'ativa', inativo: 'desativada' };
 
+// Não há "último acesso" (RN41): só a data da solicitação e quem aprovou
 function dataHora(iso) {
   return iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : null;
 }
@@ -21,7 +22,6 @@ export default function TabelaContas({ contas, carregando, idContaAtual, aoAgir,
             <th>E-mail</th>
             <th>Perfil</th>
             <th>Colaborador</th>
-            <th>Último acesso</th>
             <th>Situação</th>
             <th aria-label="Ações"></th>
           </tr>
@@ -39,14 +39,15 @@ export default function TabelaContas({ contas, carregando, idContaAtual, aoAgir,
                   {c.troca_senha_obrigatoria && <span className="marca-alocado">senha provisória</span>}
                 </td>
                 <td>{c.nome_colaborador || <span className="vazio">—</span>}</td>
-                <td className="col-data">{dataHora(c.ultimo_acesso_em) || <span className="vazio">nunca</span>}</td>
                 <td>
                   <span className={`situacao situacao-conta-${c.situacao}`}>{ROTULO_SITUACAO[c.situacao]}</span>
+                  {c.situacao === 'pendente' && <span className="marca-alocado">solicitada em {dataHora(c.criada_em)}</span>}
+                  {c.aprovada_em && c.nome_aprovador && <span className="marca-alocado">aprovada por {c.nome_aprovador}</span>}
                 </td>
                 <td className="col-acoes col-acoes-varias">
                   {c.situacao === 'pendente' ? (
                     <>
-                      <button type="button" className="botao-texto" onClick={() => aoAgir('aprovar', c)}>Aprovar</button>
+                      <button type="button" className="botao-texto" onClick={() => aoAgir('aprovar', c)}>Revisar e aprovar</button>
                       <button type="button" className="botao-texto botao-perigo" onClick={() => aoAgir('recusar', c)}>Recusar</button>
                     </>
                   ) : (

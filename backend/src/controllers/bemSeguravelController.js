@@ -1,5 +1,6 @@
-// Controller da RF_B6 Gerenciar bens seguráveis - EM DESENVOLVIMENTO: repassa ao model, que responde 501.
+// Controller da RF_B6 - Gerenciar bens seguráveis.
 
-const { controllerPendente } = require('../utils/pendente');
+const { controllerDeCadastro } = require('../utils/controllerCadastro');
+const { validarBem } = require('../models/bemValidacao');
 
-module.exports = controllerPendente(require('../models/bemSeguravelModel'));
+module.exports = controllerDeCadastro(require('../models/bemSeguravelModel'), validarBem);

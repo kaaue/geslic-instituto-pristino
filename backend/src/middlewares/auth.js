@@ -14,20 +14,34 @@ const asyncHandler = require('../utils/asyncHandler');
 const { tokenDaSessao, apagarCookieSessao } = require('../utils/cookies');
 const Sessao = require('../models/sessaoModel');
 const Usuario = require('../models/usuarioModel');
+const { sessao: configSessao } = require('../config/env');
 
 // Com senha provisória, a conta só pode consultar quem é, sair e trocar a senha
-const PERMITIDO_NA_TROCA_DE_SENHA = ['GET /api/auth/me', 'POST /api/auth/logout', 'PUT /api/conta/senha'];
+const PERMITIDO_NA_TROCA_DE_SENHA = [
+  'GET /api/auth/me', 'POST /api/auth/logout', 'POST /api/auth/atividade', 'PUT /api/conta/senha'
+];
+
+// Requisições feitas sozinhas pela tela (atualização do painel, presença)
+// não contam como atividade humana e não prolongam a sessão (RN32)
+const consultaAutomatica = (req) => req.get('X-Consulta-Automatica') === '1';
+
+function sessaoTerminada(motivo) {
+  const mensagem = motivo === 'inatividade'
+    ? `Sua sessão foi encerrada após ${configSessao.inatividadeMinutos} minutos sem atividade. Entre novamente.`
+    : 'Sua sessão expirou ou foi encerrada. Entre novamente.';
+  return new AppError(mensagem, 401, null, 'SESSAO_EXPIRADA', { motivo });
+}
 
 const autenticar = asyncHandler(async (req, res, proximo) => {
   const token = tokenDaSessao(req);
   if (!token) throw AppError.naoAutenticado();
 
-  const sessao = await Sessao.validar(token);
-  const usuario = sessao && await Usuario.carregarAutenticado(sessao.idUsuario);
+  const sessao = await Sessao.validar(token, { tocar: !consultaAutomatica(req) });
+  const usuario = sessao.idUsuario && await Usuario.carregarAutenticado(sessao.idUsuario);
   if (!usuario) {
-    if (sessao) await Sessao.encerrar(sessao.idSessao, 'conta_indisponivel');
+    if (sessao.idSessao) await Sessao.encerrar(sessao.idSessao, 'conta_indisponivel');
     apagarCookieSessao(res);
-    throw AppError.naoAutenticado('Sua sessão expirou ou foi encerrada. Entre novamente.', 'SESSAO_EXPIRADA');
+    throw sessaoTerminada(sessao.idSessao ? 'conta_indisponivel' : sessao.motivo);
   }
 
   req.sessao = sessao;
