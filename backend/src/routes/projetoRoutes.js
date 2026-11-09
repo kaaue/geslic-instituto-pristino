@@ -14,8 +14,9 @@ const asyncHandler = require('../utils/asyncHandler');
 const rotas = express.Router();
 
 rotas.get('/', p('cadastro.consultar'), asyncHandler(controller.listar));
-// antes de /:id, senão "fontes" seria lido como id
+// antes de /:id, senão "fontes" e "anos" seriam lidos como id
 rotas.get('/fontes', p('cadastro.consultar'), asyncHandler(controller.listarFontes));
+rotas.get('/anos', p('cadastro.consultar'), asyncHandler(controller.listarAnos));
 rotas.get('/:id', p('cadastro.consultar'), asyncHandler(controller.buscar));
 rotas.post('/', p('cadastro.incluir'), asyncHandler(controller.incluir));
 rotas.put('/:id', p('cadastro.alterar'), asyncHandler(controller.alterar));

@@ -395,7 +395,6 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
 
 .linha-filtros { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
 .campo-busca { flex: 1 1 260px; }
-.campo-ano input { width: 80px; min-width: 0; }
 .resumo-filtro { margin: 10px 0 0; font-size: 13px; color: var(--texto-suave); }
 
 /* =========================================================

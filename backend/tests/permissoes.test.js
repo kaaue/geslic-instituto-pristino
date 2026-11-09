@@ -109,3 +109,15 @@ test('funções ainda não implementadas respondem 501, depois da autorização'
   assert.equal((await op.get('/licencas/1/chave')).status, 403);
   assert.equal((await admin.get('/licencas/1/chave')).status, 501);
 });
+
+test('lista de anos do filtro "Vigente em" cobre cada projeto, do início ao fim, sem repetir', async () => {
+  const op = await t.entrarOperador();
+  const r = await op.get('/projetos/anos');
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.corpo) && r.corpo.length > 0);
+  assert.deepEqual(r.corpo, [...new Set(r.corpo)].sort((a, b) => b - a));
+
+  const [{ inicio, atual }] = await t.sql('SELECT MIN(YEAR(data_inicio)) AS inicio, YEAR(CURDATE()) AS atual FROM projeto');
+  assert.ok(r.corpo.includes(inicio));
+  assert.ok(r.corpo.includes(atual) || r.corpo[0] < atual);
+});

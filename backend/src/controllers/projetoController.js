@@ -17,6 +17,10 @@ async function listarFontes(req, res) {
   res.json(await Projeto.listarFontes());
 }
 
+async function listarAnos(req, res) {
+  res.json(await Projeto.listarAnos());
+}
+
 async function buscar(req, res) {
   res.json(await Projeto.buscarComParticipantes(Number(req.params.id)));
 }
@@ -45,4 +49,4 @@ async function excluir(req, res) {
   res.json(await Projeto.excluir(Number(req.params.id), responsavel(req)));
 }
 
-module.exports = { listar, listarFontes, buscar, incluir, alterar, prorrogar, encerrar, excluir };
+module.exports = { listar, listarFontes, listarAnos, buscar, incluir, alterar, prorrogar, encerrar, excluir };

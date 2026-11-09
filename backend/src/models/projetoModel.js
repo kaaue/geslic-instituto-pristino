@@ -227,6 +227,28 @@ async function listarFontes() {
   return linhas.map((l) => l.fonte_financiadora);
 }
 
+// Anos em que ao menos um projeto esteve em andamento, para a lista do
+// filtro "Vigente em". O fim de cada projeto segue a mesma regra do filtro:
+// encerrado vale até o encerramento; em andamento vale até o término
+// previsto ou, se já vencido, até hoje; sem término previsto, até hoje.
+async function listarAnos() {
+  const [linhas] = await pool.query(
+    `SELECT YEAR(data_inicio) AS ano_inicio,
+            YEAR(CASE WHEN situacao = 'encerrado' THEN data_encerramento
+                      WHEN data_fim_prevista IS NULL THEN CURDATE()
+                      ELSE GREATEST(data_fim_prevista, CURDATE()) END) AS ano_fim
+       FROM projeto`);
+
+  // Junta os anos de todos os projetos, sem repetir
+  const anos = new Set();
+  linhas.forEach((l) => {
+    for (let ano = l.ano_inicio; ano <= l.ano_fim; ano += 1) anos.add(ano);
+  });
+
+  // Mais recente primeiro, que é o ano mais procurado
+  return [...anos].sort((a, b) => b - a);
+}
+
 // Um projeto, com a lista dos colaboradores participantes
 async function buscarComParticipantes(id) {
   const projeto = await buscarOuFalhar(pool, id);
@@ -393,5 +415,5 @@ async function excluir(id, idResponsavel) {
 }
 
 module.exports = {
-  listar, listarFontes, buscarComParticipantes, incluir, alterar, prorrogar, encerrar, excluir
+  listar, listarFontes, listarAnos, buscarComParticipantes, incluir, alterar, prorrogar, encerrar, excluir
 };

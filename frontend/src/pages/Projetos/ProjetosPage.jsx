@@ -18,8 +18,8 @@ import useAuth from '../../hooks/useAuth';
 import useMensagem from '../../hooks/useMensagem';
 import useBuscaComAtraso from '../../hooks/useBuscaComAtraso';
 import {
-  listarProjetos, buscarProjeto, listarFontesFinanciadoras, incluirProjeto, alterarProjeto,
-  excluirProjeto, encerrarProjeto, prorrogarProjeto
+  listarProjetos, buscarProjeto, listarFontesFinanciadoras, listarAnosProjetos, incluirProjeto,
+  alterarProjeto, excluirProjeto, encerrarProjeto, prorrogarProjeto
 } from '../../services/projetoService';
 import { listarColaboradores } from '../../services/colaboradorService';
 import { dataDaApi } from '../../utils/mascaras';
@@ -41,6 +41,7 @@ export default function ProjetosPage() {
   const [projetos, setProjetos] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [fontes, setFontes] = useState([]);
+  const [anos, setAnos] = useState([]);
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [carregando, setCarregando] = useState(true);
 
@@ -51,14 +52,18 @@ export default function ProjetosPage() {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, mostrarMensagem] = useMensagem(6000);
 
-  const carregarFontes = useCallback(() => {
+  // Listas dos filtros que dependem dos projetos cadastrados: as fontes
+  // financiadoras e os anos de vigência. Recarregadas sempre que um projeto
+  // é incluído, alterado, prorrogado, encerrado ou excluído.
+  const carregarListasDosFiltros = useCallback(() => {
     listarFontesFinanciadoras().then(setFontes).catch(() => setFontes([]));
+    listarAnosProjetos().then(setAnos).catch(() => setAnos([]));
   }, []);
 
   useEffect(() => {
     listarColaboradores().then(setColaboradores).catch(() => setColaboradores([]));
-    carregarFontes();
-  }, [carregarFontes]);
+    carregarListasDosFiltros();
+  }, [carregarListasDosFiltros]);
 
   const buscar = useCallback(async () => {
     setCarregando(true);
@@ -130,7 +135,7 @@ export default function ProjetosPage() {
       }
       fecharPainel();
       buscar();
-      carregarFontes();
+      carregarListasDosFiltros();
     } catch (erro) {
       tratarErro(erro, 'Não foi possível salvar.');
     } finally {
@@ -154,6 +159,8 @@ export default function ProjetosPage() {
       }
       fecharAcao();
       buscar();
+      // prorrogar ou encerrar muda o último ano de vigência do projeto
+      carregarListasDosFiltros();
     } catch (erro) {
       tratarErro(erro, 'Não foi possível concluir a ação.');
     } finally {
@@ -168,7 +175,7 @@ export default function ProjetosPage() {
       await excluirProjeto(projeto.id_projeto);
       mostrarMensagem('sucesso', `Projeto ${projeto.codigo} excluído.`);
       buscar();
-      carregarFontes();
+      carregarListasDosFiltros();
     } catch (erro) {
       // 409: projeto com vínculos (RN22); 403: perfil sem permissão (RN21)
       mostrarMensagem('erro', erro.corpo?.mensagem || 'Não foi possível excluir.');
@@ -207,6 +214,7 @@ export default function ProjetosPage() {
           aoLimpar={() => setFiltros(FILTROS_VAZIOS)}
           colaboradores={colaboradores}
           fontes={fontes}
+          anos={anos}
           total={projetos.length}
         />
 

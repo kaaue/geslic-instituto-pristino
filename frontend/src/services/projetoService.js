@@ -15,6 +15,11 @@ export function listarFontesFinanciadoras() {
   return requisicao('/api/projetos/fontes');
 }
 
+// Anos em que algum projeto esteve em andamento, para o filtro "Vigente em"
+export function listarAnosProjetos() {
+  return requisicao('/api/projetos/anos');
+}
+
 export function incluirProjeto(dados) {
   return requisicao('/api/projetos', enviarJson('POST', dados));
 }
