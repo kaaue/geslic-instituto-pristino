@@ -1,8 +1,9 @@
 // Filtros da consulta de projetos, combináveis entre si: busca livre,
 // situação, ano de vigência, setor, responsável e prazo do término previsto.
 // "Vigente em" mostra os projetos cuja vigência cruza o ano escolhido,
-// inclusive os iniciados antes. O setor considera o responsável e os
-// participantes. A fonte financiadora continua no cadastro e na busca livre.
+// inclusive os iniciados antes. O setor é o setor responsável do projeto
+// (RN43), com a opção dos que ainda não têm. A fonte financiadora continua no
+// cadastro e na busca livre.
 
 export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaboradores, setores, anos, total }) {
   function mudar(campo, valor) {
@@ -44,9 +45,10 @@ export default function FiltrosProjetos({ filtros, aoMudar, aoLimpar, colaborado
         </label>
 
         <label className="campo">
-          <span>Setor</span>
+          <span>Setor responsável</span>
           <select value={filtros.id_setor} onChange={(e) => mudar('id_setor', e.target.value)}>
             <option value="">Todos</option>
+            <option value="sem">Sem setor definido</option>
             {setores.map((s) => <option key={s.id_setor} value={s.id_setor}>{s.nome}</option>)}
           </select>
         </label>

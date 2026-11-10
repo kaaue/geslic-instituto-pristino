@@ -113,7 +113,7 @@ SELECT c.id, p.id_projeto
   FROM (SELECT 1 AS id, '0007' AS codigo UNION ALL
         SELECT 2, '1023' UNION ALL SELECT 4, '1023' UNION ALL SELECT 6, '1234' UNION ALL
         SELECT 3, '2041' UNION ALL SELECT 4, '2041' UNION ALL SELECT 5, '1301' UNION ALL
-        SELECT 4, '1022') c
+        SELECT 4, '1022' UNION ALL SELECT 7, '1450') c
   JOIN projeto p ON p.codigo = c.codigo;
 
 -- ---------------------------------------------------------------

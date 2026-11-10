@@ -18,7 +18,7 @@ const Historico = require('./historicoModel');
 function retrato(p, participantes) {
   return {
     codigo: p.codigo, nome: p.nome, fonte_financiadora: p.fonte_financiadora,
-    id_responsavel: p.id_responsavel, data_inicio: p.data_inicio,
+    id_responsavel: p.id_responsavel, id_setor: p.id_setor ?? null, data_inicio: p.data_inicio,
     data_fim_prevista: p.data_fim_prevista, data_encerramento: p.data_encerramento ?? null,
     situacao: p.situacao ?? 'em_andamento',
     ...(participantes && { participantes })
@@ -45,6 +45,8 @@ const COLUNAS = `
     p.fonte_financiadora,
     p.id_responsavel,
     c.nome AS nome_responsavel,
+    p.id_setor,
+    st.nome AS nome_setor,
     DATE_FORMAT(p.data_inicio, '%Y-%m-%d')       AS data_inicio,
     DATE_FORMAT(p.data_fim_prevista, '%Y-%m-%d') AS data_fim_prevista,
     DATE_FORMAT(p.data_encerramento, '%Y-%m-%d') AS data_encerramento,
@@ -60,7 +62,8 @@ const COLUNAS = `
 
 const TABELAS = `
     FROM projeto p
-    LEFT JOIN colaborador c ON c.id_colaborador = p.id_responsavel`;
+    LEFT JOIN colaborador c ON c.id_colaborador = p.id_responsavel
+    LEFT JOIN setor st      ON st.id_setor = p.id_setor`;
 
 // Ano com quatro dígitos e, opcionalmente, o semestre (1 ou 2).
 // Sem ano válido, o filtro de período não é aplicado.
@@ -97,14 +100,12 @@ function montarConsulta(filtros) {
     valores.push(filtros.fonte);
   }
 
-  // Setor: o responsável ou algum participante pertence ao setor hoje
-  if (filtros.id_setor) {
-    condicoes.push(`(EXISTS (SELECT 1 FROM colaborador cr
-                     WHERE cr.id_colaborador = p.id_responsavel AND cr.id_setor = ?)
-                  OR EXISTS (SELECT 1 FROM colaborador_projeto cp2
-                               JOIN colaborador c2 ON c2.id_colaborador = cp2.id_colaborador
-                              WHERE cp2.id_projeto = p.id_projeto AND c2.id_setor = ?))`);
-    valores.push(Number(filtros.id_setor), Number(filtros.id_setor));
+  // Setor responsável do projeto (RN43); "sem" lista os que ainda não têm
+  if (filtros.id_setor === 'sem') {
+    condicoes.push('p.id_setor IS NULL');
+  } else if (filtros.id_setor) {
+    condicoes.push('p.id_setor = ?');
+    valores.push(Number(filtros.id_setor));
   }
 
   // Prazo do término previsto, ligado aos avisos de vencimento
@@ -166,6 +167,14 @@ async function conferirResponsavel(conexao, idResponsavel) {
   if (!linhas.length || !linhas[0].ativo) {
     return { id_responsavel: 'Selecione um colaborador ativo.' };
   }
+  return {};
+}
+
+// Setor responsável (opcional): precisa existir e, para vínculo novo, estar ativo
+async function conferirSetor(conexao, idSetor, idSetorAtual) {
+  if (!idSetor || idSetor === idSetorAtual) return {};
+  const [[setor]] = await conexao.query('SELECT ativo FROM setor WHERE id_setor = ?', [idSetor]);
+  if (!setor || !setor.ativo) return { id_setor: 'Selecione um setor ativo.' };
   return {};
 }
 
@@ -283,14 +292,15 @@ async function incluir(dados, idResponsavel) {
       lancarSeHouverErros({
         ...(await conferirDuplicidade(conexao, dados, null)),
         ...(await conferirResponsavel(conexao, dados.id_responsavel)),
+        ...(await conferirSetor(conexao, dados.id_setor, null)),
         ...(await conferirParticipantes(conexao, dados.participantes, null))
       });
 
       const [resultado] = await conexao.query(
         `INSERT INTO projeto
-           (codigo, nome, fonte_financiadora, id_responsavel, data_inicio, data_fim_prevista, situacao)
-         VALUES (?, ?, ?, ?, ?, ?, 'em_andamento')`,
-        [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel,
+           (codigo, nome, fonte_financiadora, id_responsavel, id_setor, data_inicio, data_fim_prevista, situacao)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'em_andamento')`,
+        [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel, dados.id_setor,
          dados.data_inicio, dados.data_fim_prevista]
       );
       await gravarParticipantes(conexao, resultado.insertId, dados.participantes);
@@ -323,6 +333,7 @@ async function alterar(id, dados, idResponsavel) {
         ...(await conferirDuplicidade(conexao, dados, id)),
         ...(dados.id_responsavel === atual.id_responsavel
           ? {} : await conferirResponsavel(conexao, dados.id_responsavel)),
+        ...(await conferirSetor(conexao, dados.id_setor, atual.id_setor)),
         ...(await conferirParticipantes(conexao, dados.participantes, id))
       };
       // Projeto encerrado: o início não pode passar da data de encerramento
@@ -333,10 +344,10 @@ async function alterar(id, dados, idResponsavel) {
 
       await conexao.query(
         `UPDATE projeto
-            SET codigo = ?, nome = ?, fonte_financiadora = ?, id_responsavel = ?,
+            SET codigo = ?, nome = ?, fonte_financiadora = ?, id_responsavel = ?, id_setor = ?,
                 data_inicio = ?, data_fim_prevista = ?
           WHERE id_projeto = ?`,
-        [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel,
+        [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel, dados.id_setor,
          dados.data_inicio, dados.data_fim_prevista, id]
       );
       await gravarParticipantes(conexao, id, dados.participantes);

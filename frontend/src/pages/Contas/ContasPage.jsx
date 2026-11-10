@@ -126,8 +126,8 @@ export default function ContasPage() {
         const r = await servico.aprovarConta(conta.id_usuario, dados);
         mostrarMensagem('sucesso', `Acesso de ${r.login} aprovado com sucesso, com perfil ${r.perfil} e ligado a ${r.nome_colaborador}.`);
       } else if (tipo === 'recusar') {
-        await servico.recusarConta(conta.id_usuario, dados.motivo);
-        mostrarMensagem('sucesso', `Solicitação de ${conta.login} recusada.`);
+        const r = await servico.recusarConta(conta.id_usuario, dados.motivo);
+        mostrarMensagem('sucesso', `Solicitação de ${r.login} recusada. O pedido fica guardado como recusado.`);
       } else if (tipo === 'perfil') {
         const r = await servico.alterarPerfil(conta.id_usuario, dados);
         mostrarMensagem('sucesso', `Perfil de ${r.login} alterado com sucesso para ${r.perfil}. As sessões abertas da conta foram encerradas.`);
@@ -281,6 +281,7 @@ export default function ContasPage() {
                 <select value={filtros.situacao} onChange={(e) => setFiltros({ ...filtros, situacao: e.target.value })}>
                   <option value="">Todas</option>
                   <option value="pendente">Aguardando aprovação</option>
+                  <option value="recusada">Recusadas</option>
                   <option value="ativo">Ativas</option>
                   <option value="inativo">Desativadas</option>
                 </select>

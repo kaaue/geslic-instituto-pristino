@@ -66,8 +66,8 @@ module.exports = {
     }
   },
 
-  // Validade da senha provisória gerada pelo Administrador, em horas
-  senhaProvisoriaHoras: Number(process.env.SENHA_PROVISORIA_HORAS) || 72,
+  // Validade da senha provisória gerada pelo Administrador, em horas (RN45: sete dias)
+  senhaProvisoriaHoras: Number(process.env.SENHA_PROVISORIA_HORAS) || 168,
 
   // Usados só pelos scripts de banco ao criar as contas iniciais
   contas: {

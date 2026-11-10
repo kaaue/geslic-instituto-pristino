@@ -22,6 +22,11 @@ const PROJETO = {
   data_inicio: '2026-01-01', data_fim_prevista: '2027-12-31'
 };
 
+test('nos dados de exemplo, todo projeto tem o responsável entre os participantes', async () => {
+  const sem = await t.sql(`SELECT codigo FROM projeto p WHERE NOT EXISTS (SELECT 1 FROM colaborador_projeto cp WHERE cp.id_projeto = p.id_projeto AND cp.id_colaborador = p.id_responsavel)`);
+  assert.deepEqual(sem, []);
+});
+
 test('responsável entra automaticamente nos participantes, sem duplicar, na criação e na edição', async () => {
   const admin = await t.entrarAdmin();
   const criado = await admin.post('/projetos', { ...PROJETO, id_responsavel: 4, participantes: [6, 6] });
@@ -48,15 +53,26 @@ test('participação é a seleção do momento: mudar o colaborador de setor nã
   assert.ok((await participantes(id)).includes(6));
 });
 
-test('filtro de projetos por setor considera o responsável e os participantes', async () => {
+test('setor responsável: opcional, filtrável (com "sem setor") e precisa estar ativo', async () => {
   const op = await t.entrarOperador();
-  // 1301: responsável Rafael Souza Pinto, do setor 4
+  const admin = await t.entrarAdmin();
+  const novo = await op.post('/projetos', {
+    ...PROJETO, codigo: '3101', nome: 'Projeto com setor', id_responsavel: 5, id_setor: 4, participantes: [5]
+  });
+  assert.equal(novo.status, 201);
   const setor4 = (await op.get('/projetos?id_setor=4')).corpo.map((p) => p.codigo);
-  assert.ok(setor4.includes('1301'));
-  // 1023: responsável do setor 1, participante (Juliana) do setor 3
-  const setor3 = (await op.get('/projetos?id_setor=3')).corpo.map((p) => p.codigo);
-  assert.ok(setor3.includes('1023'));
-  assert.ok(!setor3.includes('0007'));
+  assert.deepEqual(setor4, ['3101']);
+  const semSetor = (await op.get('/projetos?id_setor=sem')).corpo.map((p) => p.codigo);
+  assert.ok(semSetor.includes('0007') && !semSetor.includes('3101'));
+  assert.equal((await op.get(`/projetos/${novo.corpo.id_projeto}`)).corpo.nome_setor, 'Campo e Monitoramento');
+  // setor inativo (Educação Ambiental) não pode ser escolhido
+  const [{ id_setor: inativo }] = await t.sql(`SELECT id_setor FROM setor WHERE ativo = FALSE LIMIT 1`);
+  const recusado = await admin.put(`/projetos/${novo.corpo.id_projeto}`, { ...PROJETO, codigo: '3101', nome: 'Projeto com setor', id_responsavel: 5, id_setor: inativo });
+  assert.equal(recusado.status, 400);
+  assert.ok(recusado.corpo.erros.id_setor);
+  // tirar o setor deixa o projeto sem setor, sem mexer nos participantes
+  assert.equal((await admin.put(`/projetos/${novo.corpo.id_projeto}`, { ...PROJETO, codigo: '3101', nome: 'Projeto com setor', id_responsavel: 5, id_setor: null })).status, 200);
+  assert.deepEqual(await participantes(novo.corpo.id_projeto), [5]);
   // ano: inclui projeto iniciado antes do ano escolhido
   const em2026 = (await op.get('/projetos?ano=2026')).corpo.map((p) => p.codigo);
   assert.ok(em2026.includes('0007') && em2026.includes('1023'));
@@ -219,6 +235,9 @@ test('senha provisória: só o hash é gravado, nada vai para o histórico, e ve
   assert.equal(r.status, 200);
   const senha = r.corpo.senha_provisoria;
   assert.ok(senha.length >= 12 && r.corpo.senha_expira_em);
+  // validade de sete dias (RN45)
+  const [{ horas }] = await t.sql('SELECT TIMESTAMPDIFF(HOUR, NOW(), senha_provisoria_expira_em) AS horas FROM usuario WHERE id_usuario = ?', [id]);
+  assert.ok(horas >= 166 && horas <= 168, `validade de ${horas} h`);
   const [conta] = await t.sql('SELECT senha_hash, troca_senha_obrigatoria FROM usuario WHERE id_usuario = ?', [id]);
   assert.notEqual(conta.senha_hash, senha);
   assert.ok(!conta.senha_hash.includes(senha));

@@ -3,10 +3,10 @@
 // da categoria e opcionais (RN20). O bem não tem campo de projeto: as
 // apólices que o cobrem e os projetos que as financiam aparecem na listagem
 // e no painel, somente para leitura, inclusive quando há vários (RN40).
-// Só a placa do veículo é obrigatória entre os campos específicos; as demais
-// obrigatoriedades por categoria ainda serão validadas com o Instituto
-// (ERS, seção 2.3.7). Equipamentos (RF_B3) também são bens: aparecem aqui
-// para serem segurados, mas inativação e exclusão seguem pela tela deles.
+// Obrigatórios por categoria (ERS 2.7, RN20): placa do veículo, número de
+// série do drone e do equipamento e endereço do imóvel; os demais dados são
+// opcionais. Equipamentos (RF_B3) também são bens: aparecem aqui para serem
+// segurados, mas a inativação segue pela tela deles.
 
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -35,8 +35,8 @@ function identificacaoCompleta(b) {
 }
 
 const AJUDA_CATEGORIA = {
-  imovel: 'Imóvel não tem placa nem número de série. Patrimônio é opcional. Campos obrigatórios por categoria ainda serão validados com o Instituto (seção 2.3.7).',
-  padrao: 'Comuns: categoria, identificação, valor, setor e situação. Específicos: placa (veículo), série (drone e equipamento), endereço (imóvel). Opcionais: patrimônio e demais dados. Só a placa é obrigatória por enquanto; as demais obrigatoriedades serão validadas com o Instituto.'
+  imovel: 'Imóvel não tem placa nem número de série: o endereço é obrigatório; matrícula, área e patrimônio são opcionais.',
+  padrao: 'Comuns: categoria, identificação, valor, setor e situação. Obrigatórios da categoria: placa (veículo), número de série (drone e equipamento), endereço (imóvel). Opcionais: patrimônio e demais dados.'
 };
 
 function TabelaApolices({ apolices }) {
@@ -135,7 +135,7 @@ function FormularioBem({ registro, setores, controle, aoSalvar, ehOperador }) {
       )}
       {categoria === 'imovel' && (
         <>
-          <Campo rotulo="Endereço" erro={erros.endereco}>
+          <Campo rotulo="Endereço *" erro={erros.endereco}>
             <input type="text" value={form.endereco} maxLength={200} onChange={mudar('endereco')} className={comErro('endereco')} />
           </Campo>
           <div className="dupla">
@@ -151,7 +151,7 @@ function FormularioBem({ registro, setores, controle, aoSalvar, ehOperador }) {
 
       <div className="dupla">
         {['drone', 'equipamento', 'outro'].includes(categoria) && (
-          <Campo rotulo="Número de série" erro={erros.numero_serie}>
+          <Campo rotulo={categoria === 'outro' ? 'Número de série' : 'Número de série *'} erro={erros.numero_serie}>
             <input type="text" value={form.numero_serie} maxLength={60} onChange={mudar('numero_serie')} className={comErro('numero_serie')} />
           </Campo>
         )}

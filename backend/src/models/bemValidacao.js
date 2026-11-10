@@ -3,9 +3,8 @@
 // Campos comuns: categoria, identificação, valor, setor e situação.
 // Específicos da categoria: placa (veículo), número de série (drone e
 // equipamento), endereço (imóvel). Opcionais: patrimônio e os demais dados
-// (Renavam, ano/modelo, matrícula, área). Confirmado como obrigatório só a
-// placa do veículo; as demais obrigatoriedades por categoria ainda serão
-// validadas com o Instituto (ERS, Quadro 8) e não são presumidas aqui.
+// (Renavam, ano/modelo, matrícula, área). Obrigatórios (ERS 2.7, RN20): placa
+// do veículo, número de série do drone e do equipamento e endereço do imóvel.
 // Campos que não pertencem à categoria escolhida são descartados.
 
 const { normalizarTexto, textoLimitado, lerId } = require('../utils/normalizacao');
@@ -69,6 +68,10 @@ function validarBem(corpo) {
     if (!daCategoria.includes(campo)) especificos[campo] = null;
   }
 
+  if ((categoria === 'drone' || categoria === 'equipamento') && !especificos.numero_serie) {
+    erros.numero_serie = 'O número de série é obrigatório para esta categoria.';
+  }
+  if (categoria === 'imovel' && !especificos.endereco) erros.endereco = 'O endereço é obrigatório para imóveis.';
   if (categoria === 'veiculo') {
     if (!especificos.placa) erros.placa = 'A placa é obrigatória para veículos.';
     else if (!/^[A-Z]{3}-\d[A-Z0-9]\d{2}$/.test(especificos.placa)) erros.placa = 'Use o formato ABC-1234 ou ABC-1D23.';

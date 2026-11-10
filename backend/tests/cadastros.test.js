@@ -166,7 +166,7 @@ test('RF_B5: coordenador precisa ser colaborador ativo; inativação com data ef
   assert.equal((await admin.delete(`/setores/${novo.corpo.id_setor}`)).status, 405);
 });
 
-test('RF_B6: campos por categoria (RN20): placa obrigatória e única para veículo; série opcional', async () => {
+test('RF_B6: campos por categoria (RN20): placa, número de série e endereço obrigatórios conforme a categoria', async () => {
   const op = await t.entrarOperador();
   const semPlaca = await op.post('/bens-seguraveis', { categoria: 'veiculo', identificacao: 'Fiat Strada Freedom' });
   assert.equal(semPlaca.status, 400);
@@ -185,8 +185,14 @@ test('RF_B6: campos por categoria (RN20): placa obrigatória e única para veíc
   assert.equal(veiculo.corpo.placa, 'RTC-4E56');
   assert.equal(veiculo.corpo.numero_serie, null);
 
-  // obrigatoriedade de série e endereço ainda não validada com o Instituto (Quadro 8)
-  assert.equal((await op.post('/bens-seguraveis', { categoria: 'drone', identificacao: 'DJI Mini 4' })).status, 201);
+  // ERS 2.7: número de série do drone e do equipamento e endereço do imóvel são obrigatórios
+  const droneSemSerie = await op.post('/bens-seguraveis', { categoria: 'drone', identificacao: 'DJI Mini 4' });
+  assert.equal(droneSemSerie.status, 400);
+  assert.ok(droneSemSerie.corpo.erros.numero_serie);
+  assert.ok((await op.post('/bens-seguraveis', { categoria: 'equipamento', identificacao: 'GPS' })).corpo.erros.numero_serie);
+  assert.equal((await op.post('/bens-seguraveis', { categoria: 'drone', identificacao: 'DJI Mini 4', numero_serie: '1581F5BK' })).status, 201);
+  assert.equal((await op.post('/bens-seguraveis', { categoria: 'outro', identificacao: 'Barco' })).status, 201);
+  assert.ok((await op.post('/bens-seguraveis', { categoria: 'imovel', identificacao: 'Galpão' })).corpo.erros.endereco);
   const imovel = await op.post('/bens-seguraveis', {
     categoria: 'imovel', identificacao: 'Sede', endereco: 'Rua A, 1', matricula: '9.999', area_construida_m2: '250,5'
   });

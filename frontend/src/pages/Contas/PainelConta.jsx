@@ -237,7 +237,24 @@ export default function PainelConta({
       <div className="painel-corpo">
         {erroGeral && <div className="mensagem mensagem-erro">{erroGeral}</div>}
 
-        {tipo === 'gerenciar' && (
+        {tipo === 'gerenciar' && conta.situacao === 'recusada' && (
+          <>
+            <p className="aviso">
+              <strong>Solicitação de acesso recusada.</strong>
+              O pedido fica guardado, sem acesso ao sistema. Se a pessoa enviar uma nova solicitação com o mesmo
+              e-mail, ele volta a aguardar aprovação, com os dados novos. A recusa e o motivo estão no histórico.
+            </p>
+            <dl className="lista-pares">
+              <dt>Login</dt><dd>{conta.login}</dd>
+              <dt>E-mail</dt><dd>{conta.email}</dd>
+              <dt>Setor informado</dt><dd>{conta.nome_setor_solicitado || '—'}</dd>
+              <dt>Cargo informado</dt><dd>{conta.cadastro_cargo || '—'}</dd>
+              <dt>Solicitada em</dt><dd>{dataHora(conta.criada_em)}</dd>
+            </dl>
+          </>
+        )}
+
+        {tipo === 'gerenciar' && conta.situacao !== 'recusada' && (
           <>
             <dl className="lista-pares">
               <dt>E-mail</dt><dd>{conta.email}</dd>
@@ -337,7 +354,8 @@ export default function PainelConta({
           <>
             <p className="aviso">
               <strong>A solicitação de {conta.nome} será recusada.</strong>
-              O pedido nunca teve acesso e é retirado da lista; o login e o e-mail ficam livres. A recusa fica no histórico.
+              O pedido fica guardado na situação recusada, sem acesso. Uma nova solicitação com o mesmo e-mail o
+              reaproveita. A recusa e o motivo ficam no histórico.
             </p>
             {campoMotivo}
           </>

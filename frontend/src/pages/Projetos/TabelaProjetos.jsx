@@ -45,7 +45,7 @@ export default function TabelaProjetos({ projetos, carregando, aoGerenciar }) {
           <tr>
             <th>Código</th>
             <th>Nome</th>
-            <th>Responsável</th>
+            <th>Responsável e setor</th>
             <th>Início</th>
             <th>Término previsto</th>
             <th>Situação</th>
@@ -62,7 +62,10 @@ export default function TabelaProjetos({ projetos, carregando, aoGerenciar }) {
               <tr key={p.id_projeto} className={andamento ? '' : 'linha-inativa'}>
                 <td className="col-etiqueta">{p.codigo}</td>
                 <td>{p.nome}<small className="sublinha">{p.fonte_financiadora}</small></td>
-                <td>{p.nome_responsavel || <span className="vazio">—</span>}</td>
+                <td>
+                  {p.nome_responsavel || <span className="vazio">—</span>}
+                  {p.nome_setor && <small className="sublinha">{p.nome_setor}</small>}
+                </td>
                 <td className="col-data">{dataDaApi(p.data_inicio)}</td>
                 <td className="col-data">
                   {p.data_fim_prevista ? dataDaApi(p.data_fim_prevista) : <span className="vazio">sem término</span>}

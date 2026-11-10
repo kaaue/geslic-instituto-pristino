@@ -74,7 +74,7 @@ test('aprovação administrativa libera o acesso com o perfil escolhido e o vín
   assert.equal((await t.cliente().post('/auth/login', { login: 'juliana.moreira', senha: 'Juliana2026' })).status, 200);
 });
 
-test('recusa remove a solicitação pendente e fica no histórico', async () => {
+test('recusa preserva a solicitação como recusada, fica no histórico e uma nova solicitação a reaproveita', async () => {
   await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Recusada Silva', email: 'recusada@pristino.org.br', login: 'recusada',
     senha: 'Recusada2026', confirmacao: 'Recusada2026'
@@ -82,9 +82,24 @@ test('recusa remove a solicitação pendente e fica no histórico', async () => 
   const admin = await t.entrarAdmin();
   const id = await idDe('recusada');
   assert.equal((await admin.post(`/usuarios/${id}/rejeicao`, { motivo: 'não pertence ao Instituto' })).status, 200);
-  assert.equal(await idDe('recusada'), undefined);
+  const [conta] = await t.sql('SELECT situacao FROM usuario WHERE id_usuario = ?', [id]);
+  assert.equal(conta.situacao, 'recusada');
   const [evento] = await t.sql(`SELECT tipo, motivo FROM movimentacao WHERE entidade = 'usuario' AND id_registro = ?`, [id]);
   assert.equal(evento.tipo, 'rejeicao');
+  // não entra, e a lista mostra as recusadas no filtro próprio
+  const login = await t.cliente().post('/auth/login', { login: 'recusada', senha: 'Recusada2026' });
+  assert.equal(login.status, 403);
+  assert.equal(login.corpo.codigo, 'CONTA_RECUSADA');
+  assert.ok((await admin.get('/usuarios?situacao=recusada')).corpo.some((c) => c.id_usuario === id));
+  assert.equal((await admin.post(`/usuarios/${id}/rejeicao`, {})).status, 409);
+  // nova solicitação com o mesmo e-mail volta o mesmo pedido a pendente, com os dados novos
+  const nova = await t.cliente().post('/auth/cadastro', { id_setor: 2, cargo: 'Estagiária',
+    nome: 'Recusada Silva Souza', email: 'recusada@pristino.org.br', login: 'recusada.souza',
+    senha: 'Recusada2027', confirmacao: 'Recusada2027'
+  });
+  assert.equal(nova.status, 201);
+  const [depois] = await t.sql('SELECT id_usuario, situacao, login, cadastro_id_setor FROM usuario WHERE email = ?', ['recusada@pristino.org.br']);
+  assert.deepEqual({ ...depois }, { id_usuario: id, situacao: 'pendente', login: 'recusada.souza', cadastro_id_setor: 2 });
 });
 
 test('operador não acessa contas, perfis nem histórico, e não concede perfil a si mesmo', async () => {

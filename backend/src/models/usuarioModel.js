@@ -211,11 +211,26 @@ async function buscarParaLogin(identificador) {
 
 // Autocadastro: conta pendente, perfil Operador, sem colaborador. Setor e
 // cargo informados ficam guardados no pedido; o colaborador só é criado (ou
-// escolhido entre os existentes) na aprovação.
+// escolhido entre os existentes) na aprovação. Um pedido recusado com o mesmo
+// e-mail é reaproveitado: volta a aguardar aprovação, com os dados novos
+// (nada é apagado; a recusa anterior continua no histórico).
 async function solicitarCadastro(dados) {
   return comTransacao(async (conexao) => {
     const erros = {};
-    await conferirUnicidade(conexao, dados, null, erros);
+    const [[recusado]] = await conexao.query(
+      `SELECT id_usuario FROM usuario WHERE email = ? AND situacao = 'recusada' FOR UPDATE`, [dados.email]);
+    await conferirUnicidade(conexao, dados, recusado?.id_usuario || null, erros);
+    if (recusado) {
+      const [[setor]] = await conexao.query('SELECT ativo FROM setor WHERE id_setor = ?', [dados.id_setor || 0]);
+      if (!setor || !setor.ativo) erros.id_setor = 'Selecione o seu setor.';
+      lancarSeHouverErros(erros);
+      await conexao.query(
+        `UPDATE usuario SET nome = ?, login = ?, senha_hash = ?, situacao = 'pendente', senha_alterada_em = NOW(),
+                cadastro_id_setor = ?, cadastro_cargo = ?, criada_em = NOW()
+          WHERE id_usuario = ?`,
+        [dados.nome, dados.login, gerarHashSenha(dados.senha), dados.id_setor, dados.cargo, recusado.id_usuario]);
+      return { id_usuario: recusado.id_usuario, reaproveitada: true };
+    }
     const [[setor]] = await conexao.query('SELECT ativo FROM setor WHERE id_setor = ?', [dados.id_setor || 0]);
     if (!setor || !setor.ativo) erros.id_setor = 'Selecione o seu setor.';
     lancarSeHouverErros(erros);
@@ -302,7 +317,7 @@ async function listar(filtros) {
     condicoes.push('u.id_perfil = ?');
     valores.push(Number(filtros.id_perfil));
   }
-  if (['pendente', 'ativo', 'inativo'].includes(filtros.situacao)) {
+  if (['pendente', 'recusada', 'ativo', 'inativo'].includes(filtros.situacao)) {
     condicoes.push('u.situacao = ?');
     valores.push(filtros.situacao);
   }
@@ -314,7 +329,7 @@ async function listar(filtros) {
   const [linhas] = await pool.query(
     `SELECT ${COLUNAS} ${TABELAS}
       ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''}
-      ORDER BY FIELD(u.situacao, 'pendente', 'ativo', 'inativo'), u.nome`, valores);
+      ORDER BY FIELD(u.situacao, 'pendente', 'ativo', 'inativo', 'recusada'), u.nome`, valores);
   return linhas.map(publico);
 }
 
@@ -405,20 +420,22 @@ async function aprovar(id, dados, idResponsavel) {
   });
 }
 
-// A solicitação recusada nunca teve acesso: é removida, liberando login e
-// e-mail, e a recusa fica no histórico.
+// A solicitação recusada nunca teve acesso e é preservada na situação
+// "recusada" (RN22): continua consultável, não entra no sistema, e uma nova
+// solicitação com o mesmo e-mail a reaproveita. A recusa fica no histórico.
 async function rejeitar(id, motivo, idResponsavel) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id, { bloquear: true });
     if (atual.situacao !== 'pendente') {
       throw AppError.conflito('Só solicitações pendentes podem ser recusadas. Para tirar o acesso, inative a conta.');
     }
-    await conexao.query('DELETE FROM usuario WHERE id_usuario = ?', [id]);
+    await conexao.query(`UPDATE usuario SET situacao = 'recusada' WHERE id_usuario = ?`, [id]);
+    const depois = await buscar(conexao, id);
     await Historico.registrar(conexao, {
       idUsuario: idResponsavel, tipo: 'rejeicao', entidade: 'usuario', idRegistro: id,
-      descricao: `Solicitação de acesso de ${atual.login} recusada`, motivo, antes: retrato(atual)
+      descricao: `Solicitação de acesso de ${atual.login} recusada`, motivo, antes: retrato(atual), depois: retrato(depois)
     });
-    return { removida: true };
+    return depois;
   });
 }
 
@@ -426,7 +443,7 @@ async function rejeitar(id, motivo, idResponsavel) {
 async function alterarPerfil(id, dados, idResponsavel) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id, { bloquear: true });
-    if (atual.situacao === 'pendente') {
+    if (atual.situacao === 'pendente' || atual.situacao === 'recusada') {
       throw AppError.conflito('Defina o perfil ao aprovar a solicitação.');
     }
     const erros = {};
@@ -459,8 +476,8 @@ async function alterarPerfil(id, dados, idResponsavel) {
 async function alterarSituacao(id, dados, idResponsavel) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id, { bloquear: true });
-    if (atual.situacao === 'pendente') {
-      throw AppError.conflito('Solicitações pendentes são aprovadas ou recusadas, não ativadas.');
+    if (atual.situacao === 'pendente' || atual.situacao === 'recusada') {
+      throw AppError.conflito('Solicitações de acesso são aprovadas ou recusadas, não ativadas.');
     }
     if (atual.situacao === dados.situacao) {
       throw AppError.conflito(`A conta já está ${dados.situacao === 'ativo' ? 'ativa' : 'inativa'}.`);

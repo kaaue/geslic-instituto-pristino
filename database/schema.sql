@@ -135,6 +135,8 @@ CREATE TABLE projeto (
   fonte_financiadora  VARCHAR(120) NOT NULL,
   -- responsável obrigatório: um colaborador ativo no momento do cadastro
   id_responsavel      INT          NOT NULL,
+  -- setor responsável, opcional (RN43)
+  id_setor            INT,
   data_inicio         DATE         NOT NULL,
   -- término previsto: opcional, gera avisos e pode ser prorrogado
   data_fim_prevista   DATE,
@@ -155,7 +157,8 @@ CREATE TABLE projeto (
   CONSTRAINT ck_projeto_data_encerramento CHECK (
     data_encerramento IS NULL OR data_encerramento >= data_inicio),
   CONSTRAINT fk_projeto_responsavel FOREIGN KEY (id_responsavel)
-    REFERENCES colaborador (id_colaborador)
+    REFERENCES colaborador (id_colaborador),
+  CONSTRAINT fk_projeto_setor FOREIGN KEY (id_setor) REFERENCES setor (id_setor)
 );
 
 -- Participação dos colaboradores nos projetos (usada nas exceções entre projetos)
@@ -485,7 +488,7 @@ CREATE TABLE usuario (
   CONSTRAINT uq_usuario_login UNIQUE (login),
   CONSTRAINT uq_usuario_email UNIQUE (email),
   CONSTRAINT uq_usuario_colaborador UNIQUE (id_colaborador),
-  CONSTRAINT ck_usuario_situacao CHECK (situacao IN ('pendente', 'ativo', 'inativo')),
+  CONSTRAINT ck_usuario_situacao CHECK (situacao IN ('pendente', 'recusada', 'ativo', 'inativo')),
   CONSTRAINT fk_usuario_perfil FOREIGN KEY (id_perfil) REFERENCES perfil (id_perfil),
   CONSTRAINT fk_usuario_colaborador FOREIGN KEY (id_colaborador) REFERENCES colaborador (id_colaborador),
   CONSTRAINT fk_usuario_aprovador FOREIGN KEY (id_aprovador) REFERENCES usuario (id_usuario),

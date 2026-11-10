@@ -468,12 +468,16 @@ Migração: `004_revisoes_funcionais.sql` (só acrescenta colunas).
   cadastro RF_B1, cada item filtrado pelo tipo); "Conta" virou
   "Configurações" e "Contas e perfis" virou "Gerenciar usuários".
 - **Projetos:** filtros por situação, ano de vigência ("Vigente em", que pega
-  também os projetos iniciados antes), setor (do responsável ou de algum
-  participante), responsável e prazo. O semestre e a fonte financiadora
+  também os projetos iniciados antes), setor responsável (com "Sem setor
+  definido"), responsável e prazo. O semestre e a fonte financiadora
   saíram dos filtros; a fonte continua no cadastro e na busca livre. A
   tabela tem só o botão "Gerenciar", que abre o painel lateral com os dados,
   os participantes, a vigência, o encerramento, a reabertura e o histórico
   do projeto (para quem consulta a auditoria).
+- **Setor responsável** (opcional, `projeto.id_setor`, RN43): ao escolher o
+  setor no painel do projeto, todos os colaboradores ativos dele entram como
+  participantes na hora; quem não participa é retirado à mão. É uma cópia do
+  momento: o projeto não acompanha mudanças futuras do setor.
 - **Participantes:** inclusão individual (busca por parte do nome, com setor
   e cargo para diferenciar homônimos) ou em lote por setor (marca todos ou
   só alguns). O lote copia quem está no setor naquele momento: mudanças
@@ -488,8 +492,9 @@ Migração: `004_revisoes_funcionais.sql` (só acrescenta colunas).
 - **Sem exclusão física:** os botões "Excluir" saíram das telas, e qualquer
   `DELETE` de cadastro responde 405 (`EXCLUSAO_INDISPONIVEL`) com a
   orientação de inativar ou encerrar. A permissão `cadastro.excluir`
-  continua no banco, sem uso. A recusa de uma solicitação de acesso ainda
-  remove o pedido (ele nunca teve acesso), com o registro no histórico.
+  continua no banco, sem uso. A solicitação de acesso recusada fica guardada
+  na situação `recusada` (login responde 403 `CONTA_RECUSADA`); uma nova
+  solicitação com o mesmo e-mail reaproveita o pedido, que volta a pendente.
 - **Gerenciar usuários:** botão único "Gerenciar" (ou "Revisar", no pedido
   pendente) abrindo o painel da conta com editar, alterar perfil, senha
   provisória, desativar ou reativar e transferir privilégios. Filtro por
@@ -505,7 +510,7 @@ Migração: `004_revisoes_funcionais.sql` (só acrescenta colunas).
   Administrador; a aprovação comum não pede motivo. Cada motivo fica no
   evento dele (aprovação, perfil, desativação, encerramento, reabertura).
 - **Senha provisória:** gerada com `crypto.randomInt`, gravada só como hash,
-  com troca obrigatória e prazo (`SENHA_PROVISORIA_HORAS`, padrão 72 h);
+  com troca obrigatória e prazo (`SENHA_PROVISORIA_HORAS`, padrão 168 h, sete dias);
   vencida, o login responde 403 `SENHA_PROVISORIA_EXPIRADA`. Aparece uma
   única vez, com o botão "Copiar senha", e nunca vai para o histórico.
 - **Transferência de privilégios:** janela em quatro etapas (destinatário,
@@ -515,12 +520,14 @@ Migração: `004_revisoes_funcionais.sql` (só acrescenta colunas).
 - **Fonte financiadora:** texto livre; a lista de sugestões só existe quando
   há fontes já usadas, para o navegador não mostrar uma seta sem opções.
 
-Pendências para validar com o Instituto: a ERS 2.6 ainda prevê exclusão de
-cadastros sem vínculos (RN22) e precisa ser atualizada; o setor de um
-projeto é inferido do responsável e dos participantes (o projeto não tem
-setor próprio); a validade de 72 h da senha provisória; os projetos já
-cadastrados não ganharam o responsável como participante automaticamente
-(a regra vale a partir da próxima gravação de cada projeto).
+As decisões sobre esses pontos estão na ERS 2.7 (`docs/ERS_GESLIC_v2.7.docx`,
+regras RN22 e RN43 a RN45) e foram implementadas com a migração
+`005_decisoes_ers27.sql`: setor responsável opcional no projeto; solicitação
+recusada preservada; responsável incluído como participante nos projetos já
+cadastrados, com registro no histórico; senha provisória de sete dias; e
+campos obrigatórios dos bens — placa (veículo), número de série (drone e
+equipamento) e endereço (imóvel). Bens já cadastrados sem esses dados passam
+a exigi-los na próxima edição.
 
 ## Divergências em relação à ERS
 

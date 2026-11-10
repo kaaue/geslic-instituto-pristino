@@ -474,6 +474,7 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
 .situacao-ativo, .situacao-conta-ativo { background: var(--verde-claro); color: var(--verde-texto); border-color: var(--verde-borda); }
 .situacao-inativo, .situacao-conta-inativo { background: #f1f3f2; color: #5f6b67; border-color: #d6dbd9; }
 .situacao-conta-pendente { background: var(--amarelo-claro); color: var(--amarelo-texto); border-color: var(--amarelo-borda); }
+.situacao-conta-recusada { background: var(--vermelho-claro); color: var(--vermelho); border-color: var(--vermelho-borda); }
 
 .etiqueta-uso-geral { background: var(--azul-claro); color: var(--azul-texto); border-color: var(--azul-borda); }
 

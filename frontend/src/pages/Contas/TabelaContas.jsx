@@ -1,8 +1,9 @@
-// Listagem das contas: solicitações pendentes primeiro, depois ativas e
-// desativadas. Uma única ação por linha, "Gerenciar" (ou "Revisar", na
-// solicitação pendente), que abre o painel lateral da conta.
+// Listagem das contas: solicitações pendentes primeiro, depois ativas,
+// desativadas e, por último, as solicitações recusadas (preservadas, RN22).
+// Uma única ação por linha, "Gerenciar" ("Revisar" no pedido pendente e
+// "Consultar" no recusado), que abre o painel lateral da conta.
 
-const ROTULO_SITUACAO = { pendente: 'aguardando aprovação', ativo: 'ativa', inativo: 'desativada' };
+const ROTULO_SITUACAO = { pendente: 'aguardando aprovação', recusada: 'recusada', ativo: 'ativa', inativo: 'desativada' };
 
 // Não há "último acesso" (RN41): só a data da solicitação e quem aprovou
 function dataHora(iso) {
@@ -30,8 +31,9 @@ export default function TabelaContas({ contas, carregando, idContaAtual, aoGeren
           {contas.map((c) => {
             const propria = c.id_usuario === idContaAtual;
             const pendente = c.situacao === 'pendente';
+            const pedido = pendente || c.situacao === 'recusada';
             return (
-              <tr key={c.id_usuario} className={c.situacao === 'inativo' ? 'linha-inativa' : ''}>
+              <tr key={c.id_usuario} className={c.situacao === 'inativo' || c.situacao === 'recusada' ? 'linha-inativa' : ''}>
                 <td>
                   {c.nome}{propria && <span className="marca-alocado">você</span>}
                   <small className="sublinha">{c.email}</small>
@@ -44,7 +46,7 @@ export default function TabelaContas({ contas, carregando, idContaAtual, aoGeren
                 <td>
                   {c.nome_colaborador || (pendente ? <span className="vazio">a definir na aprovação</span> : <span className="vazio">sem colaborador</span>)}
                   <small className="sublinha">
-                    {c.nome_setor || (pendente && c.nome_setor_solicitado ? `${c.nome_setor_solicitado} (informado no pedido)` : '')}
+                    {c.nome_setor || (pedido && c.nome_setor_solicitado ? `${c.nome_setor_solicitado} (informado no pedido)` : '')}
                   </small>
                 </td>
                 <td>
@@ -54,7 +56,7 @@ export default function TabelaContas({ contas, carregando, idContaAtual, aoGeren
                 </td>
                 <td className="col-acoes">
                   <button type="button" className="botao-texto" onClick={() => aoGerenciar(c)}>
-                    {pendente ? 'Revisar' : 'Gerenciar'}
+                    {pendente ? 'Revisar' : c.situacao === 'recusada' ? 'Consultar' : 'Gerenciar'}
                   </button>
                 </td>
               </tr>

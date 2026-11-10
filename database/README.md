@@ -66,6 +66,7 @@ o `db:setup` só as registra como aplicadas.
 | `002_gatilhos_restauraveis.sql` | recria os gatilhos que tornam o histórico imutável (RN22) com `BEGIN ... END`. Na forma antiga, o MySQL guardava um `;` dentro do corpo, e o arquivo gerado pelo `mysqldump` falhava na restauração |
 | `003_funcoes_basicas.sql` | funções básicas da ERS 2.6: `setor.id_coordenador` e `data_inativacao`; campos por categoria e `data_inativacao` em `bem`; `software.observacoes`; `usuario` sem `ultimo_acesso_em` e com `id_aprovador`/`aprovada_em`; `permissao.exclusiva_operador` e matriz fixa refeita; `tipo_notificacao`, `preferencia_notificacao` (por tipo) e `prazo_notificacao`; `solicitacao_ajuste` e `presenca_solicitacao` com gatilhos; `movimentacao.id_solicitacao`. Conferida da mesma forma: um banco no formato anterior, migrado, ficou idêntico a um criado do zero |
 | `004_revisoes_funcionais.sql` | revisões funcionais: `usuario.senha_provisoria_expira_em` (prazo da senha provisória) e `cadastro_id_setor`/`cadastro_cargo` (setor e cargo informados na solicitação de acesso). Só acrescenta colunas |
+| `005_decisoes_ers27.sql` | decisões da ERS 2.7: `projeto.id_setor` (setor responsável, opcional); situação `recusada` em `usuario` (a solicitação recusada é preservada); inclusão do responsável entre os participantes dos projetos existentes, com um evento no histórico por projeto. Nada é apagado |
 
 As duas migrações foram conferidas assim:
 

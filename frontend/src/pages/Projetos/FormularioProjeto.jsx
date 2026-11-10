@@ -16,6 +16,7 @@ const VAZIO = {
   nome: '',
   fonte_financiadora: '',
   id_responsavel: '',
+  id_setor: '',
   data_inicio: '',
   data_fim_prevista: '',
   participantes: []
@@ -41,6 +42,7 @@ export default function FormularioProjeto({
         nome: edicao.nome || '',
         fonte_financiadora: edicao.fonte_financiadora || '',
         id_responsavel: edicao.id_responsavel || '',
+        id_setor: edicao.id_setor || '',
         data_inicio: dataDaApi(edicao.data_inicio),
         data_fim_prevista: dataDaApi(edicao.data_fim_prevista),
         participantes: (edicao.lista_participantes || []).map((c) => c.id_colaborador)
@@ -64,12 +66,23 @@ export default function FormularioProjeto({
     });
   }
 
+  // Setor responsável (RN43): ao escolher, todos os colaboradores ativos do
+  // setor entram como participantes, sem repetir; quem não participa é
+  // retirado à mão. É uma cópia do momento: o projeto não acompanha o setor.
+  function mudarSetor(valor) {
+    setForm((atual) => {
+      const membros = colaboradores.filter((c) => String(c.id_setor) === String(valor)).map((c) => c.id_colaborador);
+      return { ...atual, id_setor: valor, participantes: [...new Set([...atual.participantes, ...membros])] };
+    });
+  }
+
   function enviar(evento) {
     evento.preventDefault();
     if (somenteLeitura) return;
     aoSalvar({
       ...form,
       id_responsavel: form.id_responsavel || null,
+      id_setor: form.id_setor ? Number(form.id_setor) : null,
       data_inicio: dataParaApi(form.data_inicio),
       data_fim_prevista: dataParaApi(form.data_fim_prevista)
     });
@@ -186,6 +199,29 @@ export default function FormularioProjeto({
           {erros.id_responsavel
             ? <small className="erro">{erros.id_responsavel}</small>
             : <small className="dica">O responsável entra automaticamente entre os participantes.</small>}
+        </label>
+
+        <label className="campo">
+          <span>Setor responsável</span>
+          <select
+            value={form.id_setor}
+            disabled={somenteLeitura}
+            onChange={(e) => mudarSetor(e.target.value)}
+            className={erros.id_setor ? 'com-erro' : ''}
+          >
+            <option value="">Sem setor responsável</option>
+            {edicao?.id_setor && !setores.some((s) => s.id_setor === edicao.id_setor) && (
+              <option value={edicao.id_setor}>{edicao.nome_setor} (inativo)</option>
+            )}
+            {setores.map((s) => <option key={s.id_setor} value={s.id_setor}>{s.nome}</option>)}
+          </select>
+          {erros.id_setor
+            ? <small className="erro">{erros.id_setor}</small>
+            : !somenteLeitura && (
+              <small className="dica">
+                Opcional. Ao escolher, os colaboradores ativos do setor entram como participantes; retire quem não participa.
+              </small>
+            )}
         </label>
 
         <div className="dupla">

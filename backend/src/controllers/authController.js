@@ -49,6 +49,9 @@ async function login(req, res) {
   if (conta.situacao === 'pendente') {
     throw AppError.proibido('Sua solicitação de acesso ainda aguarda a aprovação de um Administrador.', 'CONTA_PENDENTE');
   }
+  if (conta.situacao === 'recusada') {
+    throw AppError.proibido('Sua solicitação de acesso foi recusada. Procure um Administrador ou envie uma nova solicitação.', 'CONTA_RECUSADA');
+  }
   if (conta.situacao !== 'ativo') {
     throw AppError.proibido('Esta conta está desativada. Procure um Administrador.', 'CONTA_INATIVA');
   }
