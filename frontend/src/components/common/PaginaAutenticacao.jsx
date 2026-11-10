@@ -1,14 +1,17 @@
 // Moldura das telas públicas de autenticação (login, solicitação de acesso,
-// esqueci e redefinir senha), no padrão do Protótipo 1 da ERS: painel verde
-// com a marca à esquerda e o formulário num cartão à direita.
+// esqueci e redefinir senha), no padrão do Protótipo 1 da ERS: painel
+// com a logo do Instituto à esquerda e o formulário num cartão à direita.
+
+import logoPristino from '../../assets/logo-pristino.png';
 
 export default function PaginaAutenticacao({ titulo, subtitulo, children, larga = false }) {
   return (
     <main className={`pagina-autenticacao ${larga ? 'pagina-autenticacao-larga' : ''}`}>
-      <section className="autenticacao-marca" aria-hidden="true">
+      <section className="autenticacao-marca">
         <div className="autenticacao-logo">
+          <img src={logoPristino} alt="Instituto Prístino" width="210" height="172" />
           <strong>GESLIC</strong>
-          <span>Instituto Prístino</span>
+          <span>Gestão de licenças de software e apólices</span>
         </div>
         <div className="autenticacao-chamada">
           <h2>Licenças e apólices sob controle</h2>

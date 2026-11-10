@@ -1,5 +1,5 @@
 // Estrutura das telas autenticadas, no padrão dos protótipos da ERS
-// (Apêndice 2): menu lateral verde-escuro por módulo, filtrado pelas
+// (Apêndice 2): menu lateral claro, com a logo do Instituto e o item ativo em azul, filtrado pelas
 // permissões da conta, com a conta e o botão Sair no rodapé; barra superior
 // com o caminho de navegação, o sino de notificações e a conta.
 
@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { menuDaConta, telaDoCaminho } from '../../config/navegacao';
+import logoPristino from '../../assets/logo-pristino.png';
 
 // "Helena Moraes" -> "HM"
 function iniciais(nome) {
@@ -39,9 +40,9 @@ export default function Layout() {
   return (
     <div className={`aplicacao modulo-${tela?.modulo || 'geral'}`}>
       <aside className="menu-lateral">
-        <Link to="/" className="marca">
+        <Link to="/" className="marca" aria-label="GESLIC, Instituto Prístino: ir para o painel">
+          <img src={logoPristino} alt="Instituto Prístino" width="118" height="97" />
           <strong>GESLIC</strong>
-          <span>Instituto Prístino</span>
         </Link>
 
         <nav aria-label="Menu principal">
