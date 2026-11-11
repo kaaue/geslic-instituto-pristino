@@ -1,6 +1,6 @@
 // Licenças de software: RF_F2 a RF_F7 e a consulta da RF_S2 (em desenvolvimento: 501).
 // Permissões (RN21): registrar, movimentar, renovar e inativar - Operador e
-// Administrador; corrigir e excluir - somente o Administrador. A chave de
+// Administrador; corrigir - somente o Administrador (sem exclusão, RN22). A chave de
 // ativação só é revelada a perfis com visualiza_dados_sensiveis (seção 2.3.2).
 
 const express = require('express');

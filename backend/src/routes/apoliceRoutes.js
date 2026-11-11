@@ -1,6 +1,6 @@
 // Apólices de seguro: RF_F8 a RF_F11 e a consulta da RF_S4 (em desenvolvimento: 501).
 // Permissões (RN21): registrar, vincular itens, renovar e cancelar - Operador
-// e Administrador; corrigir e excluir - somente o Administrador.
+// e Administrador; corrigir - somente o Administrador. Não há exclusão (RN22).
 
 const express = require('express');
 const controller = require('../controllers/apoliceController');

@@ -163,7 +163,7 @@ function PainelTipo({ registro, controle, aoSalvar, aoMudouCobertura }) {
         </div>
       )}
       <p className="aviso-info">
-        Coberturas usadas em apólices não podem ser excluídas, apenas inativadas para novos registros.
+        Tipos e coberturas não são excluídos: são inativados para novos registros e podem ser reativados (RN22).
         {registro && ' As ações nas coberturas valem na hora.'}
       </p>
     </PainelLateral>

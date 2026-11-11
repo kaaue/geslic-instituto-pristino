@@ -1,8 +1,9 @@
 // Rotas da RF_F1 - Gerenciar projetos institucionais.
 //
 // Quem pode o quê (RN21, RN17):
-//   Operador e Administrador: consultar, incluir, prorrogar o término e encerrar.
-//   Somente Administrador: alterar os dados cadastrais e excluir.
+//   Operador e Administrador: consultar, incluir, prorrogar o término, encerrar e reabrir.
+//   Somente Administrador: alterar os dados cadastrais e os participantes.
+//   Projeto não é excluído (RN22).
 // Prorrogar e encerrar são ações operacionais com permissão própria: não são
 // tratadas como alteração de cadastro só porque gravam um UPDATE.
 

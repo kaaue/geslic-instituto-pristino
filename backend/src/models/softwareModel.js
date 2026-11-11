@@ -8,17 +8,12 @@
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
-const { bloquearExclusaoComVinculos } = require('./cadastroComum');
 
 const COLUNAS = `
     s.id_software, s.nome, s.versao, s.fabricante, s.categoria, s.observacoes, s.ativo,
     (SELECT COUNT(*) FROM licenca l WHERE l.id_software = s.id_software) AS licencas,
     (SELECT GROUP_CONCAT(l.codigo ORDER BY l.codigo SEPARATOR ', ')
        FROM licenca l WHERE l.id_software = s.id_software) AS codigos_licencas`;
-
-const VINCULOS = [
-  { sql: 'SELECT COUNT(*) AS total FROM licenca WHERE id_software = ?', singular: 'licença', plural: 'licenças' }
-];
 
 const publico = (l) => l && { ...l, ativo: Boolean(l.ativo) };
 const rotulo = (s) => (s.versao ? `${s.nome} ${s.versao}` : s.nome);
@@ -141,17 +136,4 @@ async function reativar(id, idUsuario) {
   });
 }
 
-async function excluir(id, idUsuario) {
-  return comTransacao(async (conexao) => {
-    const atual = await buscarOuFalhar(conexao, id, true);
-    await bloquearExclusaoComVinculos(conexao, VINCULOS, id, `o software ${rotulo(atual)}`);
-    await conexao.query('DELETE FROM software WHERE id_software = ?', [id]);
-    await Historico.registrar(conexao, {
-      idUsuario, tipo: 'exclusao', entidade: 'software', idRegistro: id,
-      descricao: `Software ${rotulo(atual)} excluído`, antes: retrato(atual)
-    });
-    return { excluido: true };
-  });
-}
-
-module.exports = { listar, listarCategorias, buscar, incluir, alterar, inativar, reativar, excluir };
+module.exports = { listar, listarCategorias, buscar, incluir, alterar, inativar, reativar };

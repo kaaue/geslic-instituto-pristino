@@ -13,7 +13,6 @@
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
-const { bloquearExclusaoComVinculos } = require('./cadastroComum');
 
 const COLUNAS = `
     b.id_bem, b.categoria, b.identificacao, b.patrimonio, b.placa, b.numero_serie, b.endereco,
@@ -25,10 +24,6 @@ const TABELAS = `
     FROM bem b
     LEFT JOIN setor s       ON s.id_setor = b.id_setor
     LEFT JOIN equipamento e ON e.id_equipamento = b.id_bem`;
-
-const VINCULOS = [
-  { sql: 'SELECT COUNT(*) AS total FROM item_segurado WHERE id_bem = ?', singular: 'item segurado em apólice', plural: 'itens segurados em apólices' }
-];
 
 const ROTULO_CATEGORIA = { veiculo: 'Veículo', imovel: 'Imóvel', drone: 'Drone', equipamento: 'Equipamento', outro: 'Outro' };
 
@@ -236,18 +231,4 @@ async function reativar(id, idUsuario) {
   });
 }
 
-async function excluir(id, idUsuario) {
-  return comTransacao(async (conexao) => {
-    const atual = await buscarOuFalhar(conexao, id, true);
-    recusarSeEquipamento(atual, 'excluir');
-    await bloquearExclusaoComVinculos(conexao, VINCULOS, id, `o bem ${atual.identificacao}`);
-    await conexao.query('DELETE FROM bem WHERE id_bem = ?', [id]);
-    await Historico.registrar(conexao, {
-      idUsuario, tipo: 'exclusao', entidade: 'bem', idRegistro: id,
-      descricao: `${nomeDoBem(atual)} excluído`, antes: retrato(atual)
-    });
-    return { excluido: true };
-  });
-}
-
-module.exports = { listar, buscar, incluir, alterar, inativar, reativar, excluir, ROTULO_CATEGORIA };
+module.exports = { listar, buscar, incluir, alterar, inativar, reativar, ROTULO_CATEGORIA };

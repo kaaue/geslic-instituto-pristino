@@ -13,7 +13,6 @@
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
-const { bloquearExclusaoComVinculos } = require('./cadastroComum');
 
 const COLUNAS = `
     c.id_colaborador, c.nome, c.cargo, c.email, c.id_setor, s.nome AS nome_setor, c.ativo,
@@ -26,19 +25,6 @@ const COLUNAS = `
 const TABELAS = `
     FROM colaborador c
     JOIN setor s ON s.id_setor = c.id_setor`;
-
-// Vínculos que impedem a exclusão (RN22)
-const VINCULOS = [
-  { sql: 'SELECT COUNT(*) AS total FROM colaborador_projeto WHERE id_colaborador = ?', singular: 'participação em projeto', plural: 'participações em projetos' },
-  { sql: 'SELECT COUNT(*) AS total FROM projeto WHERE id_responsavel = ?', singular: 'projeto sob sua responsabilidade', plural: 'projetos sob sua responsabilidade' },
-  { sql: 'SELECT COUNT(*) AS total FROM equipamento WHERE id_responsavel = ?', singular: 'equipamento sob sua responsabilidade', plural: 'equipamentos sob sua responsabilidade' },
-  { sql: 'SELECT COUNT(*) AS total FROM utilizacao WHERE id_colaborador = ?', singular: 'utilização de licença', plural: 'utilizações de licença' },
-  { sql: 'SELECT COUNT(*) AS total FROM licenca WHERE id_responsavel = ?', singular: 'licença sob sua responsabilidade', plural: 'licenças sob sua responsabilidade' },
-  { sql: 'SELECT COUNT(*) AS total FROM apolice WHERE id_responsavel = ?', singular: 'apólice sob sua responsabilidade', plural: 'apólices sob sua responsabilidade' },
-  { sql: 'SELECT COUNT(*) AS total FROM item_segurado WHERE id_colaborador = ?', singular: 'item segurado em apólice', plural: 'itens segurados em apólices' },
-  { sql: 'SELECT COUNT(*) AS total FROM usuario WHERE id_colaborador = ?', singular: 'conta de acesso', plural: 'contas de acesso' },
-  { sql: 'SELECT COUNT(*) AS total FROM setor WHERE id_coordenador = ?', singular: 'setor que coordena', plural: 'setores que coordena' }
-];
 
 const publico = (l) => l && { ...l, ativo: Boolean(l.ativo) };
 
@@ -241,19 +227,6 @@ async function reativar(id, idUsuario) {
   });
 }
 
-async function excluir(id, idUsuario) {
-  return comTransacao(async (conexao) => {
-    const atual = await buscarOuFalhar(conexao, id, true);
-    await bloquearExclusaoComVinculos(conexao, VINCULOS, id, atual.nome);
-    await conexao.query('DELETE FROM colaborador WHERE id_colaborador = ?', [id]);
-    await Historico.registrar(conexao, {
-      idUsuario, tipo: 'exclusao', entidade: 'colaborador', idRegistro: id,
-      descricao: `Colaborador ${atual.nome} excluído`, antes: retrato(atual)
-    });
-    return { excluido: true };
-  });
-}
-
 module.exports = {
-  listarAtivos, listar, homonimos, buscar, incluir, alterar, previaDesligamento, desligar, reativar, excluir
+  listarAtivos, listar, homonimos, buscar, incluir, alterar, previaDesligamento, desligar, reativar
 };

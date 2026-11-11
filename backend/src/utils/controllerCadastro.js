@@ -3,8 +3,8 @@
 // operação (RN21) é decidido nas rotas; as regras dos dados, no model.
 //
 // Operações: listar, buscar, incluir, alterar (correção, só Administrador),
-// inativar (com data efetiva, RN37), reativar (só Administrador) e excluir
-// (sem vínculos, RN22).
+// inativar (com data efetiva, RN37) e reativar (só Administrador). Não há
+// exclusão: nenhum cadastro é apagado (RN22).
 
 const { lancarSeHouverErros } = require('./AppError');
 const { lerDataEfetiva, lerMotivo } = require('./normalizacao');
@@ -44,9 +44,6 @@ function controllerDeCadastro(Model, validar, opcoesEvento = {}) {
     },
     async reativar(req, res) {
       res.json(await Model.reativar(idDaRota(req), contaDaSessao(req)));
-    },
-    async excluir(req, res) {
-      res.json(await Model.excluir(idDaRota(req), contaDaSessao(req)));
     }
   };
 }

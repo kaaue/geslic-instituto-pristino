@@ -45,7 +45,7 @@ export default function usePainelCadastro(mostrarMensagem, aoConcluir) {
   return { painel, abrir, fechar, erros, erroGeral, salvando, executar };
 }
 
-// Ação direta numa linha da tabela (reativar, excluir), com confirmação
+// Ação direta numa linha da tabela (reativar), com confirmação
 export async function acaoDeLinha({ confirmar, acao, sucesso, mostrarMensagem, aoConcluir }) {
   if (confirmar && !window.confirm(confirmar)) return;
   try {

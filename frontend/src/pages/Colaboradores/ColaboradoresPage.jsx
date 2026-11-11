@@ -2,7 +2,7 @@
 // Cadastro mínimo das pessoas do Instituto; não cria conta de acesso.
 // Nome igual a outro gera aviso de possível homônimo e permite continuar; o
 // e-mail repetido é bloqueado (RN19). O Operador inclui e, para corrigir
-// dados, usa "Solicitar ajuste"; corrigir, desligar, reativar e excluir são
+// dados, usa "Solicitar ajuste"; corrigir, desligar e reativar são
 // do Administrador. O desligamento exige data efetiva (RN37), encerra as
 // utilizações e deixa as instâncias ativas e vagas (RN07); o colaborador
 // desligado aparece esmaecido, com a data. A participação em projetos é

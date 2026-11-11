@@ -2,8 +2,8 @@
 // Empresas com as quais o Instituto contrata licenças (fornecedor de
 // software) e seguros (seguradora). CNPJ único. Com licenças ou apólices
 // vinculadas, o cadastro não é excluído, apenas inativado (RN22).
-// Permissões (RN21): o Operador consulta, inclui e inativa; corrigir,
-// reativar e excluir são do Administrador.
+// Permissões (RN21): o Operador consulta, inclui e inativa; corrigir e
+// reativar são do Administrador.
 
 import { useCallback, useState } from 'react';
 import useAuth from '../../hooks/useAuth';
@@ -90,7 +90,7 @@ function FormularioFornecedor({ registro, controle, aoSalvar, tipoPadrao = 'soft
         <input type="email" value={form.email || ''} maxLength={120} onChange={mudar('email')} className={comErro('email')} />
       </Campo>
       {registro && vinculos(registro) && (
-        <p className="aviso-info">Com {vinculos(registro)} vinculada(s), este cadastro não pode ser excluído, apenas inativado (RN22).</p>
+        <p className="aviso-info">Este cadastro tem {vinculos(registro)} vinculada(s). Para tirá-lo das listas de novos registros, inative-o; cadastros não são excluídos (RN22).</p>
       )}
     </PainelLateral>
   );

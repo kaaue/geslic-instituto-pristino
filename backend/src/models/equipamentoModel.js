@@ -10,7 +10,6 @@
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
-const { bloquearExclusaoComVinculos } = require('./cadastroComum');
 const { lerDataEfetiva, lerMotivo } = require('../utils/normalizacao');
 
 // Colunas devolvidas na listagem e na busca por id.
@@ -41,13 +40,6 @@ const TABELAS = `
     LEFT JOIN colaborador c ON c.id_colaborador = e.id_responsavel`;
 
 const NAO_ENCONTRADO = 'Equipamento não encontrado.';
-
-// Vínculos que impedem a exclusão (RN22): licenças já alocadas (mesmo que a
-// alocação tenha terminado) e apólices que cobrem o equipamento como bem
-const VINCULOS = [
-  { sql: 'SELECT COUNT(*) AS total FROM alocacao WHERE id_equipamento = ?', singular: 'alocação de licença', plural: 'alocações de licença' },
-  { sql: 'SELECT COUNT(*) AS total FROM item_segurado WHERE id_bem = ?', singular: 'item segurado em apólice', plural: 'itens segurados em apólices' }
-];
 
 // Monta a consulta da listagem aplicando só os filtros que vieram preenchidos.
 // Os valores vão como parâmetros (?) e nunca concatenados, para evitar injeção de SQL.
@@ -296,25 +288,6 @@ async function reativar(id, idResponsavel) {
   });
 }
 
-// Só é permitido excluir cadastro sem vínculos (RN22). Com licença já
-// alocada ou cobertura de apólice, o caminho é inativar, não apagar o histórico.
-async function excluir(id, idResponsavel) {
-  return comTransacao(async (conexao) => {
-    const atual = await buscarOuFalhar(conexao, id);
-    await bloquearExclusaoComVinculos(conexao, VINCULOS, id, `o equipamento ${atual.etiqueta_instituto}`);
-
-    // a exclusão em bem remove o equipamento junto, por causa do ON DELETE CASCADE
-    const [resultado] = await conexao.query('DELETE FROM bem WHERE id_bem = ?', [id]);
-    if (resultado.affectedRows === 0) throw AppError.naoEncontrado(NAO_ENCONTRADO);
-
-    await Historico.registrar(conexao, {
-      idUsuario: idResponsavel, tipo: 'exclusao', entidade: 'equipamento', idRegistro: id,
-      descricao: `Equipamento ${atual.etiqueta_instituto} excluído`, antes: retrato(atual)
-    });
-    return { excluido: true };
-  });
-}
-
 // Prévia da inativação: usada pela interface para avisar o usuário antes de
 // confirmar, conforme a RN08.
 async function previaInativacao(id) {
@@ -333,4 +306,4 @@ async function previaInativacao(id) {
   };
 }
 
-module.exports = { listar, buscar, incluir, alterar, inativar, reativar, excluir, previaInativacao };
+module.exports = { listar, buscar, incluir, alterar, inativar, reativar, previaInativacao };

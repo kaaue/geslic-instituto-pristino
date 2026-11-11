@@ -1,10 +1,10 @@
 // Tela da RF_B2 - Gerenciar softwares (Protótipo 5).
 // Padrão dos cadastros: pesquisa e filtros acima, listagem e painel lateral
 // à direita, aberto somente por Novo ou Editar. A listagem informa quantas
-// licenças estão vinculadas a cada software; com licença, a exclusão é
-// bloqueada e o caminho é inativar com data efetiva (RN22, RN37).
-// Permissões (RN21): o Operador consulta, inclui e inativa; corrigir,
-// reativar e excluir são do Administrador; o Operador pede correção por
+// licenças estão vinculadas a cada software. Softwares não são excluídos:
+// o caminho para tirá-los de uso é inativar com data efetiva (RN22, RN37).
+// Permissões (RN21): o Operador consulta, inclui e inativa; corrigir e
+// reativar são do Administrador; o Operador pede correção por
 // solicitação de ajuste (RF_B10).
 
 import { useCallback, useEffect, useState } from 'react';
@@ -69,7 +69,7 @@ function FormularioSoftware({ registro, categorias, controle, aoSalvar }) {
       </Campo>
       {registro?.licencas > 0 && (
         <p className="aviso">
-          <strong>Exclusão bloqueada:</strong> este software tem {registro.licencas} licença(s) vinculada(s)
+          <strong>Software em uso:</strong> este software tem {registro.licencas} licença(s) vinculada(s)
           ({registro.codigos_licencas}). Para retirá-lo das listas de novos cadastros, inative-o com data efetiva (RN22, RN37).
         </p>
       )}

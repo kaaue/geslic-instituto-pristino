@@ -395,15 +395,30 @@ devolve sucesso, lista vazia ou dado de demonstração no lugar do resultado.
 ## Interface
 
 O visual segue os protótipos do Apêndice 2 da ERS, com os ajustes do
-feedback do Instituto (Apêndice 4). As cores e medidas ficam como variáveis no
-início de `frontend/src/styles/global.css`.
+feedback do Instituto (Apêndice 4), e usa a **identidade visual do Instituto
+Prístino** (Estudo de Cores WEB da logo). As cores e medidas ficam como
+variáveis no início de `frontend/src/styles/global.css`.
 
-- **Acesso ao sistema (Protótipo 1):** tela dividida, com o painel verde da
-  marca à esquerda e o cartão "Entrar no sistema" à direita. As outras telas
+- **Paleta da logo:** vermelho `#6e2405`, marrom `#855914`, bege `#c7b570` e
+  azul `#0a3642`, mais os tons derivados do próprio estudo (variações de
+  transparência e cores análogas). No tema, as cores têm papéis: `--primaria`
+  (azul: ações, item ativo do menu e módulo de Licenças), `--secundaria`
+  (marrom: módulo de Apólices, títulos do menu e faixas informativas), bege
+  e creme nos avisos e no painel das telas de acesso,
+  `--sucesso` (verde análogo do azul) e `--perigo` (vermelho de alerta,
+  separado do vermelho da marca, que fica na logo e em detalhes).
+- **Logo:** `frontend/src/assets/logo-pristino.png` (300 × 246, fundo
+  transparente), direto sobre o fundo claro do menu e sobre o creme do painel
+  das telas de acesso;
+  o símbolo sem o nome é o ícone da aba (`frontend/public/favicon.png`).
+
+- **Acesso ao sistema (Protótipo 1):** tela dividida, com o painel creme da
+  marca (logo do Instituto) à esquerda e o cartão "Entrar no sistema" à direita. As outras telas
   públicas usam a mesma moldura.
-- **Menu lateral (Protótipo 2):** fundo verde-escuro, grupos Painel, Projetos,
-  Licenças, Apólices, a entrada única e **expansível Cadastros**, Consultas e
-  Conta, filtrados pelas permissões, com a conta e o botão Sair no rodapé. Um
+- **Menu lateral (Protótipo 2):** fundo claro, com a logo no topo e o item
+  ativo no azul da marca;
+  Painel, Licenças e Apólices, a entrada única e **expansível Cadastros**
+  (com Projetos), Consultas e Configurações, filtrados pelas permissões, com a conta e o botão Sair no rodapé. Um
   ponto marca as telas em desenvolvimento. As solicitações de ajuste não têm
   item de menu: ficam no painel.
 - **Padrão dos cadastros (Protótipos 5 a 12):** pesquisa e filtros acima,
@@ -413,11 +428,15 @@ início de `frontend/src/styles/global.css`.
   atalho "Solicitar ajuste" em cada linha.
 - **Barra superior:** caminho de navegação ("Instituto Prístino / Cadastros /
   Equipamentos"), sino de notificações e a conta, com avatar e perfil.
-- **Módulos:** Licenças em verde e Apólices em azul, com o rótulo do módulo
-  acima do título e a cor do módulo no botão principal e no item ativo do menu.
-- **Conteúdo:** fundo cinza-claro, cartões brancos arredondados, filtros num
-  cartão, tabelas com cabeçalho cinza e etiquetas em pílula para situação,
-  prazo e perfil. As operações abrem em painéis laterais e janelas flutuantes.
+- **Módulos:** Licenças em azul e Apólices em marrom, com o rótulo do módulo
+  acima do título e a cor do módulo no botão principal.
+- **Sobreposições:** clicar no fundo ou apertar Esc fecha o painel ou a janela
+  de cima, um de cada vez.
+- **Conteúdo (estilo 06, "conteúdo em blocos rotulados"):** fundo cinza bem
+  claro, blocos brancos com borda fina e sem sombra, título de cada cartão
+  como cabeçalho separado por uma linha, filtros num bloco, tabelas com
+  cabeçalho branco e etiquetas em pílula para situação, prazo e perfil.
+  Fonte DM Sans. As operações abrem em painéis laterais e janelas flutuantes.
 
 As telas foram conferidas em 1280×800. Em telas mais estreitas, as tabelas
 mais largas (bens, equipamentos) rolam na horizontal dentro do próprio cartão.

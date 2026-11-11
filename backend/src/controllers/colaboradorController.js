@@ -5,10 +5,10 @@ const { validarColaborador } = require('../models/colaboradorValidacao');
 const { controllerDeCadastro, validarEvento, idDaRota, contaDaSessao } = require('../utils/controllerCadastro');
 const { normalizarTexto } = require('../utils/normalizacao');
 
-const { listar, buscar, incluir, alterar, reativar, excluir } = controllerDeCadastro(Colaborador, validarColaborador);
+const { listar, buscar, incluir, alterar, reativar } = controllerDeCadastro(Colaborador, validarColaborador);
 
 module.exports = {
-  listar, buscar, incluir, alterar, reativar, excluir,
+  listar, buscar, incluir, alterar, reativar,
 
   // Lista dos ativos, para as listas de seleção das outras telas
   async listarAtivos(req, res) {

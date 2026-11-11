@@ -7,7 +7,6 @@
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
-const { bloquearExclusaoComVinculos } = require('./cadastroComum');
 const { lerDataEfetiva, lerMotivo } = require('../utils/normalizacao');
 
 const COLUNAS = `
@@ -22,14 +21,6 @@ const COLUNAS = `
 const TABELAS = `
     FROM setor s
     LEFT JOIN colaborador c ON c.id_colaborador = s.id_coordenador`;
-
-const VINCULOS = [
-  { sql: 'SELECT COUNT(*) AS total FROM colaborador WHERE id_setor = ?', singular: 'colaborador', plural: 'colaboradores' },
-  { sql: `SELECT COUNT(*) AS total FROM bem b JOIN equipamento e ON e.id_equipamento = b.id_bem WHERE b.id_setor = ?`, singular: 'equipamento', plural: 'equipamentos' },
-  { sql: `SELECT COUNT(*) AS total FROM bem b LEFT JOIN equipamento e ON e.id_equipamento = b.id_bem
-           WHERE b.id_setor = ? AND e.id_equipamento IS NULL`, singular: 'bem segurável', plural: 'bens seguráveis' },
-  { sql: 'SELECT COUNT(*) AS total FROM apolice WHERE id_setor = ?', singular: 'apólice', plural: 'apólices' }
-];
 
 const publico = (l) => l && { ...l, ativo: Boolean(l.ativo) };
 
@@ -164,23 +155,10 @@ async function reativar(id, idUsuario) {
   });
 }
 
-async function excluir(id, idUsuario) {
-  return comTransacao(async (conexao) => {
-    const atual = await buscarOuFalhar(conexao, id, true);
-    await bloquearExclusaoComVinculos(conexao, VINCULOS, id, `o setor ${atual.nome}`);
-    await conexao.query('DELETE FROM setor WHERE id_setor = ?', [id]);
-    await Historico.registrar(conexao, {
-      idUsuario, tipo: 'exclusao', entidade: 'setor', idRegistro: id,
-      descricao: `Setor ${atual.nome} excluído`, antes: retrato(atual)
-    });
-    return { excluido: true };
-  });
-}
-
 // Só id e nome dos setores ativos (lista pública da solicitação de acesso)
 async function listarNomesAtivos() {
   const [linhas] = await pool.query('SELECT id_setor, nome FROM setor WHERE ativo = TRUE ORDER BY nome');
   return linhas;
 }
 
-module.exports = { listarNomesAtivos, listarAtivos, listar, buscar, incluir, alterar, inativar, reativar, excluir };
+module.exports = { listarNomesAtivos, listarAtivos, listar, buscar, incluir, alterar, inativar, reativar };

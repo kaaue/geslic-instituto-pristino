@@ -9,7 +9,6 @@ module.exports = modelPendente('RF_F8 a RF_F11 Apólices de seguro', {
   buscar: 'consulta de uma apólice e suas vigências',
   registrar: 'registro de apólice (RF_F8)',
   alterar: 'correção dos dados da apólice',
-  excluir: 'exclusão de apólice sem vínculos',
   vincularItens: 'vínculo de bens e pessoas (RF_F9)',
   renovar: 'renovação de apólice (RF_F10)',
   cancelar: 'cancelamento de apólice (RF_F11)'

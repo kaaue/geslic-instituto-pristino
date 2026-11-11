@@ -9,7 +9,6 @@ module.exports = modelPendente('RF_F2 a RF_F7 Licenças de software', {
   buscar: 'consulta de uma licença e suas instâncias',
   registrar: 'registro de licença (RF_F2)',
   alterar: 'correção dos dados da licença',
-  excluir: 'exclusão de licença sem vínculos',
   revelarChave: 'exibição da chave de ativação',
   alocar: 'alocação de instância e registro de utilização (RF_F3)',
   transferir: 'transferência de instância (RF_F4)',

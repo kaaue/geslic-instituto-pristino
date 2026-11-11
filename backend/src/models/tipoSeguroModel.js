@@ -8,7 +8,6 @@
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
-const { bloquearExclusaoComVinculos, contarVinculos, juntar } = require('./cadastroComum');
 
 const COLUNAS_TIPO = `
     t.id_tipo_seguro, t.descricao, t.ativo,
@@ -18,17 +17,6 @@ const COLUNAS_COBERTURA = `
     c.id_cobertura, c.id_tipo_seguro, c.descricao, c.ativo,
     (SELECT COUNT(*) FROM vigencia_cobertura vc WHERE vc.id_cobertura = c.id_cobertura) +
     (SELECT COUNT(*) FROM item_cobertura ic WHERE ic.id_cobertura = c.id_cobertura) AS usos`;
-
-const VINCULOS_TIPO = [
-  { sql: 'SELECT COUNT(*) AS total FROM apolice WHERE id_tipo_seguro = ?', singular: 'apólice', plural: 'apólices' },
-  { sql: `SELECT COUNT(*) AS total FROM vigencia_cobertura vc JOIN cobertura c ON c.id_cobertura = vc.id_cobertura
-           WHERE c.id_tipo_seguro = ?`, singular: 'cobertura contratada em apólice', plural: 'coberturas contratadas em apólices' }
-];
-
-const VINCULOS_COBERTURA = [
-  { sql: 'SELECT COUNT(*) AS total FROM vigencia_cobertura WHERE id_cobertura = ?', singular: 'vigência de apólice', plural: 'vigências de apólices' },
-  { sql: 'SELECT COUNT(*) AS total FROM item_cobertura WHERE id_cobertura = ?', singular: 'item segurado', plural: 'itens segurados' }
-];
 
 const ativoBool = (l) => l && { ...l, ativo: Boolean(l.ativo) };
 
@@ -166,22 +154,6 @@ async function reativar(id, idUsuario) {
   });
 }
 
-// Excluir o tipo leva junto as coberturas dele, desde que nenhuma esteja em uso
-async function excluir(id, idUsuario) {
-  return comTransacao(async (conexao) => {
-    const atual = await buscarTipoOuFalhar(conexao, id, true);
-    await bloquearExclusaoComVinculos(conexao, VINCULOS_TIPO, id, `o tipo ${atual.descricao}`);
-    const [coberturas] = await conexao.query('SELECT descricao FROM cobertura WHERE id_tipo_seguro = ?', [id]);
-    await conexao.query('DELETE FROM cobertura WHERE id_tipo_seguro = ?', [id]);
-    await conexao.query('DELETE FROM tipo_seguro WHERE id_tipo_seguro = ?', [id]);
-    await registrarNoTipo(conexao, idUsuario, id, {
-      tipo: 'exclusao', descricao: `Tipo de seguro ${atual.descricao} excluído`,
-      antes: { descricao: atual.descricao, coberturas: coberturas.map((c) => c.descricao) }
-    });
-    return { excluido: true };
-  });
-}
-
 // ---------------------------------------------------------------
 // Coberturas
 // ---------------------------------------------------------------
@@ -245,25 +217,7 @@ async function reativarCobertura(id, idUsuario) {
   });
 }
 
-async function excluirCobertura(id, idUsuario) {
-  return comTransacao(async (conexao) => {
-    const atual = await buscarCoberturaOuFalhar(conexao, id, true);
-    const vinculos = await contarVinculos(conexao, VINCULOS_COBERTURA, id);
-    if (vinculos.length) {
-      throw AppError.conflito(
-        `A cobertura ${atual.descricao} é usada em ${juntar(vinculos.map((v) => v.texto))} e não pode ser excluída, ` +
-        'apenas inativada para novos registros (RN22).', 'CADASTRO_COM_VINCULOS');
-    }
-    await conexao.query('DELETE FROM cobertura WHERE id_cobertura = ?', [id]);
-    await registrarNoTipo(conexao, idUsuario, atual.id_tipo_seguro, {
-      tipo: 'exclusao', descricao: `Cobertura ${atual.descricao} excluída do tipo ${atual.tipo_seguro}`,
-      antes: { id_cobertura: id, descricao: atual.descricao }
-    });
-    return { excluida: true };
-  });
-}
-
 module.exports = {
-  listar, buscar, incluir, alterar, inativar, reativar, excluir,
-  listarCoberturas, incluirCobertura, alterarCobertura, inativarCobertura, reativarCobertura, excluirCobertura
+  listar, buscar, incluir, alterar, inativar, reativar,
+  listarCoberturas, incluirCobertura, alterarCobertura, inativarCobertura, reativarCobertura
 };

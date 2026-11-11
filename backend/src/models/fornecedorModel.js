@@ -7,7 +7,6 @@
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
-const { bloquearExclusaoComVinculos } = require('./cadastroComum');
 
 const COLUNAS = `
     f.id_fornecedor, f.razao_social, f.nome_fantasia, f.cnpj, f.tipo,
@@ -15,11 +14,6 @@ const COLUNAS = `
     (SELECT COUNT(DISTINCT v.id_licenca) FROM vigencia_licenca v
       WHERE v.id_fornecedor = f.id_fornecedor) AS licencas,
     (SELECT COUNT(*) FROM apolice a WHERE a.id_seguradora = f.id_fornecedor) AS apolices`;
-
-const VINCULOS = [
-  { sql: 'SELECT COUNT(DISTINCT id_licenca) AS total FROM vigencia_licenca WHERE id_fornecedor = ?', singular: 'licença', plural: 'licenças' },
-  { sql: 'SELECT COUNT(*) AS total FROM apolice WHERE id_seguradora = ?', singular: 'apólice', plural: 'apólices' }
-];
 
 const publico = (l) => l && { ...l, ativo: Boolean(l.ativo) };
 
@@ -142,17 +136,4 @@ async function reativar(id, idUsuario) {
   });
 }
 
-async function excluir(id, idUsuario) {
-  return comTransacao(async (conexao) => {
-    const atual = await buscarOuFalhar(conexao, id, true);
-    await bloquearExclusaoComVinculos(conexao, VINCULOS, id, `${nomeCurto(atual)}`);
-    await conexao.query('DELETE FROM fornecedor WHERE id_fornecedor = ?', [id]);
-    await Historico.registrar(conexao, {
-      idUsuario, tipo: 'exclusao', entidade: 'fornecedor', idRegistro: id,
-      descricao: `${nomeCurto(atual)} excluído`, antes: retrato(atual)
-    });
-    return { excluido: true };
-  });
-}
-
-module.exports = { listar, buscar, incluir, alterar, inativar, reativar, excluir };
+module.exports = { listar, buscar, incluir, alterar, inativar, reativar };

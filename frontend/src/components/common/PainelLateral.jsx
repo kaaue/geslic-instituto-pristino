@@ -1,23 +1,15 @@
 // Painel lateral à direita, aberto somente por Novo, Editar ou uma ação
 // (padrão dos cadastros, seção 2.3.2 e Apêndice 2). Escurece a tela atrás;
-// clicar no fundo ou apertar Esc fecha. Com aoEnviar, o conteúdo é um
+// clicar no fundo ou apertar Esc fecha (tratado pela Sobreposicao). Com aoEnviar, o conteúdo é um
 // formulário e o botão do tipo submit do rodapé o envia.
 
-import { useEffect, useId } from 'react';
+import { useId } from 'react';
 import Sobreposicao from './Sobreposicao.jsx';
 
 export default function PainelLateral({
   titulo, subtitulo, aoFechar, aoEnviar, rodape, children, largo = false, janela = false
 }) {
   const idTitulo = useId();
-
-  useEffect(() => {
-    function tecla(evento) {
-      if (evento.key === 'Escape') aoFechar();
-    }
-    window.addEventListener('keydown', tecla);
-    return () => window.removeEventListener('keydown', tecla);
-  }, [aoFechar]);
 
   const Raiz = aoEnviar ? 'form' : 'div';
   const classe = janela ? `janela ${largo ? 'janela-larga' : ''}` : `painel ${largo ? 'painel-largo' : ''}`;

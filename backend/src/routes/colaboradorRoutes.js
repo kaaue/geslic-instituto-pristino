@@ -1,8 +1,8 @@
 // Rotas da RF_B4 - Gerenciar colaboradores.
 // Permissões (RN21): consultar e incluir - Operador e Administrador;
-// corrigir, desligar (com data efetiva, RN07 e RN37), reativar e excluir
-// (sem vínculos, RN22) - somente o Administrador. O Operador pede a
-// correção por solicitação de ajuste (RF_B10).
+// corrigir, desligar (com data efetiva, RN07 e RN37) e reativar - somente o
+// Administrador. O Operador pede a correção por solicitação de ajuste
+// (RF_B10). Não há exclusão (RN22).
 
 const express = require('express');
 const controller = require('../controllers/colaboradorController');

@@ -1,7 +1,7 @@
 // Rotas da RF_B5 - Gerenciar setores.
 // Permissões (RN21): consultar, incluir e inativar (com data efetiva, RN37) -
-// Operador e Administrador; corrigir (inclusive a situação), reativar e
-// excluir (sem vínculos, RN22) - somente o Administrador.
+// Operador e Administrador; corrigir (inclusive a situação) e reativar -
+// somente o Administrador. Não há exclusão (RN22).
 
 const express = require('express');
 const controller = require('../controllers/setorController');

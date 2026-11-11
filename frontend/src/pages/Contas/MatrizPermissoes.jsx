@@ -29,7 +29,7 @@ export default function MatrizPermissoes({ dados }) {
                   return (
                     <td key={p.id_perfil}>
                       {celula?.permitido
-                        ? <strong style={{ color: 'var(--verde-texto)', whiteSpace: 'nowrap' }}>✓ Permitido</strong>
+                        ? <strong style={{ color: 'var(--sucesso-texto)', whiteSpace: 'nowrap' }}>✓ Permitido</strong>
                         : <span className="vazio" style={{ whiteSpace: 'nowrap' }}>— Não</span>}
                       {celula?.observacao && <span className="marca-alocado">{celula.observacao}</span>}
                     </td>

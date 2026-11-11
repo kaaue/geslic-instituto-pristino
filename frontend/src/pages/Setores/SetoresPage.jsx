@@ -2,9 +2,9 @@
 // Lista pré-cadastrada, com inclusão de novos setores. Mostra o coordenador
 // (colaborador ativo) e a quantidade de colaboradores, equipamentos e bens
 // de cada setor. A inativação exige data efetiva, exibida no setor inativo
-// (RN37); setores com vínculos não podem ser excluídos (RN22).
+// (RN37); setores não são excluídos, apenas inativados (RN22).
 // Permissões (RN21): o Operador consulta, inclui e inativa; corrigir
-// (inclusive a situação), reativar e excluir são do Administrador.
+// (inclusive a situação) e reativar são do Administrador.
 
 import { useCallback, useEffect, useState } from 'react';
 import useAuth from '../../hooks/useAuth';
@@ -88,8 +88,8 @@ function FormularioSetor({ registro, colaboradores, controle, aoSalvar }) {
         </div>
       )}
       <p className="aviso-info">
-        Inativar exige data efetiva; o registro guarda também a data e a hora da operação (RN37). Com colaboradores,
-        equipamentos e bens vinculados, o setor não pode ser excluído (RN22).
+        Inativar exige data efetiva; o registro guarda também a data e a hora da operação (RN37). Setores não são
+        excluídos: o setor inativo sai das listas de novos cadastros e mantém os vínculos (RN22).
       </p>
     </PainelLateral>
   );

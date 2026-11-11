@@ -1,6 +1,7 @@
 // Rotas da RF_B3 - Gerenciar equipamentos.
 // Permissões (RN21): consultar, incluir e inativar (descarte, com a RN08) -
-// Operador e Administrador; alterar e excluir - somente o Administrador.
+// Operador e Administrador; alterar e reativar - somente o Administrador.
+// Não há exclusão (RN22).
 
 const express = require('express');
 const controller = require('../controllers/equipamentoController');

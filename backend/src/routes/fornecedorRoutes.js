@@ -1,7 +1,7 @@
 // Rotas da RF_B1 - Gerenciar fornecedores e seguradoras.
 // Permissões (RN21): consultar, incluir e inativar (com data efetiva, RN37) -
-// Operador e Administrador; corrigir, reativar e excluir (sem vínculos,
-// RN22) - somente o Administrador.
+// Operador e Administrador; corrigir e reativar - somente o Administrador.
+// Não há exclusão (RN22).
 
 const express = require('express');
 const controller = require('../controllers/fornecedorController');

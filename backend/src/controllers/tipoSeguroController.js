@@ -40,8 +40,5 @@ module.exports = {
   },
   async reativarCobertura(req, res) {
     res.json(await TipoSeguro.reativarCobertura(idCobertura(req), contaDaSessao(req)));
-  },
-  async excluirCobertura(req, res) {
-    res.json(await TipoSeguro.excluirCobertura(idCobertura(req), contaDaSessao(req)));
   }
 };
