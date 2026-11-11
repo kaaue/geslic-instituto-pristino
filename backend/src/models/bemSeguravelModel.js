@@ -6,9 +6,9 @@
 // na listagem e na consulta, inclusive quando há vários (RN40). Não exige
 // etiqueta do Instituto.
 //
-// Equipamentos (RF_B3) também são bens e aparecem aqui, para poderem ser
-// segurados sem novo cadastro; inativação e exclusão deles seguem pelo
-// cadastro de Equipamentos, por causa da RN08.
+// Equipamentos (RF_B3) ficam de fora: são outro cadastro e não são
+// segurados. No banco eles também têm uma linha em "bem" (especialização),
+// por isso toda consulta daqui descarta os bens que têm linha em equipamento.
 
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
@@ -17,21 +17,17 @@ const Historico = require('./historicoModel');
 const COLUNAS = `
     b.id_bem, b.categoria, b.identificacao, b.patrimonio, b.placa, b.numero_serie, b.endereco,
     b.renavam, b.ano_modelo, b.matricula, b.area_construida_m2, b.valor, b.id_setor,
-    s.nome AS nome_setor, b.situacao, DATE_FORMAT(b.data_inativacao, '%Y-%m-%d') AS data_inativacao,
-    e.etiqueta_instituto`;
+    s.nome AS nome_setor, b.situacao, DATE_FORMAT(b.data_inativacao, '%Y-%m-%d') AS data_inativacao`;
 
 const TABELAS = `
     FROM bem b
     LEFT JOIN setor s       ON s.id_setor = b.id_setor
     LEFT JOIN equipamento e ON e.id_equipamento = b.id_bem`;
 
-const ROTULO_CATEGORIA = { veiculo: 'Veículo', imovel: 'Imóvel', drone: 'Drone', equipamento: 'Equipamento', outro: 'Outro' };
+// Só os bens que não são equipamentos da RF_B3
+const NAO_E_EQUIPAMENTO = 'e.id_equipamento IS NULL';
 
-function publico(linha) {
-  if (!linha) return null;
-  const { etiqueta_instituto: etiqueta, ...resto } = linha;
-  return { ...resto, e_equipamento: Boolean(etiqueta), etiqueta_instituto: etiqueta || null };
-}
+const ROTULO_CATEGORIA = { veiculo: 'Veículo', imovel: 'Imóvel', drone: 'Drone', equipamento: 'Equipamento', outro: 'Outro' };
 
 const nomeDoBem = (b) => `${ROTULO_CATEGORIA[b.categoria] || 'Bem'} ${b.identificacao}`;
 
@@ -90,9 +86,9 @@ async function comApolices(conexao, bens) {
 
 async function buscarOuFalhar(conexao, id, bloquear = false) {
   const [linhas] = await conexao.query(
-    `SELECT ${COLUNAS} ${TABELAS} WHERE b.id_bem = ? ${bloquear ? 'FOR UPDATE' : ''}`, [id]);
+    `SELECT ${COLUNAS} ${TABELAS} WHERE b.id_bem = ? AND ${NAO_E_EQUIPAMENTO} ${bloquear ? 'FOR UPDATE' : ''}`, [id]);
   if (!linhas[0]) throw AppError.naoEncontrado('Bem não encontrado.');
-  return publico(linhas[0]);
+  return linhas[0];
 }
 
 // Placa identifica o veículo: não se repete
@@ -109,24 +105,14 @@ async function conferirSetor(conexao, idSetor, idSetorAtual) {
   if (!setor.ativo && idSetor !== idSetorAtual) throw AppError.campos({ id_setor: 'Este setor está inativo.' });
 }
 
-// Inativar, reativar e excluir um equipamento seguem pelo cadastro de
-// Equipamentos (RN08 e vínculos com licenças)
-function recusarSeEquipamento(bem, acao) {
-  if (bem.e_equipamento) {
-    throw AppError.conflito(
-      `Este bem é o equipamento ${bem.etiqueta_instituto}: para ${acao}, use o cadastro de Equipamentos (RN08).`,
-      'BEM_E_EQUIPAMENTO');
-  }
-}
-
 async function listar(filtros = {}) {
-  const condicoes = [];
+  const condicoes = [NAO_E_EQUIPAMENTO];
   const valores = [];
   if (filtros.busca) {
     const termo = `%${String(filtros.busca).trim()}%`;
     condicoes.push(`(b.identificacao LIKE ? OR b.placa LIKE ? OR b.numero_serie LIKE ? OR b.patrimonio LIKE ?
-                     OR b.endereco LIKE ? OR e.etiqueta_instituto LIKE ?)`);
-    valores.push(termo, termo, termo, termo, termo, termo);
+                     OR b.endereco LIKE ?)`);
+    valores.push(termo, termo, termo, termo, termo);
   }
   if (Object.keys(ROTULO_CATEGORIA).includes(filtros.categoria)) {
     condicoes.push('b.categoria = ?');
@@ -142,12 +128,11 @@ async function listar(filtros = {}) {
   }
   const [linhas] = await pool.query(
     `SELECT ${COLUNAS} ${TABELAS}
-      ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''}
+      WHERE ${condicoes.join(' AND ')}
       ORDER BY b.situacao = 'inativo', FIELD(b.categoria, 'veiculo', 'drone', 'imovel', 'equipamento', 'outro'), b.identificacao`,
     valores);
-  return comApolices(pool, linhas.map(publico));
+  return comApolices(pool, linhas);
 }
-
 
 async function buscar(id) {
   const [bem] = await comApolices(pool, [await buscarOuFalhar(pool, id)]);
@@ -172,17 +157,10 @@ async function incluir(dados, idUsuario) {
   });
 }
 
-// Correção pelo Administrador. Num equipamento, a categoria continua
-// "equipamento" e o setor continua obrigatório.
+// Correção pelo Administrador
 async function alterar(id, dados, idUsuario) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id, true);
-    if (atual.e_equipamento) {
-      if (dados.categoria !== 'equipamento') {
-        throw AppError.campos({ categoria: 'Este bem é um equipamento do cadastro de Equipamentos; a categoria não muda.' });
-      }
-      if (!dados.id_setor) throw AppError.campos({ id_setor: 'Selecione o setor do equipamento.' });
-    }
     await conferirPlaca(conexao, dados.placa, id);
     await conferirSetor(conexao, dados.id_setor, atual.id_setor);
     await conexao.query(
@@ -203,7 +181,6 @@ async function alterar(id, dados, idUsuario) {
 async function inativar(id, evento, idUsuario) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id, true);
-    recusarSeEquipamento(atual, 'inativar');
     if (atual.situacao === 'inativo') throw AppError.conflito('Este bem já está inativo.');
     await conexao.query(`UPDATE bem SET situacao = 'inativo', data_inativacao = ? WHERE id_bem = ?`, [evento.data_efetiva, id]);
     await Historico.registrar(conexao, {
@@ -219,7 +196,6 @@ async function inativar(id, evento, idUsuario) {
 async function reativar(id, idUsuario) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id, true);
-    recusarSeEquipamento(atual, 'reativar');
     if (atual.situacao === 'ativo') throw AppError.conflito('Este bem já está ativo.');
     await conexao.query(`UPDATE bem SET situacao = 'ativo', data_inativacao = NULL WHERE id_bem = ?`, [id]);
     await Historico.registrar(conexao, {
