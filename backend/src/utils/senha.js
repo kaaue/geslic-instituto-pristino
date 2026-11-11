@@ -1,4 +1,4 @@
-// Hash e regras de senha das contas de acesso (RF_B9, seção 2.3.2 da ERS).
+// Hash e regras de senha das contas de acesso (RF_B8, seção 2.3.2 da ERS).
 // A senha nunca é gravada em texto aberto: guardo o scrypt dela com um sal
 // aleatório, no formato "scrypt$<sal>$<hash>", ambos em base64. O scrypt vem
 // no próprio Node, então não há dependência extra.

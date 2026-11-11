@@ -10,7 +10,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const rotas = express.Router();
 const p = exigirPermissao('relatorio.consultar');
 
-rotas.get('/painel', p, asyncHandler(painel.consultar));
+// O painel é de todos (painel.consultar); os relatórios, só do Administrador (RN41)
+rotas.get('/painel', exigirPermissao('painel.consultar'), asyncHandler(painel.consultar));
 rotas.get('/relatorios/licencas', p, asyncHandler(relatorios.licencas));
 rotas.get('/relatorios/mapa-licencas', p, asyncHandler(relatorios.mapaLicencas));
 rotas.get('/relatorios/apolices', p, asyncHandler(relatorios.apolices));

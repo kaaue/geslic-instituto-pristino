@@ -1,4 +1,4 @@
-// Licenças de software: RF_F1 a RF_F6 e RF_S2 (em desenvolvimento: a API responde 501)
+// Licenças de software: RF_F2 a RF_F7 e RF_S2 (em desenvolvimento: a API responde 501)
 
 import { requisicao, consultaFiltros, enviarJson } from './api';
 

@@ -1,5 +1,12 @@
-// Controller da RF_B2 Gerenciar softwares - EM DESENVOLVIMENTO: repassa ao model, que responde 501.
+// Controller da RF_B2 - Gerenciar softwares.
 
-const { controllerPendente } = require('../utils/pendente');
+const Software = require('../models/softwareModel');
+const { controllerDeCadastro } = require('../utils/controllerCadastro');
+const { validarSoftware } = require('../models/softwareValidacao');
 
-module.exports = controllerPendente(require('../models/softwareModel'));
+module.exports = {
+  ...controllerDeCadastro(Software, validarSoftware),
+  async listarCategorias(req, res) {
+    res.json(await Software.listarCategorias());
+  }
+};

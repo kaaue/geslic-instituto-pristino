@@ -9,6 +9,7 @@ module.exports = function errorHandler(erro, req, res, proximo) {
   if (erro instanceof AppError) {
     const corpo = erro.erros ? { erros: erro.erros } : { mensagem: erro.message };
     if (erro.codigo) corpo.codigo = erro.codigo;
+    if (erro.dados) Object.assign(corpo, erro.dados);
     return res.status(erro.status).json(corpo);
   }
 

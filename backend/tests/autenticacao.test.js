@@ -56,7 +56,7 @@ test('sem sessão, as rotas protegidas respondem 401; cabeçalho de perfil do cl
 
 test('operador com cabeçalho X-Perfil de administrador continua sem permissão (403)', async () => {
   const op = await t.entrarOperador();
-  const r = await op.delete('/projetos/7', { 'X-Perfil': 'administrador' });
+  const r = await op.put('/projetos/7', { codigo: '0007', nome: 'X' }, { 'X-Perfil': 'administrador' });
   assert.equal(r.status, 403);
   assert.equal(r.corpo.codigo, 'SEM_PERMISSAO');
 });
@@ -92,7 +92,7 @@ test('sessão além da validade máxima expira', async () => {
 });
 
 test('conta pendente não entra (403) e só descobre isso quem acerta a senha', async () => {
-  await t.cliente().post('/auth/cadastro', {
+  await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Pessoa Pendente', email: 'pendente@pristino.org.br', login: 'pessoa.pendente',
     senha: 'Pendente2026', confirmacao: 'Pendente2026'
   });

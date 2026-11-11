@@ -1,7 +1,8 @@
-// Listagem dos projetos.
+// Listagem dos projetos: só visualização, com uma ação por linha, "Gerenciar",
+// que abre o painel lateral do projeto (dados, participantes, vigência,
+// encerramento, reabertura e histórico).
 // O término previsto mostra o aviso de prazo (RN24: antecedência padrão de
-// seis meses) e os recursos vinculados ajudam a entender por que um projeto
-// não pode ser excluído (RN22).
+// seis meses).
 
 import { dataDaApi } from '../../utils/mascaras';
 
@@ -24,10 +25,7 @@ function textoRecursos(p) {
   return partes.join(' · ');
 }
 
-// permissoes: { alterar, excluir, prorrogar, encerrar }, da conta (vindas da API)
-export default function TabelaProjetos({
-  projetos, permissoes, carregando, aoEditar, aoExcluir, aoEncerrar, aoProrrogar
-}) {
+export default function TabelaProjetos({ projetos, carregando, aoGerenciar }) {
   if (carregando) {
     return <p className="estado-vazio">Carregando projetos...</p>;
   }
@@ -40,8 +38,6 @@ export default function TabelaProjetos({
     );
   }
 
-  const somenteAdmin = 'Exclusivo do perfil Administrador';
-
   return (
     <div className="tabela-area">
       <table className="tabela">
@@ -49,12 +45,11 @@ export default function TabelaProjetos({
           <tr>
             <th>Código</th>
             <th>Nome</th>
-            <th>Fonte financiadora</th>
-            <th>Responsável</th>
+            <th>Responsável e setor</th>
             <th>Início</th>
             <th>Término previsto</th>
             <th>Situação</th>
-            <th>Recursos vinculados</th>
+            <th>Vínculos</th>
             <th aria-label="Ações"></th>
           </tr>
         </thead>
@@ -66,9 +61,11 @@ export default function TabelaProjetos({
             return (
               <tr key={p.id_projeto} className={andamento ? '' : 'linha-inativa'}>
                 <td className="col-etiqueta">{p.codigo}</td>
-                <td>{p.nome}</td>
-                <td>{p.fonte_financiadora}</td>
-                <td>{p.nome_responsavel || <span className="vazio">—</span>}</td>
+                <td>{p.nome}<small className="sublinha">{p.fonte_financiadora}</small></td>
+                <td>
+                  {p.nome_responsavel || <span className="vazio">—</span>}
+                  {p.nome_setor && <small className="sublinha">{p.nome_setor}</small>}
+                </td>
                 <td className="col-data">{dataDaApi(p.data_inicio)}</td>
                 <td className="col-data">
                   {p.data_fim_prevista ? dataDaApi(p.data_fim_prevista) : <span className="vazio">sem término</span>}
@@ -83,28 +80,9 @@ export default function TabelaProjetos({
                   )}
                 </td>
                 <td className="col-recursos">{recursos || <span className="vazio">nenhum</span>}</td>
-                <td className="col-acoes col-acoes-varias">
-                  <button type="button" className="botao-texto" onClick={() => aoEditar(p)}>
-                    {permissoes.alterar ? 'Editar' : 'Ver'}
-                  </button>
-                  {andamento && permissoes.prorrogar && (
-                    <button type="button" className="botao-texto" onClick={() => aoProrrogar(p)}>
-                      Prorrogar
-                    </button>
-                  )}
-                  {andamento && permissoes.encerrar && (
-                    <button type="button" className="botao-texto" onClick={() => aoEncerrar(p)}>
-                      Encerrar
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="botao-texto botao-perigo"
-                    onClick={() => aoExcluir(p)}
-                    disabled={!permissoes.excluir}
-                    title={permissoes.excluir ? 'Excluir projeto' : somenteAdmin}
-                  >
-                    Excluir
+                <td className="col-acoes">
+                  <button type="button" className="botao-texto" onClick={() => aoGerenciar(p)}>
+                    Gerenciar
                   </button>
                 </td>
               </tr>

@@ -1,4 +1,4 @@
-// Histórico de movimentações e auditoria (Protótipo 28; RF_S7, RF_F13, RN22).
+// Histórico de movimentações e auditoria (Protótipo 28; RF_S7, RF_F14, RN22).
 // Tela exclusiva do Administrador. Registro imutável com a data e hora do
 // registro, a data efetiva, o evento, o registro afetado, o detalhe e a conta
 // responsável. Os dados vêm do banco, com filtros e paginação na API.
@@ -17,11 +17,16 @@ const FILTROS_VAZIOS = { inicio: '', fim: '', tipo: '', entidade: '', id_usuario
 
 const ROTULO_TIPO = {
   criacao: 'Criação', correcao: 'Correção', exclusao: 'Exclusão', inativacao: 'Inativação',
-  reativacao: 'Reativação', encerramento: 'Encerramento', prorrogacao: 'Prorrogação',
+  reativacao: 'Reativação', encerramento: 'Encerramento', reabertura: 'Reabertura', prorrogacao: 'Prorrogação',
   aprovacao: 'Aprovação de acesso', rejeicao: 'Recusa de acesso', perfil: 'Alteração de perfil',
-  senha: 'Senha', permissao: 'Permissões'
+  senha: 'Senha', permissao: 'Permissões', desligamento: 'Desligamento',
+  solicitacao: 'Solicitação de ajuste', conclusao: 'Conclusão de solicitação'
 };
-const ROTULO_ENTIDADE = { equipamento: 'Equipamento', projeto: 'Projeto', usuario: 'Conta', perfil: 'Perfil' };
+const ROTULO_ENTIDADE = {
+  equipamento: 'Equipamento', projeto: 'Projeto', usuario: 'Conta', perfil: 'Perfil',
+  fornecedor: 'Fornecedor ou seguradora', software: 'Software', colaborador: 'Colaborador', setor: 'Setor',
+  bem: 'Bem segurável', tipo_seguro: 'Tipo de seguro', solicitacao_ajuste: 'Solicitação de ajuste'
+};
 
 const rotulo = (mapa, valor) => mapa[valor] || valor;
 

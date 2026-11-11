@@ -1,5 +1,5 @@
 // Model da RF_S8 Consultar a central de notificações - EM DESENVOLVIMENTO.
-// Avisos da própria conta, gerados pela rotina RF_F12; abrir a lista marca como lidos (RN24).
+// Avisos da própria conta, gerados pela rotina RF_F13; abrir a lista marca como lidos (RN24).
 // Cada operação responde 501 até ser implementada (ver utils/pendente.js).
 
 const { modelPendente } = require('../utils/pendente');

@@ -72,7 +72,7 @@ test('um pedido novo invalida o link anterior', async () => {
 });
 
 test('conta pendente ou inativa não recebe link', async () => {
-  await t.cliente().post('/auth/cadastro', {
+  await t.cliente().post('/auth/cadastro', { id_setor: 1,
     nome: 'Pendente Recupera', email: 'pendente.rec@pristino.org.br', login: 'pendente.rec',
     senha: 'Pendente2026', confirmacao: 'Pendente2026'
   });

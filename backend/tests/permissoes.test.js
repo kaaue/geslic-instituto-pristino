@@ -1,4 +1,4 @@
-// Permissões nas funções básicas existentes (RF_B3, RF_B6), histórico e
+// Permissões nas funções existentes de equipamentos e projetos (RF_B3, RF_F1), histórico e
 // funções ainda em desenvolvimento.
 
 const { test, before, after, beforeEach } = require('node:test');
@@ -13,7 +13,7 @@ const EQUIPAMENTO = {
   etiqueta_instituto: 'IP0150', identificacao: 'Notebook de teste', tipo: 'Notebook', id_setor: 2, id_responsavel: 3
 };
 
-test('operador inclui e consulta equipamentos, mas não altera nem exclui', async () => {
+test('operador inclui e consulta equipamentos, mas não altera; não há exclusão', async () => {
   const op = await t.entrarOperador();
   assert.equal((await op.get('/equipamentos')).status, 200);
   const criado = await op.post('/equipamentos', EQUIPAMENTO);
@@ -22,31 +22,53 @@ test('operador inclui e consulta equipamentos, mas não altera nem exclui', asyn
 
   const alterar = await op.put(`/equipamentos/${id}`, { ...EQUIPAMENTO, identificacao: 'Outro nome' });
   assert.equal(alterar.status, 403);
-  assert.equal((await op.delete(`/equipamentos/${id}`)).status, 403);
+  assert.equal((await op.delete(`/equipamentos/${id}`)).status, 405);
 
   const [{ identificacao }] = await t.sql('SELECT identificacao FROM bem WHERE id_bem = ?', [id]);
   assert.equal(identificacao, 'Notebook de teste');
 });
 
-test('operador inativa equipamento (descarte) e a RN08 continua valendo', async () => {
+test('operador inativa equipamento (descarte) com data efetiva e motivo, e a RN08 continua valendo', async () => {
   const op = await t.entrarOperador();
+  // sem data efetiva nem motivo, recusa (RN37)
+  const semDados = await op.post('/equipamentos/6/inativacao', {});
+  assert.equal(semDados.status, 400);
+  assert.ok(semDados.corpo.erros.data_efetiva && semDados.corpo.erros.motivo);
+  assert.equal((await op.post('/equipamentos/6/inativacao', { data_efetiva: '2999-01-01', motivo: 'x' })).status, 400);
+
   // IP0106 (id 6) tem instância NÃO transferível alocada
-  const r = await op.post('/equipamentos/6/inativacao');
+  const dataEfetiva = t.dataLocal(-3);
+  const r = await op.post('/equipamentos/6/inativacao', { data_efetiva: dataEfetiva, motivo: 'Placa-mãe danificada' });
   assert.equal(r.status, 200);
   assert.equal(r.corpo.instancias_inativadas, 1);
-  assert.equal((await op.post('/equipamentos/6/inativacao')).status, 409);
+  assert.equal((await op.post('/equipamentos/6/inativacao', { data_efetiva: dataEfetiva, motivo: 'de novo' })).status, 409);
+
+  // a data efetiva vai para o bem, para a instância e para o evento, separada do registro
+  const [bem] = await t.sql(`SELECT DATE_FORMAT(data_inativacao, '%Y-%m-%d') AS d FROM bem WHERE id_bem = 6`);
+  assert.equal(bem.d, dataEfetiva);
+  const [instancia] = await t.sql(`SELECT situacao, DATE_FORMAT(data_inativacao, '%Y-%m-%d') AS d FROM instancia WHERE id_instancia = 2`);
+  assert.deepEqual({ ...instancia }, { situacao: 'inativa', d: dataEfetiva });
+  const [evento] = await t.sql(
+    `SELECT DATE_FORMAT(data_evento, '%Y-%m-%d') AS d, DATE(registrado_em) = CURDATE() AS hoje, motivo
+       FROM movimentacao WHERE entidade = 'equipamento' AND id_registro = 6 AND tipo = 'inativacao'`);
+  assert.equal(evento.d, dataEfetiva);
+  assert.equal(evento.hoje, 1);
+  assert.equal(evento.motivo, 'Placa-mãe danificada');
+  // a alocação da instância inativada termina na data efetiva
+  const [alocacao] = await t.sql(`SELECT DATE_FORMAT(data_fim, '%Y-%m-%d') AS fim FROM alocacao WHERE id_instancia = 2`);
+  assert.equal(alocacao.fim, dataEfetiva);
 });
 
-test('administrador altera e exclui equipamento; exclusão com vínculo segue bloqueada (RN22)', async () => {
+test('administrador altera equipamento; nenhum cadastro é excluído (405), nem pelo Administrador', async () => {
   const admin = await t.entrarAdmin();
   const criado = await admin.post('/equipamentos', { ...EQUIPAMENTO, etiqueta_instituto: 'IP0151' });
   const id = criado.corpo.id_equipamento;
   assert.equal((await admin.put(`/equipamentos/${id}`, { ...EQUIPAMENTO, etiqueta_instituto: 'IP0151', tipo: 'Desktop' })).status, 200);
-  assert.equal((await admin.delete(`/equipamentos/${id}`)).status, 200);
-  assert.equal((await admin.delete('/equipamentos/1')).status, 409);
+  assert.equal((await admin.delete(`/equipamentos/${id}`)).status, 405);
+  assert.equal((await admin.delete('/equipamentos/1')).status, 405);
 });
 
-test('operador inclui, prorroga e encerra projetos, mas não altera nem exclui', async () => {
+test('operador inclui, prorroga e encerra projetos, mas não altera; não há exclusão', async () => {
   const op = await t.entrarOperador();
   const criado = await op.post('/projetos', {
     codigo: '1700', nome: 'Projeto do Operador', fonte_financiadora: 'Teste',
@@ -58,7 +80,7 @@ test('operador inclui, prorroga e encerra projetos, mas não altera nem exclui',
   assert.equal((await op.put(`/projetos/${id}`, {
     codigo: '1700', nome: 'Renomeado', fonte_financiadora: 'Teste', data_inicio: '2026-01-01', id_responsavel: 1
   })).status, 403);
-  assert.equal((await op.delete(`/projetos/${id}`)).status, 403);
+  assert.equal((await op.delete(`/projetos/${id}`)).status, 405);
 
   assert.equal((await op.post(`/projetos/${id}/prorrogacao`, { data_fim_prevista: '2027-06-30' })).status, 200);
   assert.equal((await op.post(`/projetos/${id}/encerramento`, { data_encerramento: '2026-03-01' })).status, 200);
@@ -98,7 +120,7 @@ test('eventos do histórico não podem ser alterados nem excluídos, nem direto 
 
 test('funções ainda não implementadas respondem 501, depois da autorização', async () => {
   const admin = await t.entrarAdmin();
-  for (const caminho of ['/fornecedores', '/softwares', '/licencas', '/apolices', '/painel', '/relatorios/financeiro', '/notificacoes', '/conta/preferencias']) {
+  for (const caminho of ['/licencas', '/apolices', '/painel', '/relatorios/financeiro', '/notificacoes']) {
     const r = await admin.get(caminho);
     assert.equal(r.status, 501, caminho);
     assert.equal(r.corpo.codigo, 'NAO_IMPLEMENTADO');

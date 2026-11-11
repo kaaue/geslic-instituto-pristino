@@ -1,4 +1,4 @@
-// Histórico de movimentações e auditoria (RF_S7, RF_F13): exclusivo de quem
+// Histórico de movimentações e auditoria (RF_S7, RF_F14): exclusivo de quem
 // tem auditoria.consultar (o Administrador).
 
 const express = require('express');

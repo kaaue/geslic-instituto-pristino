@@ -1,5 +1,6 @@
-// Controller da RF_B1 Gerenciar fornecedores e seguradoras - EM DESENVOLVIMENTO: repassa ao model, que responde 501.
+// Controller da RF_B1 - Gerenciar fornecedores e seguradoras.
 
-const { controllerPendente } = require('../utils/pendente');
+const { controllerDeCadastro } = require('../utils/controllerCadastro');
+const { validarFornecedor } = require('../models/fornecedorValidacao');
 
-module.exports = controllerPendente(require('../models/fornecedorModel'));
+module.exports = controllerDeCadastro(require('../models/fornecedorModel'), validarFornecedor);

@@ -1,4 +1,4 @@
-// RF_B1 Gerenciar fornecedores e seguradoras (em desenvolvimento: a API responde 501)
+// RF_B1 Gerenciar fornecedores e seguradoras
 
 import { servicoDeCadastro } from './api';
 

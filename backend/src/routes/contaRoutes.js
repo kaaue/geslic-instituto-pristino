@@ -1,5 +1,7 @@
-// Minha conta (RF_B9) e preferências de notificação (RF_B10): qualquer conta
-// autenticada, sempre sobre a própria conta.
+// Minha conta (RF_B8) e preferências de notificação (RF_B9): qualquer conta
+// autenticada, sempre sobre a própria conta. PUT / salva os dados e, se
+// vierem, a troca de senha, num único bloco; PUT /senha é a troca só da
+// senha (usada na troca obrigatória da senha provisória).
 
 const express = require('express');
 const conta = require('../controllers/contaController');

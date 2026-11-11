@@ -1,4 +1,4 @@
-// Contas e perfis de acesso (RF_B9): exclusivo do Administrador
+// Contas e perfis de acesso (RF_B8): exclusivo do Administrador
 
 import { requisicao, consultaFiltros, enviarJson } from './api';
 
@@ -12,6 +12,7 @@ export const alterarSituacao = (id, situacao, motivo) =>
   requisicao(`/api/usuarios/${id}/situacao`, enviarJson('PATCH', { situacao, motivo }));
 export const definirSenhaProvisoria = (id) => requisicao(`/api/usuarios/${id}/senha-provisoria`, { method: 'POST' });
 
+// Perfis e a matriz explicativa, não editável (RN41)
 export const listarPerfis = () => requisicao('/api/perfis');
-export const definirPermissoes = (idPerfil, permissoes) =>
-  requisicao(`/api/perfis/${idPerfil}/permissoes`, enviarJson('PUT', { permissoes }));
+// Troca de gestão: concede e revoga o perfil Administrador numa só operação (RN27)
+export const transferirAdministrador = (dados) => requisicao('/api/usuarios/transferencia-administrador', enviarJson('POST', dados));

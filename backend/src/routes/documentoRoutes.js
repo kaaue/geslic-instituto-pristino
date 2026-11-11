@@ -1,4 +1,4 @@
-// Documentos PDF de licenças e apólices: RF_F11 (em desenvolvimento: 501).
+// Documentos PDF de licenças e apólices: RF_F12 (em desenvolvimento: 501).
 // Acessíveis só por contas autenticadas com documento.gerenciar (seção 2.3.2).
 
 const express = require('express');

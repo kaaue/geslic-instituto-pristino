@@ -1,4 +1,4 @@
-// Controller da RF_B6 - Gerenciar projetos institucionais.
+// Controller da RF_F1 - Gerenciar projetos institucionais.
 // Lê a requisição, valida a entrada, chama o model e devolve a resposta.
 // As regras dos dados (RN17, RN18, RN19, RN22) ficam no model; quem pode cada
 // operação (RN21) é decidido nas rotas.
@@ -45,8 +45,8 @@ async function encerrar(req, res) {
   res.json(await Projeto.encerrar(Number(req.params.id), req.body, responsavel(req)));
 }
 
-async function excluir(req, res) {
-  res.json(await Projeto.excluir(Number(req.params.id), responsavel(req)));
+async function reabrir(req, res) {
+  res.json(await Projeto.reabrir(Number(req.params.id), req.body, responsavel(req)));
 }
 
-module.exports = { listar, listarFontes, listarAnos, buscar, incluir, alterar, prorrogar, encerrar, excluir };
+module.exports = { listar, listarFontes, listarAnos, buscar, incluir, alterar, prorrogar, encerrar, reabrir };

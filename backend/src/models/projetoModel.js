@@ -1,22 +1,25 @@
-// Model da RF_B6 - Gerenciar projetos institucionais: acesso ao banco e
+// Model da RF_F1 - Gerenciar projetos institucionais: acesso ao banco e
 // regras dos dados.
 //
 // O encerramento é manual e não transfere, renova nem cancela recursos (RN17, RN18).
-// A exclusão só vale para projeto sem vínculos (RN22).
+// Projeto não é excluído: sai de uso pelo encerramento e pode ser reaberto,
+// com os dois eventos preservados no histórico.
+// O responsável sempre consta entre os participantes.
 // Quem pode cada operação (RN21) é decidido nas rotas, pelas permissões.
-// Cada escrita registra no histórico (RF_F13) a conta responsável.
+// Cada escrita registra no histórico (RF_F14) a conta responsável.
 
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const { lancarSeHouverErros } = require('../utils/AppError');
 const { validarEncerramento, validarProrrogacao } = require('./projetoValidacao');
 const Historico = require('./historicoModel');
+const { nomesSetoresSql } = require('./colaboradorSetor');
 
 // Campos que o histórico guarda antes e depois de cada alteração
 function retrato(p, participantes) {
   return {
     codigo: p.codigo, nome: p.nome, fonte_financiadora: p.fonte_financiadora,
-    id_responsavel: p.id_responsavel, data_inicio: p.data_inicio,
+    id_responsavel: p.id_responsavel, id_setor: p.id_setor ?? null, data_inicio: p.data_inicio,
     data_fim_prevista: p.data_fim_prevista, data_encerramento: p.data_encerramento ?? null,
     situacao: p.situacao ?? 'em_andamento',
     ...(participantes && { participantes })
@@ -43,6 +46,8 @@ const COLUNAS = `
     p.fonte_financiadora,
     p.id_responsavel,
     c.nome AS nome_responsavel,
+    p.id_setor,
+    st.nome AS nome_setor,
     DATE_FORMAT(p.data_inicio, '%Y-%m-%d')       AS data_inicio,
     DATE_FORMAT(p.data_fim_prevista, '%Y-%m-%d') AS data_fim_prevista,
     DATE_FORMAT(p.data_encerramento, '%Y-%m-%d') AS data_encerramento,
@@ -58,7 +63,8 @@ const COLUNAS = `
 
 const TABELAS = `
     FROM projeto p
-    LEFT JOIN colaborador c ON c.id_colaborador = p.id_responsavel`;
+    LEFT JOIN colaborador c ON c.id_colaborador = p.id_responsavel
+    LEFT JOIN setor st      ON st.id_setor = p.id_setor`;
 
 // Ano com quatro dígitos e, opcionalmente, o semestre (1 ou 2).
 // Sem ano válido, o filtro de período não é aplicado.
@@ -93,6 +99,14 @@ function montarConsulta(filtros) {
   if (filtros.fonte) {
     condicoes.push('p.fonte_financiadora = ?');
     valores.push(filtros.fonte);
+  }
+
+  // Setor responsável do projeto (RN43); "sem" lista os que ainda não têm
+  if (filtros.id_setor === 'sem') {
+    condicoes.push('p.id_setor IS NULL');
+  } else if (filtros.id_setor) {
+    condicoes.push('p.id_setor = ?');
+    valores.push(Number(filtros.id_setor));
   }
 
   // Prazo do término previsto, ligado aos avisos de vencimento
@@ -157,6 +171,14 @@ async function conferirResponsavel(conexao, idResponsavel) {
   return {};
 }
 
+// Setor responsável (opcional): precisa existir e, para vínculo novo, estar ativo
+async function conferirSetor(conexao, idSetor, idSetorAtual) {
+  if (!idSetor || idSetor === idSetorAtual) return {};
+  const [[setor]] = await conexao.query('SELECT ativo FROM setor WHERE id_setor = ?', [idSetor]);
+  if (!setor || !setor.ativo) return { id_setor: 'Selecione um setor ativo.' };
+  return {};
+}
+
 // Participantes: colaboradores já cadastrados. Um colaborador desligado não
 // entra como novo participante, mas continua no projeto se já participava.
 async function conferirParticipantes(conexao, ids, idProjeto) {
@@ -180,6 +202,14 @@ async function conferirParticipantes(conexao, ids, idProjeto) {
   return {};
 }
 
+// O responsável entra entre os participantes, sem repetir (a troca de
+// responsável não tira o anterior da lista)
+function comResponsavel(ids, idResponsavel) {
+  const lista = [...new Set((ids || []).map(Number))];
+  if (idResponsavel && !lista.includes(Number(idResponsavel))) lista.push(Number(idResponsavel));
+  return lista;
+}
+
 // Substitui as participações do projeto pela lista recebida
 async function gravarParticipantes(conexao, idProjeto, ids) {
   await conexao.query('DELETE FROM colaborador_projeto WHERE id_projeto = ?', [idProjeto]);
@@ -192,10 +222,9 @@ async function gravarParticipantes(conexao, idProjeto, ids) {
 
 async function listarParticipantes(conexao, idProjeto) {
   const [linhas] = await conexao.query(
-    `SELECT c.id_colaborador, c.nome, c.cargo, c.ativo, s.nome AS nome_setor
+    `SELECT c.id_colaborador, c.nome, c.cargo, c.ativo, ${nomesSetoresSql('c')} AS nome_setor
        FROM colaborador_projeto cp
        JOIN colaborador c ON c.id_colaborador = cp.id_colaborador
-       JOIN setor s       ON s.id_setor = c.id_setor
       WHERE cp.id_projeto = ?
       ORDER BY c.nome`, [idProjeto]);
   return linhas.map((l) => ({ ...l, ativo: Boolean(l.ativo) }));
@@ -257,24 +286,24 @@ async function buscarComParticipantes(id) {
 
 // Projeto e participações gravados juntos, numa transação
 async function incluir(dados, idResponsavel) {
+  dados = { ...dados, participantes: comResponsavel(dados.participantes, dados.id_responsavel) };
   try {
     return await comTransacao(async (conexao) => {
       lancarSeHouverErros({
         ...(await conferirDuplicidade(conexao, dados, null)),
         ...(await conferirResponsavel(conexao, dados.id_responsavel)),
+        ...(await conferirSetor(conexao, dados.id_setor, null)),
         ...(await conferirParticipantes(conexao, dados.participantes, null))
       });
 
       const [resultado] = await conexao.query(
         `INSERT INTO projeto
-           (codigo, nome, fonte_financiadora, id_responsavel, data_inicio, data_fim_prevista, situacao)
-         VALUES (?, ?, ?, ?, ?, ?, 'em_andamento')`,
-        [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel,
+           (codigo, nome, fonte_financiadora, id_responsavel, id_setor, data_inicio, data_fim_prevista, situacao)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'em_andamento')`,
+        [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel, dados.id_setor,
          dados.data_inicio, dados.data_fim_prevista]
       );
-      if (dados.participantes) {
-        await gravarParticipantes(conexao, resultado.insertId, dados.participantes);
-      }
+      await gravarParticipantes(conexao, resultado.insertId, dados.participantes);
       await Historico.registrar(conexao, {
         idUsuario: idResponsavel, tipo: 'criacao', entidade: 'projeto', idRegistro: resultado.insertId,
         descricao: `Projeto ${dados.codigo} · ${dados.nome} cadastrado`,
@@ -292,6 +321,11 @@ async function alterar(id, dados, idResponsavel) {
   try {
     return await comTransacao(async (conexao) => {
       const atual = await buscarOuFalhar(conexao, id);
+      const participantesAntes = await idsParticipantes(conexao, id);
+      dados = {
+        ...dados,
+        participantes: comResponsavel(dados.participantes ?? participantesAntes, dados.id_responsavel)
+      };
 
       // O responsável que já estava no projeto pode ter sido desligado depois;
       // nesse caso ele pode ser mantido, mas não escolhido de novo.
@@ -299,6 +333,7 @@ async function alterar(id, dados, idResponsavel) {
         ...(await conferirDuplicidade(conexao, dados, id)),
         ...(dados.id_responsavel === atual.id_responsavel
           ? {} : await conferirResponsavel(conexao, dados.id_responsavel)),
+        ...(await conferirSetor(conexao, dados.id_setor, atual.id_setor)),
         ...(await conferirParticipantes(conexao, dados.participantes, id))
       };
       // Projeto encerrado: o início não pode passar da data de encerramento
@@ -307,18 +342,15 @@ async function alterar(id, dados, idResponsavel) {
       }
       lancarSeHouverErros(erros);
 
-      const participantesAntes = await idsParticipantes(conexao, id);
       await conexao.query(
         `UPDATE projeto
-            SET codigo = ?, nome = ?, fonte_financiadora = ?, id_responsavel = ?,
+            SET codigo = ?, nome = ?, fonte_financiadora = ?, id_responsavel = ?, id_setor = ?,
                 data_inicio = ?, data_fim_prevista = ?
           WHERE id_projeto = ?`,
-        [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel,
+        [dados.codigo, dados.nome, dados.fonte_financiadora, dados.id_responsavel, dados.id_setor,
          dados.data_inicio, dados.data_fim_prevista, id]
       );
-      if (dados.participantes) {
-        await gravarParticipantes(conexao, id, dados.participantes);
-      }
+      await gravarParticipantes(conexao, id, dados.participantes);
       await Historico.registrar(conexao, {
         idUsuario: idResponsavel, tipo: 'correcao', entidade: 'projeto', idRegistro: id,
         descricao: `Projeto ${dados.codigo} · ${dados.nome}: dados corrigidos`,
@@ -385,35 +417,41 @@ async function encerrar(id, corpo, idResponsavel) {
   });
 }
 
-// Exclusão só sem vínculos (RN22)
-async function excluir(id, idResponsavel) {
+// Reabertura de projeto encerrado: volta a "em andamento" sem alterar as
+// datas. O encerramento anterior continua no histórico; a reabertura gera
+// um evento próprio, com estado anterior e novo e o motivo informado.
+// A resposta traz avisos sobre a vigência e o responsável, para conferência.
+async function reabrir(id, corpo, idResponsavel) {
   return comTransacao(async (conexao) => {
     const projeto = await buscarOuFalhar(conexao, id);
-
-    const vinculos = [];
-    if (projeto.licencas_adquiridas) vinculos.push(`${projeto.licencas_adquiridas} licença(s) adquirida(s)`);
-    if (projeto.instancias_responsavel) vinculos.push(`${projeto.instancias_responsavel} instância(s) sob sua responsabilidade`);
-    if (projeto.participantes) vinculos.push(`${projeto.participantes} colaborador(es) participante(s)`);
-    // instâncias inativas também são vínculo histórico
-    const [inativas] = await conexao.query(
-      `SELECT COUNT(*) AS total FROM instancia WHERE id_projeto_atual = ? AND situacao = 'inativa'`, [id]);
-    if (inativas[0].total) vinculos.push(`${inativas[0].total} instância(s) inativa(s) no histórico`);
-
-    if (vinculos.length) {
-      throw AppError.conflito(
-        `O projeto ${projeto.codigo} possui vínculos (${vinculos.join(', ')}) e não pode ser excluído. ` +
-        'Para tirá-lo de uso, encerre o projeto.');
+    if (projeto.situacao !== 'encerrado') {
+      throw AppError.conflito('Somente projeto encerrado pode ser reaberto.');
     }
+    const motivo = typeof corpo?.motivo === 'string' ? corpo.motivo.trim().replace(/\s+/g, ' ') : '';
+    if (!motivo) lancarSeHouverErros({ motivo: 'Informe o motivo da reabertura.' });
+    if (motivo.length > 255) lancarSeHouverErros({ motivo: 'Use no máximo 255 caracteres.' });
 
-    await conexao.query('DELETE FROM projeto WHERE id_projeto = ?', [id]);
+    const avisos = [];
+    if (projeto.dias_para_termino !== null && projeto.dias_para_termino < 0) {
+      avisos.push('O término previsto já passou: prorrogue o projeto se ele continua em execução.');
+    }
+    const [[resp]] = await conexao.query(
+      'SELECT ativo FROM colaborador WHERE id_colaborador = ?', [projeto.id_responsavel]);
+    if (!resp || !resp.ativo) avisos.push('O responsável está desligado: indique um novo responsável.');
+
+    await conexao.query(
+      `UPDATE projeto SET situacao = 'em_andamento', data_encerramento = NULL WHERE id_projeto = ?`, [id]);
     await Historico.registrar(conexao, {
-      idUsuario: idResponsavel, tipo: 'exclusao', entidade: 'projeto', idRegistro: id,
-      descricao: `Projeto ${projeto.codigo} · ${projeto.nome} excluído`, antes: retrato(projeto)
+      idUsuario: idResponsavel, tipo: 'reabertura', entidade: 'projeto', idRegistro: id,
+      descricao: `Projeto ${projeto.codigo} · ${projeto.nome} reaberto`,
+      motivo,
+      antes: { situacao: 'encerrado', data_encerramento: projeto.data_encerramento },
+      depois: { situacao: 'em_andamento', data_encerramento: null }
     });
-    return { excluido: true };
+    return { id_projeto: id, situacao: 'em_andamento', avisos };
   });
 }
 
 module.exports = {
-  listar, listarFontes, listarAnos, buscarComParticipantes, incluir, alterar, prorrogar, encerrar, excluir
+  listar, listarFontes, listarAnos, buscarComParticipantes, incluir, alterar, prorrogar, encerrar, reabrir
 };

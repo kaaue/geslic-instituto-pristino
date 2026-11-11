@@ -30,8 +30,8 @@ module.exports = {
   sessao: {
     // validade máxima, contada do login
     duracaoHoras: numero(process.env.SESSAO_DURACAO_HORAS, 8),
-    // encerra a sessão sem uso por este tempo
-    inatividadeMinutos: numero(process.env.SESSAO_INATIVIDADE_MINUTOS, 60),
+    // encerra a sessão após este tempo sem atividade humana (RN32: dez minutos)
+    inatividadeMinutos: numero(process.env.SESSAO_INATIVIDADE_MINUTOS, 10),
     // em HTTPS (produção), o cookie só trafega cifrado
     cookieSeguro: process.env.COOKIE_SEGURO === undefined ? producao : sim(process.env.COOKIE_SEGURO)
   },
@@ -66,11 +66,16 @@ module.exports = {
     }
   },
 
+  // Validade da senha provisória gerada pelo Administrador, em horas (RN45: sete dias)
+  senhaProvisoriaHoras: Number(process.env.SENHA_PROVISORIA_HORAS) || 168,
+
   // Usados só pelos scripts de banco ao criar as contas iniciais
   contas: {
     // sem ADMIN_SENHA, o script gera uma senha provisória e a mostra uma vez
     adminSenha: process.env.ADMIN_SENHA || null,
     adminEmail: process.env.ADMIN_EMAIL || 'admin@pristino.org.br',
-    senhaUsuariosTeste: process.env.SENHA_USUARIOS_TESTE || 'Geslic2026'
+    senhaUsuariosTeste: process.env.SENHA_USUARIOS_TESTE || 'Geslic2026',
+    // conta de exemplo "operador" (só com --exemplos), no padrão da conta admin
+    operadorSenha: process.env.OPERADOR_SENHA || 'geslic123'
   }
 };

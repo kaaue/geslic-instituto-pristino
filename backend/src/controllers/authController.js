@@ -1,9 +1,9 @@
-// Controller de autenticação (seção 2.3.2 da ERS e RF_B9): login, logout,
+// Controller de autenticação (seção 2.3.2 da ERS e RF_B8): login, logout,
 // conta atual, solicitação de acesso e recuperação de senha. Todas as rotas
 // aqui são públicas, exceto /me e /logout.
 
 const { comTransacao } = require('../config/database');
-const { frontendUrl, recuperacao } = require('../config/env');
+const { frontendUrl, recuperacao, sessao: configSessao } = require('../config/env');
 const AppError = require('../utils/AppError');
 const { lancarSeHouverErros } = require('../utils/AppError');
 const { verificarSenhaOuFicticio } = require('../utils/senha');
@@ -12,6 +12,7 @@ const email = require('../utils/email');
 const limites = require('../middlewares/limiteTentativas');
 const Usuario = require('../models/usuarioModel');
 const Sessao = require('../models/sessaoModel');
+const Setor = require('../models/setorModel');
 const Recuperacao = require('../models/recuperacaoModel');
 const {
   normalizarLogin, normalizarEmail, validarSolicitacao, validarNovaSenha
@@ -48,17 +49,24 @@ async function login(req, res) {
   if (conta.situacao === 'pendente') {
     throw AppError.proibido('Sua solicitação de acesso ainda aguarda a aprovação de um Administrador.', 'CONTA_PENDENTE');
   }
+  if (conta.situacao === 'recusada') {
+    throw AppError.proibido('Sua solicitação de acesso foi recusada. Procure um Administrador ou envie uma nova solicitação.', 'CONTA_RECUSADA');
+  }
   if (conta.situacao !== 'ativo') {
     throw AppError.proibido('Esta conta está desativada. Procure um Administrador.', 'CONTA_INATIVA');
   }
+  if (conta.provisoria_expirada) {
+    throw AppError.proibido(
+      'A senha provisória expirou. Peça a um Administrador para gerar uma nova.', 'SENHA_PROVISORIA_EXPIRADA');
+  }
 
-  const token = await comTransacao(async (conexao) => {
-    await Usuario.registrarAcesso(conexao, conta.id_usuario);
-    return Sessao.criar(conexao, conta.id_usuario);
-  });
+  const token = await comTransacao((conexao) => Sessao.criar(conexao, conta.id_usuario));
   gravarCookieSessao(res, token);
-  res.json({ usuario: await Usuario.carregarAutenticado(conta.id_usuario) });
+  res.json({ usuario: await Usuario.carregarAutenticado(conta.id_usuario), sessao: dadosDaSessao() });
 }
+
+// Regras da sessão que a interface precisa conhecer (RN32)
+const dadosDaSessao = () => ({ inatividade_minutos: configSessao.inatividadeMinutos });
 
 async function logout(req, res) {
   await Sessao.encerrar(req.sessao.idSessao, 'logout');
@@ -68,7 +76,15 @@ async function logout(req, res) {
 
 // Conta da sessão, com perfil e permissões atuais (vindos do banco)
 async function me(req, res) {
-  res.json({ usuario: req.usuario });
+  res.json({ usuario: req.usuario, sessao: dadosDaSessao() });
+}
+
+// Atividade humana sem outra requisição (digitar num formulário, por
+// exemplo): a interface avisa, no máximo uma vez por minuto, para a sessão
+// não expirar enquanto a pessoa trabalha (RN32). O próprio autenticar já
+// atualizou o último uso.
+async function atividade(req, res) {
+  res.json({ ativa: true, sessao: dadosDaSessao() });
 }
 
 // Autocadastro: a conta nasce pendente e sem acesso até a aprovação
@@ -79,6 +95,12 @@ async function solicitarCadastro(req, res) {
   res.status(201).json({
     mensagem: 'Solicitação enviada. Você poderá entrar assim que um Administrador aprovar o acesso.'
   });
+}
+
+// Lista pública mínima: só id e nome dos setores ativos, para o formulário
+// de solicitação de acesso identificar o colaborador
+async function setoresDaSolicitacao(req, res) {
+  res.json(await Setor.listarNomesAtivos());
 }
 
 // Resposta igual exista ou não a conta, para não revelar quais e-mails estão cadastrados
@@ -139,4 +161,4 @@ async function redefinirSenha(req, res) {
   res.json({ mensagem: 'Senha redefinida. Entre com a nova senha.' });
 }
 
-module.exports = { login, logout, me, solicitarCadastro, solicitarRecuperacao, redefinirSenha };
+module.exports = { login, logout, me, atividade, solicitarCadastro, setoresDaSolicitacao, solicitarRecuperacao, redefinirSenha };

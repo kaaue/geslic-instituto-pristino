@@ -6,14 +6,17 @@
 // - erros: objeto campo -> mensagem, que o front usa para destacar o campo
 // - codigo: identificador estável para a interface reagir (ex.: SESSAO_EXPIRADA)
 // - sem erros: a resposta leva só a mensagem geral
+// - dados: campos extras para a interface explicar o conflito (ex.: quem
+//   concluiu antes uma solicitação de ajuste)
 
 class AppError extends Error {
-  constructor(mensagem, status = 400, erros = null, codigo = null) {
+  constructor(mensagem, status = 400, erros = null, codigo = null, dados = null) {
     super(mensagem);
     this.name = 'AppError';
     this.status = status;
     this.erros = erros;
     this.codigo = codigo;
+    this.dados = dados;
   }
 
   // Erros de validação de campos (400)
@@ -36,8 +39,8 @@ class AppError extends Error {
   }
 
   // Operação que conflita com o estado atual do registro (409)
-  static conflito(mensagem) {
-    return new AppError(mensagem, 409);
+  static conflito(mensagem, codigo = null, dados = null) {
+    return new AppError(mensagem, 409, null, codigo, dados);
   }
 
   static muitasTentativas(mensagem) {

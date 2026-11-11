@@ -1,11 +1,16 @@
 // Model da RF_B3 - Gerenciar equipamentos: acesso ao banco e regras dos dados.
 // O equipamento é especialização de bem, então toda escrita mexe em duas tabelas
 // dentro de uma transação: ou as duas gravam, ou nenhuma grava. Cada escrita
-// registra no histórico (RF_F13) a conta responsável.
+// registra no histórico (RF_F14) a conta responsável.
+//
+// Inativar significa descarte (RN08) e exige data efetiva e motivo (RN37): a
+// data efetiva fica no bem e no evento do histórico, separada da data e da
+// hora do registro, geradas pelo sistema.
 
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
+const { lerDataEfetiva, lerMotivo } = require('../utils/normalizacao');
 
 // Colunas devolvidas na listagem e na busca por id.
 // Junta bem, equipamento, setor e colaborador, e conta quantas instâncias de
@@ -21,6 +26,7 @@ const COLUNAS = `
     b.categoria,
     b.identificacao,
     b.situacao,
+    DATE_FORMAT(b.data_inativacao, '%Y-%m-%d') AS data_inativacao,
     b.id_setor,
     s.nome AS nome_setor,
     (SELECT COUNT(*) FROM alocacao a
@@ -72,7 +78,7 @@ function montarConsulta(filtros) {
 
   const sql = `SELECT ${COLUNAS} ${TABELAS}
     ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''}
-    ORDER BY e.etiqueta_instituto`;
+    ORDER BY b.situacao = 'inativo', e.etiqueta_instituto`;
 
   return { sql, valores };
 }
@@ -111,28 +117,37 @@ function retrato(e) {
   return {
     etiqueta_instituto: e.etiqueta_instituto, etiqueta_netscanner: e.etiqueta_netscanner,
     identificacao: e.identificacao, tipo: e.tipo, categoria: e.categoria, id_setor: e.id_setor,
-    id_responsavel: e.id_responsavel, uso_geral: Boolean(e.uso_geral), situacao: e.situacao
+    id_responsavel: e.id_responsavel, uso_geral: Boolean(e.uso_geral), situacao: e.situacao,
+    data_inativacao: e.data_inativacao || null
   };
 }
 
 // RN08: inativar equipamento significa descarte. As instâncias não
-// transferíveis alocadas a ele passam a inativas; as transferíveis
-// continuam ativas e podem ser liberadas ou transferidas depois.
-async function inativarInstanciasNaoTransferiveis(conexao, id) {
-  const [resultado] = await conexao.query(
-    `UPDATE instancia i
-        JOIN alocacao a ON a.id_instancia = i.id_instancia
-        JOIN licenca l  ON l.id_licenca = i.id_licenca
-        SET i.situacao = 'inativa',
-            i.data_inativacao = CURDATE(),
-            i.motivo_inativacao = 'descarte do equipamento'
-      WHERE a.id_equipamento = ?
-        AND a.data_fim IS NULL
-        AND l.transferivel = FALSE
-        AND i.situacao = 'ativa'`,
-    [id]
-  );
-  return resultado.affectedRows;
+// transferíveis alocadas a ele passam a inativas na mesma data efetiva, e os
+// vínculos delas (alocação e utilização) se encerram nessa data; as
+// transferíveis continuam ativas e podem ser liberadas ou transferidas depois.
+async function inativarInstanciasNaoTransferiveis(conexao, id, dataEfetiva) {
+  const [instancias] = await conexao.query(
+    `SELECT i.id_instancia
+       FROM instancia i
+       JOIN alocacao a ON a.id_instancia = i.id_instancia
+       JOIN licenca l  ON l.id_licenca = i.id_licenca
+      WHERE a.id_equipamento = ? AND a.data_fim IS NULL
+        AND l.transferivel = FALSE AND i.situacao = 'ativa'
+      FOR UPDATE`, [id]);
+  const ids = instancias.map((i) => i.id_instancia);
+  if (ids.length === 0) return 0;
+
+  await conexao.query(
+    `UPDATE instancia SET situacao = 'inativa', data_inativacao = ?, motivo_inativacao = 'descarte do equipamento'
+      WHERE id_instancia IN (?)`, [dataEfetiva, ids]);
+  // O vínculo termina na data efetiva, nunca antes do seu próprio início
+  for (const tabela of ['alocacao', 'utilizacao']) {
+    await conexao.query(
+      `UPDATE ${tabela} SET data_fim = GREATEST(data_inicio, ?)
+        WHERE id_instancia IN (?) AND data_fim IS NULL`, [dataEfetiva, ids]);
+  }
+  return ids.length;
 }
 
 const textoInativacao = (quantidade) => (quantidade
@@ -144,7 +159,7 @@ async function listar(filtros) {
   return linhas;
 }
 
-async function buscarPorId(id) {
+async function buscar(id) {
   return buscarOuFalhar(pool, id);
 }
 
@@ -152,13 +167,14 @@ async function incluir(dados, idResponsavel) {
   return comTransacao(async (conexao) => {
     await conferirEtiquetas(conexao, dados, null);
 
-    // Grava primeiro o bem, depois o equipamento com o mesmo id gerado
+    // Grava primeiro o bem, depois o equipamento com o mesmo id gerado.
+    // Equipamento novo nasce ativo: o descarte é uma ação própria, com data efetiva.
     const [resultadoBem] = await conexao.query(
       // patrimonio e valor ficam nulos: a etiqueta do Instituto já identifica
       // o patrimônio do equipamento, e o valor só interessa ao bem segurável
       `INSERT INTO bem (categoria, identificacao, id_setor, situacao)
-       VALUES (?, ?, ?, ?)`,
-      [dados.categoria, dados.identificacao, dados.id_setor, dados.situacao]
+       VALUES ('equipamento', ?, ?, 'ativo')`,
+      [dados.identificacao, dados.id_setor]
     );
     const novoId = resultadoBem.insertId;
 
@@ -172,24 +188,39 @@ async function incluir(dados, idResponsavel) {
 
     await Historico.registrar(conexao, {
       idUsuario: idResponsavel, tipo: 'criacao', entidade: 'equipamento', idRegistro: novoId,
-      descricao: `Equipamento ${dados.etiqueta_instituto} cadastrado`, depois: retrato(dados)
+      descricao: `Equipamento ${dados.etiqueta_instituto} cadastrado`,
+      depois: retrato({ ...dados, categoria: 'equipamento', situacao: 'ativo' })
     });
     return { id_equipamento: novoId };
   });
 }
 
-// Correção dos dados cadastrais (exclusiva do Administrador, RN21)
+// Correção dos dados cadastrais (exclusiva do Administrador, RN21). A
+// situação também pode mudar por aqui: passar a inativo exige data efetiva e
+// motivo e aplica a RN08; voltar a ativo é reativação (as instâncias
+// inativadas no descarte continuam inativas).
 async function alterar(id, dados, idResponsavel) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id);
-
     await conferirEtiquetas(conexao, dados, id);
 
+    const inativando = atual.situacao === 'ativo' && dados.situacao === 'inativo';
+    const reativando = atual.situacao === 'inativo' && dados.situacao === 'ativo';
+    let evento = null;
+    if (inativando) {
+      const erros = {};
+      evento = {
+        data_efetiva: lerDataEfetiva(dados.data_efetiva, erros),
+        motivo: lerMotivo(dados.motivo, erros, { obrigatorio: true })
+      };
+      if (Object.keys(erros).length) throw AppError.campos(erros);
+    }
+    const dataInativacao = inativando ? evento.data_efetiva : (reativando ? null : atual.data_inativacao);
+
     await conexao.query(
-      `UPDATE bem
-          SET categoria = ?, identificacao = ?, id_setor = ?, situacao = ?
+      `UPDATE bem SET identificacao = ?, id_setor = ?, situacao = ?, data_inativacao = ?
         WHERE id_bem = ?`,
-      [dados.categoria, dados.identificacao, dados.id_setor, dados.situacao, id]
+      [dados.identificacao, dados.id_setor, dados.situacao, dataInativacao, id]
     );
 
     await conexao.query(
@@ -201,75 +232,72 @@ async function alterar(id, dados, idResponsavel) {
        dados.tipo, dados.id_responsavel, dados.uso_geral, id]
     );
 
-    // Passar de ativo para inativo pela edição também aplica a RN08
-    let instanciasInativadas = 0;
-    if (atual.situacao === 'ativo' && dados.situacao === 'inativo') {
-      instanciasInativadas = await inativarInstanciasNaoTransferiveis(conexao, id);
-    }
+    const instanciasInativadas = inativando
+      ? await inativarInstanciasNaoTransferiveis(conexao, id, evento.data_efetiva) : 0;
 
     await Historico.registrar(conexao, {
-      idUsuario: idResponsavel, tipo: 'correcao', entidade: 'equipamento', idRegistro: id,
-      descricao: `Equipamento ${dados.etiqueta_instituto}: dados corrigidos${textoInativacao(instanciasInativadas)}`,
-      antes: retrato(atual), depois: retrato(dados)
+      idUsuario: idResponsavel,
+      tipo: inativando ? 'inativacao' : (reativando ? 'reativacao' : 'correcao'),
+      entidade: 'equipamento', idRegistro: id, dataEvento: evento?.data_efetiva, motivo: evento?.motivo,
+      descricao: `Equipamento ${dados.etiqueta_instituto}: dados corrigidos` +
+        (inativando ? ' e inativado (descarte)' : '') + (reativando ? ' e reativado' : '') +
+        textoInativacao(instanciasInativadas),
+      antes: retrato(atual),
+      depois: retrato({ ...dados, categoria: atual.categoria, data_inativacao: dataInativacao })
     });
     return { id_equipamento: id, instancias_inativadas: instanciasInativadas };
   });
 }
 
 // Inativação (descarte) como ação própria: o Operador inativa sem poder
-// alterar os demais dados cadastrais (RN21). Aplica a RN08.
-async function inativar(id, idResponsavel) {
+// alterar os demais dados cadastrais (RN21). Exige data efetiva e motivo
+// (RN37) e aplica a RN08.
+async function inativar(id, evento, idResponsavel) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id);
     if (atual.situacao === 'inativo') throw AppError.conflito('Este equipamento já está inativo.');
 
-    await conexao.query(`UPDATE bem SET situacao = 'inativo' WHERE id_bem = ?`, [id]);
-    const instanciasInativadas = await inativarInstanciasNaoTransferiveis(conexao, id);
+    await conexao.query(
+      `UPDATE bem SET situacao = 'inativo', data_inativacao = ? WHERE id_bem = ?`, [evento.data_efetiva, id]);
+    const instanciasInativadas = await inativarInstanciasNaoTransferiveis(conexao, id, evento.data_efetiva);
 
     await Historico.registrar(conexao, {
       idUsuario: idResponsavel, tipo: 'inativacao', entidade: 'equipamento', idRegistro: id,
+      dataEvento: evento.data_efetiva, motivo: evento.motivo,
       descricao: `Equipamento ${atual.etiqueta_instituto} inativado (descarte)${textoInativacao(instanciasInativadas)}`,
-      antes: retrato(atual), depois: retrato({ ...atual, situacao: 'inativo' })
+      antes: retrato(atual),
+      depois: retrato({ ...atual, situacao: 'inativo', data_inativacao: evento.data_efetiva })
     });
     return { id_equipamento: id, instancias_inativadas: instanciasInativadas };
   });
 }
 
-// Só é permitido excluir cadastro sem vínculos (RN22). Com instância
-// alocada, o caminho é inativar o equipamento, não apagar o histórico.
-async function excluir(id, idResponsavel) {
+// Reativação pelo Administrador (correção de um descarte registrado por
+// engano). As instâncias inativadas no descarte não voltam sozinhas.
+async function reativar(id, idResponsavel) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id);
-
-    const [vinculos] = await conexao.query(
-      'SELECT COUNT(*) AS total FROM alocacao WHERE id_equipamento = ?', [id]);
-    if (vinculos[0].total > 0) {
-      throw AppError.conflito(
-        'Este equipamento já recebeu licenças e não pode ser excluído. ' +
-        'Para tirá-lo de uso, inative o equipamento.');
-    }
-
-    // a exclusão em bem remove o equipamento junto, por causa do ON DELETE CASCADE
-    const [resultado] = await conexao.query('DELETE FROM bem WHERE id_bem = ?', [id]);
-    if (resultado.affectedRows === 0) throw AppError.naoEncontrado(NAO_ENCONTRADO);
-
+    if (atual.situacao === 'ativo') throw AppError.conflito('Este equipamento já está ativo.');
+    await conexao.query(`UPDATE bem SET situacao = 'ativo', data_inativacao = NULL WHERE id_bem = ?`, [id]);
     await Historico.registrar(conexao, {
-      idUsuario: idResponsavel, tipo: 'exclusao', entidade: 'equipamento', idRegistro: id,
-      descricao: `Equipamento ${atual.etiqueta_instituto} excluído`, antes: retrato(atual)
+      idUsuario: idResponsavel, tipo: 'reativacao', entidade: 'equipamento', idRegistro: id,
+      descricao: `Equipamento ${atual.etiqueta_instituto} reativado`,
+      antes: retrato(atual), depois: retrato({ ...atual, situacao: 'ativo', data_inativacao: null })
     });
-    return { excluido: true };
+    return { id_equipamento: id };
   });
 }
 
 // Prévia da inativação: usada pela interface para avisar o usuário antes de
 // confirmar, conforme a RN08.
 async function previaInativacao(id) {
+  await buscarOuFalhar(pool, id);
   const [linhas] = await pool.query(
     `SELECT l.nome_software, l.transferivel, i.identificacao
        FROM alocacao a
        JOIN instancia i ON i.id_instancia = a.id_instancia
        JOIN licenca l   ON l.id_licenca = i.id_licenca
-      WHERE a.id_equipamento = ? AND a.data_fim IS NULL`,
+      WHERE a.id_equipamento = ? AND a.data_fim IS NULL AND i.situacao = 'ativa'`,
     [id]
   );
   return {
@@ -278,4 +306,4 @@ async function previaInativacao(id) {
   };
 }
 
-module.exports = { listar, buscarPorId, incluir, alterar, inativar, excluir, previaInativacao };
+module.exports = { listar, buscar, incluir, alterar, inativar, reativar, previaInativacao };

@@ -18,22 +18,34 @@ rotas.use('/auth', require('./authRoutes'));
 // Daqui em diante, só com sessão válida
 rotas.use(autenticar);
 
+// Registros não são excluídos fisicamente: cada cadastro tem inativação
+// (ou encerramento, no projeto) e reativação, e o histórico é preservado.
+// Qualquer DELETE de cadastro responde 405 com a orientação. A única
+// remoção técnica é a da presença numa solicitação de ajuste (RN42).
+rotas.delete(/^\/(?!solicitacoes-ajuste\/\d+\/presenca$).*/, (req, res) => {
+  res.status(405).json({
+    codigo: 'EXCLUSAO_INDISPONIVEL',
+    mensagem: 'Registros não são excluídos no GESLIC. Use inativar (ou encerrar, no caso de projetos); o histórico é preservado.'
+  });
+});
+
 rotas.use('/conta', require('./contaRoutes'));
 rotas.use('/usuarios', require('./usuarioRoutes'));
 rotas.use('/perfis', require('./perfilRoutes'));
 rotas.use('/historico', require('./historicoRoutes'));
+rotas.use('/solicitacoes-ajuste', require('./solicitacaoRoutes'));
 
-// Funções básicas (RF_B1 a RF_B8; RF_B9 e RF_B10 acima)
+// Funções básicas (RF_B1 a RF_B7; contas RF_B8 e preferências RF_B9 acima)
 rotas.use('/fornecedores', require('./fornecedorRoutes'));
 rotas.use('/softwares', require('./softwareRoutes'));
 rotas.use('/equipamentos', require('./equipamentoRoutes'));
 rotas.use('/colaboradores', require('./colaboradorRoutes'));
 rotas.use('/setores', require('./setorRoutes'));
-rotas.use('/projetos', require('./projetoRoutes'));
 rotas.use('/bens-seguraveis', require('./bemSeguravelRoutes'));
 rotas.use('/tipos-seguro', require('./tipoSeguroRoutes'));
 
 // Funções fundamentais e de saída
+rotas.use('/projetos', require('./projetoRoutes'));
 rotas.use('/licencas', require('./licencaRoutes'));
 rotas.use('/apolices', require('./apoliceRoutes'));
 rotas.use('/documentos', require('./documentoRoutes'));

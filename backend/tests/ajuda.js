@@ -91,11 +91,29 @@ async function sql(consulta, valores) {
   return linhas;
 }
 
+// Os exemplos têm só os quatro setores ativos; os testes que precisam de um
+// setor inativo criam este (uma vez por banco) e recebem o id
+async function setorInativo() {
+  const [existente] = await sql(`SELECT id_setor FROM setor WHERE nome = 'Educação Ambiental'`);
+  if (existente) return existente.id_setor;
+  const r = await sql(
+    `INSERT INTO setor (nome, ativo, data_inativacao) VALUES ('Educação Ambiental', FALSE, '2026-06-30')`);
+  return r.insertId;
+}
+
 function zerarLimites() {
   require('../src/middlewares/limiteTentativas').limparTodos();
 }
 
+// Data AAAA-MM-DD no fuso local (o mesmo da API), deslocada em dias:
+// dataLocal(0) é hoje, dataLocal(-3) foi há três dias
+function dataLocal(dias = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 module.exports = {
   SENHAS, iniciar, encerrar, cliente, entrar, entrarAdmin, entrarAdministradora, entrarOperador,
-  sql, zerarLimites
+  sql, setorInativo, zerarLimites, dataLocal
 };

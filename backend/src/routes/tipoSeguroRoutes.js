@@ -1,6 +1,7 @@
-// RF_B8 Gerenciar tipos de seguro e coberturas (em desenvolvimento: 501).
-// Permissões (RN21): consultar, incluir e inativar - Operador e Administrador;
-// alterar e excluir - somente o Administrador.
+// Rotas da RF_B7 - Gerenciar tipos de seguro e coberturas.
+// Permissões (RN21): consultar, incluir e inativar - Operador e
+// Administrador; corrigir, reativar e excluir (sem uso em apólices, RN22) -
+// somente o Administrador. As mesmas regras valem para as coberturas.
 
 const express = require('express');
 const controller = require('../controllers/tipoSeguroController');
@@ -14,13 +15,13 @@ rotas.get('/:id', p('cadastro.consultar'), asyncHandler(controller.buscar));
 rotas.post('/', p('cadastro.incluir'), asyncHandler(controller.incluir));
 rotas.put('/:id', p('cadastro.alterar'), asyncHandler(controller.alterar));
 rotas.post('/:id/inativacao', p('cadastro.inativar'), asyncHandler(controller.inativar));
-rotas.delete('/:id', p('cadastro.excluir'), asyncHandler(controller.excluir));
+rotas.post('/:id/reativacao', p('cadastro.alterar'), asyncHandler(controller.reativar));
 
 // Coberturas de cada tipo de seguro
 rotas.get('/:id/coberturas', p('cadastro.consultar'), asyncHandler(controller.listarCoberturas));
 rotas.post('/:id/coberturas', p('cadastro.incluir'), asyncHandler(controller.incluirCobertura));
 rotas.put('/coberturas/:idCobertura', p('cadastro.alterar'), asyncHandler(controller.alterarCobertura));
 rotas.post('/coberturas/:idCobertura/inativacao', p('cadastro.inativar'), asyncHandler(controller.inativarCobertura));
-rotas.delete('/coberturas/:idCobertura', p('cadastro.excluir'), asyncHandler(controller.excluirCobertura));
+rotas.post('/coberturas/:idCobertura/reativacao', p('cadastro.alterar'), asyncHandler(controller.reativarCobertura));
 
 module.exports = rotas;

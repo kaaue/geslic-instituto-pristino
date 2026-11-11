@@ -1,4 +1,4 @@
-// Proteção das telas por login (RF_B9).
+// Proteção das telas por login (RF_B8).
 // Sem sessão, manda para /login guardando a tela pedida; com senha
 // provisória, só libera Minha conta até a troca. A permissão de cada tela é
 // conferida por ExigePermissao. A regra de verdade continua na API.

@@ -12,13 +12,16 @@ export const EVENTO_TROCA_SENHA = 'geslic:troca-senha';
 // Rotas em que 401 é resposta esperada, e não sessão perdida
 const SEM_AVISO_DE_SESSAO = ['/api/auth/login', '/api/auth/me'];
 
+// opcoes.automatica: requisição feita sozinha pela tela (atualização do
+// painel, presença), que não conta como atividade e não prolonga a sessão (RN32)
 export async function requisicao(caminho, opcoes = {}) {
+  const { automatica, ...demais } = opcoes;
   let resposta;
   try {
     resposta = await fetch(caminho, {
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      ...opcoes
+      headers: { 'Content-Type': 'application/json', ...(automatica && { 'X-Consulta-Automatica': '1' }) },
+      ...demais
     });
   } catch {
     const erro = new Error('Não foi possível falar com a API. Verifique se ela está no ar.');
@@ -40,7 +43,9 @@ export async function requisicao(caminho, opcoes = {}) {
     // 401: sessão ausente, vencida ou encerrada no servidor -> volta ao login.
     // 403: a sessão vale, mas falta permissão -> a tela mostra a mensagem.
     if (resposta.status === 401 && !SEM_AVISO_DE_SESSAO.includes(caminho)) {
-      window.dispatchEvent(new CustomEvent(EVENTO_SESSAO_ENCERRADA, { detail: corpo?.mensagem }));
+      window.dispatchEvent(new CustomEvent(EVENTO_SESSAO_ENCERRADA, {
+        detail: { mensagem: corpo?.mensagem, motivo: corpo?.motivo }
+      }));
     }
     if (resposta.status === 403 && corpo?.codigo === 'TROCA_SENHA_OBRIGATORIA') {
       window.dispatchEvent(new Event(EVENTO_TROCA_SENHA));
@@ -78,14 +83,21 @@ export function mensagemDeErro(erro, padrao = 'Não foi possível concluir a ope
 }
 
 // Operações padrão de um cadastro: listar, buscar, incluir, alterar,
-// inativar e excluir. Usada pelos serviços das funções básicas.
+// inativar (com data efetiva e motivo, RN37) e reativar (sem exclusão). Usada
+// pelos serviços das funções básicas.
 export function servicoDeCadastro(base, acaoInativar = 'inativacao') {
   return {
     listar: (filtros = {}) => requisicao(`${base}${consultaFiltros(filtros)}`),
     buscar: (id) => requisicao(`${base}/${id}`),
     incluir: (dados) => requisicao(base, enviarJson('POST', dados)),
     alterar: (id, dados) => requisicao(`${base}/${id}`, enviarJson('PUT', dados)),
-    inativar: (id) => requisicao(`${base}/${id}/${acaoInativar}`, { method: 'POST' }),
-    excluir: (id) => requisicao(`${base}/${id}`, { method: 'DELETE' })
+    inativar: (id, evento) => requisicao(`${base}/${id}/${acaoInativar}`, enviarJson('POST', evento)),
+    reativar: (id) => requisicao(`${base}/${id}/reativacao`, { method: 'POST' })
   };
+}
+
+// Data de hoje (AAAA-MM-DD) no fuso local: limite das datas efetivas
+export function hojeLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

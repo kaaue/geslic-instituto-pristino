@@ -1,4 +1,4 @@
-// Autenticação (seção 2.3.2 da ERS e RF_B9). Login, solicitação de acesso e
+// Autenticação (seção 2.3.2 da ERS e RF_B8). Login, solicitação de acesso e
 // recuperação de senha são públicos; /me e /logout exigem sessão.
 
 const express = require('express');
@@ -10,10 +10,13 @@ const rotas = express.Router();
 
 rotas.post('/login', asyncHandler(controller.login));
 rotas.post('/cadastro', asyncHandler(controller.solicitarCadastro));
+// Setores ativos (só id e nome), para a solicitação de acesso
+rotas.get('/setores', asyncHandler(controller.setoresDaSolicitacao));
 rotas.post('/recuperacao', asyncHandler(controller.solicitarRecuperacao));
 rotas.post('/redefinicao', asyncHandler(controller.redefinirSenha));
 
 rotas.get('/me', autenticar, asyncHandler(controller.me));
 rotas.post('/logout', autenticar, asyncHandler(controller.logout));
+rotas.post('/atividade', autenticar, asyncHandler(controller.atividade));
 
 module.exports = rotas;

@@ -1,63 +1,103 @@
-// Tela inicial depois do login. Mostra a conta, o perfil e atalhos só para
-// as telas que a conta pode abrir. Os indicadores do painel de
-// acompanhamento (RF_S1) estão em desenvolvimento: nenhum número é simulado.
+// Painel de acompanhamento, distinto por perfil (Protótipos 2.1 e 2.2; RN33).
+//
+// Implementado nesta versão: para o Administrador, as pendências de prazo
+// dos projetos (Revisão de UX/UI v0.1, OBS-07: término previsto vencido e
+// projeto ainda em andamento); e o bloco de solicitações (RF_B10) — para o
+// Operador, as solicitações de ajuste de todos os operadores e o botão
+// "Emitir solicitação de ajuste"; para o Administrador, as solicitações
+// recebidas: ajustes cadastrais e contas aguardando aprovação (RF_B8).
+// Os demais blocos dependem de funções ainda em desenvolvimento (indicadores
+// e vencimentos de licenças e apólices, RF_S1 e RF_F13; autorizações, RF_F15; notificações, RF_S8):
+// aparecem identificados, sem dados simulados.
 
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import useAuth from '../../hooks/useAuth';
-import { menuDaConta } from '../../config/navegacao';
+import useMensagem from '../../hooks/useMensagem';
+import Mensagem from '../../components/common/Mensagem.jsx';
+import BlocoSolicitacoes from '../../components/solicitacoes/BlocoSolicitacoes.jsx';
+import ModalSolicitacaoAjuste from '../../components/solicitacoes/ModalSolicitacaoAjuste.jsx';
+import BlocoPrazosVencidos from './BlocoPrazosVencidos.jsx';
 
-function saudacao() {
-  const hora = new Date().getHours();
-  if (hora < 12) return 'Bom dia';
-  if (hora < 18) return 'Boa tarde';
-  return 'Boa noite';
+function BlocoEmDesenvolvimento({ titulo, texto }) {
+  return (
+    <section className="bloco">
+      <header className="bloco-cabecalho"><h3>{titulo}</h3></header>
+      <div className="bloco-corpo">
+        <p className="aviso-desenvolvimento" style={{ margin: 0 }}>
+          <strong>Em desenvolvimento</strong>
+          {texto}
+        </p>
+      </div>
+    </section>
+  );
 }
 
-const DESCRICAO_PERFIL = {
-  Administrador: 'Realiza tudo o que o Operador realiza e, exclusivamente, altera e exclui dados cadastrais, gerencia as contas e permissões e consulta o histórico.',
-  Operador: 'Inclui cadastros, registra licenças e apólices, realiza movimentações, renovações, inativações e encerramentos e confirma exceções autorizadas.'
-};
+const hojeExtenso = () => new Date().toLocaleDateString('pt-BR');
 
 export default function InicioPage() {
-  const { usuario, pode } = useAuth();
-  const atalhos = menuDaConta(pode).flatMap((g) => g.itens).filter((i) => i.caminho !== '/');
+  const { pode } = useAuth();
+  const [mensagem, mostrarMensagem] = useMensagem(6000);
+  const [emitindo, setEmitindo] = useState(false);
+  const [versao, setVersao] = useState(0);
+  const administrador = pode('ajuste.concluir');
 
   return (
     <main className="conteudo">
       <div className="titulo-area">
         <div>
           <h2>Painel de acompanhamento</h2>
-          <p className="subtitulo">
-            {saudacao()}, {usuario.nome.split(' ')[0]}. Perfil <strong>{usuario.perfil}</strong>
-            {usuario.nome_colaborador ? ` · colaborador vinculado: ${usuario.nome_colaborador}` : ''}
+          <p className="subtitulo-pagina">
+            {administrador
+              ? `Vigências atuais em ${hojeExtenso()}.`
+              : 'Solicitações de todos os operadores são visíveis a todos os operadores; contas aguardando aprovação, somente aos Administradores.'}
           </p>
         </div>
+        {pode('ajuste.solicitar') && (
+          <button type="button" className="botao-principal" onClick={() => setEmitindo(true)}>
+            + Emitir solicitação de ajuste
+          </button>
+        )}
       </div>
 
-      <section className="cartao">
-        <h3>O que o seu perfil faz</h3>
-        <p>{DESCRICAO_PERFIL[usuario.perfil] || 'Permissões definidas pelo Administrador.'}</p>
-      </section>
+      <Mensagem mensagem={mensagem} />
 
-      <section className="cartao">
-        <h3>Atalhos</h3>
-        <div className="atalhos">
-          {atalhos.map((item) => (
-            <Link key={item.caminho} to={item.caminho} className="atalho">
-              <strong>{item.rotulo}</strong>
-              <span>{item.funcao}{item.pendente ? ' · em desenvolvimento' : ''}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <div className="aviso-desenvolvimento" role="status">
-        <strong>Painel de acompanhamento (RF_S1) em desenvolvimento</strong>
-        <p>
-          Os indicadores de instâncias contratadas, em uso e vagas, as apólices por situação e os
-          vencimentos dependem das funções de licenças e apólices, ainda não implementadas.
+      {administrador && (
+        <p className="aviso-desenvolvimento">
+          <strong>Indicadores em desenvolvimento</strong>
+          Instâncias contratadas, em uso e vagas e apólices vigentes (RF_S1) dependem das funções de licenças
+          e apólices, ainda não implementadas. Nenhum número é simulado.
         </p>
+      )}
+
+      <div className="painel-blocos">
+        {administrador ? (
+          <>
+            <BlocoPrazosVencidos />
+            <BlocoEmDesenvolvimento titulo="Autorizações emitidas"
+              texto="A emissão de autorizações operacionais e o registro dos resultados entram com a RF_F15." />
+            <BlocoSolicitacoes titulo="Solicitações recebidas" versao={versao} aoMensagem={mostrarMensagem} />
+          </>
+        ) : (
+          <>
+            <BlocoEmDesenvolvimento titulo="Últimas notificações"
+              texto="A central de notificações e os avisos conforme as suas preferências entram com a RF_S8 e a RF_F13." />
+            <BlocoEmDesenvolvimento titulo="Autorizações da gestão"
+              texto="As autorizações emitidas pela gestão e o registro dos resultados entram com a RF_F15." />
+            <BlocoSolicitacoes titulo="Solicitações de ajuste" versao={versao} aoMensagem={mostrarMensagem} />
+          </>
+        )}
       </div>
+
+      {emitindo && (
+        <ModalSolicitacaoAjuste
+          aoFechar={() => setEmitindo(false)}
+          aoEmitida={(s) => {
+            setEmitindo(false);
+            setVersao((v) => v + 1);
+            mostrarMensagem('sucesso', `${s.codigo} enviada. Um Administrador fará a correção e concluirá a solicitação.`);
+          }}
+        />
+      )}
     </main>
   );
 }

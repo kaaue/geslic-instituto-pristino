@@ -1,4 +1,4 @@
-// RF_B7 Gerenciar bens seguráveis (em desenvolvimento: a API responde 501)
+// RF_B6 Gerenciar bens seguráveis
 
 import { servicoDeCadastro } from './api';
 

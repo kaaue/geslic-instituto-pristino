@@ -1,4 +1,4 @@
-// Apólices de seguro: RF_F7 a RF_F10 e RF_S4 (em desenvolvimento: a API responde 501)
+// Apólices de seguro: RF_F8 a RF_F11 e RF_S4 (em desenvolvimento: a API responde 501)
 
 import { requisicao, consultaFiltros, enviarJson } from './api';
 

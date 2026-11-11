@@ -1,4 +1,4 @@
-// Validações da RF_B6 - Gerenciar projetos institucionais.
+// Validações da RF_F1 - Gerenciar projetos institucionais.
 // Seguem o mesmo formato de equipamentoValidacao.js (RF_B3): recebem o corpo
 // da requisição e devolvem { dados, erros }, com erros no formato campo -> mensagem.
 
@@ -18,6 +18,9 @@ function validarProjeto(corpo) {
   const dataInicio = textoOuNulo(corpo.data_inicio);
   const dataFimPrevista = textoOuNulo(corpo.data_fim_prevista);
   const idResponsavel = corpo.id_responsavel ? Number(corpo.id_responsavel) : null;
+  // setor responsável: opcional (RN43)
+  const idSetor = corpo.id_setor ? Number(corpo.id_setor) : null;
+  if (idSetor !== null && (!Number.isInteger(idSetor) || idSetor <= 0)) erros.id_setor = 'Setor inválido.';
 
   // Código: quatro dígitos, informado pelo usuário (RN19)
   if (!codigo) {
@@ -82,6 +85,7 @@ function validarProjeto(corpo) {
       nome,
       fonte_financiadora: fonte,
       id_responsavel: idResponsavel,
+      id_setor: idSetor,
       data_inicio: dataInicio,
       data_fim_prevista: dataFimPrevista,
       participantes

@@ -3,8 +3,11 @@
 // além de indicar quando o equipamento tem licença alocada.
 // Cada ação só aparece quando a tela a passa (conforme as permissões da conta).
 
-export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, aoInativar, carregando }) {
-  if (carregando) {
+import { dataDaApi } from '../../utils/mascaras';
+
+// acoesExtras(eq): ações a mais na linha (o atalho "Solicitar ajuste", RF_B10)
+export default function TabelaEquipamentos({ equipamentos, aoEditar, aoInativar, aoReativar, acoesExtras, carregando }) {
+  if (carregando && equipamentos.length === 0) {
     return <p className="estado-vazio">Carregando equipamentos...</p>;
   }
 
@@ -48,6 +51,9 @@ export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, 
               </td>
               <td>
                 <span className={`situacao situacao-${eq.situacao}`}>{eq.situacao}</span>
+                {eq.situacao === 'inativo' && eq.data_inativacao && (
+                  <span className="texto-inativo">descarte em {dataDaApi(eq.data_inativacao)}</span>
+                )}
                 {eq.instancias_alocadas > 0 && (
                   <span className="marca-alocado" title="Possui licença alocada">
                     {eq.instancias_alocadas} licença{eq.instancias_alocadas > 1 ? 's' : ''}
@@ -65,15 +71,12 @@ export default function TabelaEquipamentos({ equipamentos, aoEditar, aoExcluir, 
                     Inativar
                   </button>
                 )}
-                {aoExcluir && (
-                  <button
-                    type="button"
-                    className="botao-texto botao-perigo"
-                    onClick={() => aoExcluir(eq)}
-                  >
-                    Excluir
+                {aoReativar && eq.situacao === 'inativo' && (
+                  <button type="button" className="botao-texto" onClick={() => aoReativar(eq)}>
+                    Reativar
                   </button>
                 )}
+                {acoesExtras?.(eq)}
               </td>
             </tr>
           ))}

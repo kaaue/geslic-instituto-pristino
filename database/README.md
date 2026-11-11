@@ -8,7 +8,7 @@ com as tabelas de sessão e de recuperação de senha da autenticação.
 |---|---|
 | `schema.sql` | 30 tabelas e 2 gatilhos: as 28 tabelas do modelo da ERS, mais `sessao` e `recuperacao_senha`, já no formato da última migração |
 | `seed.sql` | dados de referência: perfis Administrador e Operador, catálogo de permissões e a matriz da RN21 |
-| `seed_dev.sql` | dados de exemplo para desenvolvimento e apresentação: setores, colaboradores, equipamentos, projetos, fornecedores, softwares e licenças com instâncias alocadas |
+| `seed_dev.sql` | dados de exemplo para desenvolvimento e apresentação: quatro setores (NUGEO, Onça, CAOMA e ADMINISTRATIVO), colaboradores (alguns em mais de um setor), equipamentos, projetos, fornecedores, softwares e licenças com instâncias alocadas |
 | `migrations/NNN_*.sql` | mudanças incrementais para atualizar bancos já existentes, sem apagar dados |
 
 Os scripts rodam pelo backend (`backend/scripts/`), e não direto no cliente
@@ -46,6 +46,7 @@ npm run admin:redefinir     # aplica a senha de ADMIN_SENHA à conta "admin"
 | `admin` | Administrador | `ADMIN_SENHA` do `.env` (desenvolvimento: `geslic123`) | ativa | `db:setup`, `db:migrate` (se não houver Administrador) |
 | `ana.ribeiro` | Administrador | `SENHA_USUARIOS_TESTE` (padrão `Geslic2026`) | ativa | `db:setup:exemplos` |
 | `carlos.alves` | Operador | `SENHA_USUARIOS_TESTE` (padrão `Geslic2026`) | ativa | `db:setup:exemplos` |
+| `operador` | Operador | `OPERADOR_SENHA` do `.env` (desenvolvimento: `geslic123`) | ativa | `db:setup:exemplos` (colaborador Pedro Henrique Matos) |
 
 Com `ADMIN_SENHA` vazia, o `admin` recebe uma senha provisória, mostrada uma
 única vez no terminal, com troca obrigatória no primeiro acesso. Com
@@ -64,6 +65,10 @@ o `db:setup` só as registra como aplicadas.
 |---|---|
 | `001_autenticacao.sql` | conta com `situacao` (pendente, ativo, inativo) no lugar de `ativo`, `troca_senha_obrigatoria`, `criada_em`, `senha_alterada_em` e `ultimo_acesso_em`; tabelas `sessao` e `recuperacao_senha`; `permissao.grupo` e `permissao.exclusiva_administrador`; catálogo de permissões e matriz por perfil |
 | `002_gatilhos_restauraveis.sql` | recria os gatilhos que tornam o histórico imutável (RN22) com `BEGIN ... END`. Na forma antiga, o MySQL guardava um `;` dentro do corpo, e o arquivo gerado pelo `mysqldump` falhava na restauração |
+| `003_funcoes_basicas.sql` | funções básicas da ERS 2.6: `setor.id_coordenador` e `data_inativacao`; campos por categoria e `data_inativacao` em `bem`; `software.observacoes`; `usuario` sem `ultimo_acesso_em` e com `id_aprovador`/`aprovada_em`; `permissao.exclusiva_operador` e matriz fixa refeita; `tipo_notificacao`, `preferencia_notificacao` (por tipo) e `prazo_notificacao`; `solicitacao_ajuste` e `presenca_solicitacao` com gatilhos; `movimentacao.id_solicitacao`. Conferida da mesma forma: um banco no formato anterior, migrado, ficou idêntico a um criado do zero |
+| `004_revisoes_funcionais.sql` | revisões funcionais: `usuario.senha_provisoria_expira_em` (prazo da senha provisória) e `cadastro_id_setor`/`cadastro_cargo` (setor e cargo informados na solicitação de acesso). Só acrescenta colunas |
+| `005_decisoes_ers27.sql` | decisões da ERS 2.7: `projeto.id_setor` (setor responsável, opcional); situação `recusada` em `usuario` (a solicitação recusada é preservada); inclusão do responsável entre os participantes dos projetos existentes, com um evento no histórico por projeto. Nada é apagado |
+| `006_colaborador_varios_setores.sql` | colaborador em mais de um setor: tabela `colaborador_setor` (N:N), com o setor atual de cada colaborador copiado para ela antes de `colaborador.id_setor` sair |
 
 As duas migrações foram conferidas assim:
 
@@ -98,17 +103,17 @@ Rode `npm run db:migrate` antes de fazer a cópia.
 
 ## Tabelas
 
-**Cadastros (RF_B1 a RF_B8)**
+**Cadastros (RF_B1 a RF_B7) e projetos (RF_F1)**
 
 | Tabela | Conteúdo |
 |---|---|
-| `setor`, `colaborador`, `colaborador_projeto` | setores, colaboradores (`ativo` e `data_desligamento`) e participação em projetos |
+| `setor`, `colaborador`, `colaborador_setor`, `colaborador_projeto` | setores, colaboradores (`ativo` e `data_desligamento`), setores de cada colaborador (um ou mais) e participação em projetos |
 | `bem`, `equipamento` | bem segurável e sua especialização equipamento (mesma chave: `equipamento.id_equipamento` = `bem.id_bem`) |
 | `projeto` | projetos institucionais, com código de 4 dígitos, término previsto e encerramento manual |
 | `fornecedor`, `software` | fornecedores e seguradoras (CNPJ único) e softwares |
 | `tipo_seguro`, `cobertura` | tipos de seguro e suas coberturas |
 
-**Licenças e apólices (RF_F1 a RF_F11)**
+**Licenças e apólices (RF_F2 a RF_F12)**
 
 | Tabela | Conteúdo |
 |---|---|
@@ -117,7 +122,7 @@ Rode `npm run db:migrate` antes de fazer a cópia.
 | `apolice`, `vigencia_apolice`, `vigencia_cobertura`, `item_segurado`, `item_cobertura` | apólice, vigências, coberturas contratadas e bens ou pessoas segurados |
 | `documento` | metadados e caminho dos PDFs de cada vigência (RN23) |
 
-**Contas, avisos e auditoria (RF_B9, RF_B10, RF_F12, RF_F13)**
+**Contas, avisos e auditoria (RF_B8, RF_B9, RF_F13, RF_F14)**
 
 | Tabela | Conteúdo |
 |---|---|
@@ -171,12 +176,12 @@ erDiagram
 
 | Tema | Decisão | Motivo |
 |---|---|---|
-| Nomes mantidos | `equipamento.id_equipamento` (modelo: `id_bem`), `equipamento.tipo`, `colaborador.ativo` e `licenca.nome_software` | o código da RF_B3 já usa esses nomes; `nome_software` sai quando a RF_F1 passar a usar `software` |
+| Nomes mantidos | `equipamento.id_equipamento` (modelo: `id_bem`), `equipamento.tipo`, `colaborador.ativo` e `licenca.nome_software` | o código da RF_B3 já usa esses nomes; `nome_software` sai quando a RF_F2 passar a usar `software` |
 | Situação da conta | `usuario.situacao` (pendente, ativo, inativo) no lugar do booleano `ativo` | o autocadastro precisa do estado "aguardando aprovação"; contas não são excluídas, para preservar o histórico (RN27) |
 | Conta e colaborador | `usuario.id_colaborador` opcional e único | a ERS separa conta de acesso e cadastro de pessoa: nenhum cria o outro |
 | Senhas e tokens | senha só como hash scrypt; tokens de sessão e de recuperação só como SHA-256 | quem lê o banco não consegue entrar nem redefinir senhas |
 | Permissões | catálogo por operação (`cadastro.alterar`, `projeto.encerrar`...), com `exclusiva_administrador` | permissões configuráveis (Quadro 7) sem permitir dar ao Operador o que a RN21 reserva ao Administrador |
-| Histórico imutável | gatilhos bloqueiam `UPDATE` e `DELETE` em `movimentacao`; os dados de antes e depois são JSON, sem campos de senha, hash, token ou chave | RN22 e RF_F13 |
+| Histórico imutável | gatilhos bloqueiam `UPDATE` e `DELETE` em `movimentacao`; os dados de antes e depois são JSON, sem campos de senha, hash, token ou chave | RN22 e RF_F14 |
 | Vínculo vigente único | colunas geradas `instancia_vigente` com `UNIQUE` em `alocacao` e `utilizacao` | no máximo uma alocação e uma utilização vigentes por instância (RN09), mantendo o histórico |
 | Regras entre tabelas | capacidade da vigência, perpétua sem fim, mesma licença no mesmo destino e cobertura do item ficam na aplicação | não cabem em `CHECK` com segurança no MySQL (quadro 3.3.1) |
 
@@ -192,3 +197,4 @@ erDiagram
 - **Consultas:** sempre parametrizadas (`?`), nunca com valores concatenados.
 - **Alterou o schema?** Crie uma migração, atualize o `schema.sql` e este
   README.
+

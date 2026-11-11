@@ -41,7 +41,7 @@ export function moedaParaNumero(texto) {
 }
 
 // ---------------------------------------------------------------
-// Máscaras da tela de projetos (RF_B6)
+// Máscaras da tela de projetos (RF_F1)
 // ---------------------------------------------------------------
 
 // Código do projeto: exatamente quatro dígitos (RN19)
@@ -72,6 +72,35 @@ export function dataDaApi(iso) {
   if (!iso) return '';
   const [ano, mes, dia] = String(iso).slice(0, 10).split('-');
   return `${dia}/${mes}/${ano}`;
+}
+
+// ---------------------------------------------------------------
+// Máscaras dos cadastros das funções básicas (RF_B1 e RF_B6)
+// ---------------------------------------------------------------
+
+// CNPJ: 00.000.000/0000-00. A API guarda só os 14 dígitos.
+export function mascaraCnpj(valor) {
+  const d = String(valor ?? '').replace(/\D/g, '').slice(0, 14);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
+// Telefone: (00) 0000-0000 ou (00) 00000-0000
+export function mascaraTelefone(valor) {
+  const d = String(valor ?? '').replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : '';
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+// Placa de veículo: ABC-1234 ou Mercosul ABC-1D23
+export function mascaraPlaca(valor) {
+  const limpo = String(valor ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+  return limpo.length > 3 ? `${limpo.slice(0, 3)}-${limpo.slice(3)}` : limpo;
 }
 
 // Converte o número vindo da API para o texto da máscara

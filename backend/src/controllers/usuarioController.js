@@ -1,11 +1,12 @@
-// Controller de Contas e perfis (RF_B9, RN21, RN27): exclusivo de quem tem
+// Controller de Contas e perfis (RF_B8, RN21, RN27): exclusivo de quem tem
 // a permissão usuario.gerenciar (o Administrador). As regras ficam no model.
 
 const Usuario = require('../models/usuarioModel');
 const { lancarSeHouverErros } = require('../utils/AppError');
 const { textoOuNulo } = require('../utils/normalizacao');
 const {
-  validarDadosConta, validarCriacao, validarAprovacao, validarAlteracaoPerfil, validarSituacao
+  validarDadosConta, validarCriacao, validarAprovacao, validarAlteracaoPerfil, validarSituacao,
+  validarTransferencia
 } = require('../models/usuarioValidacao');
 
 const id = (req) => Number(req.params.id);
@@ -61,13 +62,22 @@ async function listarPerfis(req, res) {
   res.json(await Usuario.listarPerfis());
 }
 
-async function definirPermissoes(req, res) {
-  const permissoes = Array.isArray(req.body?.permissoes) ? req.body.permissoes.map(String) : null;
-  if (!permissoes) lancarSeHouverErros({ permissoes: 'Informe a lista de permissões.' });
-  res.json({ permissoes: await Usuario.definirPermissoes(id(req), [...new Set(permissoes)], responsavel(req)) });
+// A matriz de perfis e permissões é explicativa e não editável (RN41, CA24)
+async function recusarEdicaoDePermissoes(req, res) {
+  res.status(405).json({
+    mensagem: 'As permissões de cada perfil são fixas: a matriz é explicativa e não editável (RN21, RN41). ' +
+      'Para mudar o que uma conta pode fazer, altere o perfil dela.',
+    codigo: 'MATRIZ_NAO_EDITAVEL'
+  });
+}
+
+async function transferirAdministrador(req, res) {
+  const { erros, dados } = validarTransferencia(req.body || {});
+  lancarSeHouverErros(erros);
+  res.json(await Usuario.transferirAdministrador(dados, responsavel(req)));
 }
 
 module.exports = {
   listar, buscar, criar, atualizar, aprovar, rejeitar, alterarPerfil,
-  alterarSituacao, definirSenhaProvisoria, listarPerfis, definirPermissoes
+  alterarSituacao, definirSenhaProvisoria, listarPerfis, recusarEdicaoDePermissoes, transferirAdministrador
 };

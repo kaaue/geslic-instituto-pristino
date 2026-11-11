@@ -1,13 +1,16 @@
-// Listagem das contas: solicitações pendentes primeiro, depois ativas e
-// desativadas, com as ações possíveis em cada situação.
+// Listagem das contas: solicitações pendentes primeiro, depois ativas,
+// desativadas e, por último, as solicitações recusadas (preservadas, RN22).
+// Uma única ação por linha, "Gerenciar" ("Revisar" no pedido pendente e
+// "Consultar" no recusado), que abre o painel lateral da conta.
 
-const ROTULO_SITUACAO = { pendente: 'aguardando aprovação', ativo: 'ativa', inativo: 'desativada' };
+const ROTULO_SITUACAO = { pendente: 'aguardando aprovação', recusada: 'recusada', ativo: 'ativa', inativo: 'desativada' };
 
+// Não há "último acesso" (RN41): só a data da solicitação e quem aprovou
 function dataHora(iso) {
   return iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : null;
 }
 
-export default function TabelaContas({ contas, carregando, idContaAtual, aoAgir, aoSenhaProvisoria }) {
+export default function TabelaContas({ contas, carregando, idContaAtual, aoGerenciar }) {
   if (carregando && contas.length === 0) return <p className="estado-vazio">Carregando contas...</p>;
   if (contas.length === 0) return <p className="estado-vazio">Nenhuma conta encontrada.</p>;
 
@@ -18,10 +21,8 @@ export default function TabelaContas({ contas, carregando, idContaAtual, aoAgir,
           <tr>
             <th>Nome</th>
             <th>Login</th>
-            <th>E-mail</th>
             <th>Perfil</th>
-            <th>Colaborador</th>
-            <th>Último acesso</th>
+            <th>Colaborador e setor</th>
             <th>Situação</th>
             <th aria-label="Ações"></th>
           </tr>
@@ -29,44 +30,34 @@ export default function TabelaContas({ contas, carregando, idContaAtual, aoAgir,
         <tbody>
           {contas.map((c) => {
             const propria = c.id_usuario === idContaAtual;
+            const pendente = c.situacao === 'pendente';
+            const pedido = pendente || c.situacao === 'recusada';
             return (
-              <tr key={c.id_usuario} className={c.situacao === 'inativo' ? 'linha-inativa' : ''}>
-                <td>{c.nome}{propria && <span className="marca-alocado">você</span>}</td>
+              <tr key={c.id_usuario} className={c.situacao === 'inativo' || c.situacao === 'recusada' ? 'linha-inativa' : ''}>
+                <td>
+                  {c.nome}{propria && <span className="marca-alocado">você</span>}
+                  <small className="sublinha">{c.email}</small>
+                </td>
                 <td className="col-etiqueta">{c.login}</td>
-                <td className="col-email">{c.email}</td>
                 <td>
                   <span className={`etiqueta-perfil perfil-${c.perfil.toLowerCase()}`}>{c.perfil}</span>
                   {c.troca_senha_obrigatoria && <span className="marca-alocado">senha provisória</span>}
                 </td>
-                <td>{c.nome_colaborador || <span className="vazio">—</span>}</td>
-                <td className="col-data">{dataHora(c.ultimo_acesso_em) || <span className="vazio">nunca</span>}</td>
+                <td>
+                  {c.nome_colaborador || (pendente ? <span className="vazio">a definir na aprovação</span> : <span className="vazio">sem colaborador</span>)}
+                  <small className="sublinha">
+                    {c.nome_setor || (pedido && c.nome_setor_solicitado ? `${c.nome_setor_solicitado} (informado no pedido)` : '')}
+                  </small>
+                </td>
                 <td>
                   <span className={`situacao situacao-conta-${c.situacao}`}>{ROTULO_SITUACAO[c.situacao]}</span>
+                  {pendente && <span className="marca-alocado">solicitada em {dataHora(c.criada_em)}</span>}
+                  {c.aprovada_em && c.nome_aprovador && <span className="marca-alocado">aprovada por {c.nome_aprovador}</span>}
                 </td>
-                <td className="col-acoes col-acoes-varias">
-                  {c.situacao === 'pendente' ? (
-                    <>
-                      <button type="button" className="botao-texto" onClick={() => aoAgir('aprovar', c)}>Aprovar</button>
-                      <button type="button" className="botao-texto botao-perigo" onClick={() => aoAgir('recusar', c)}>Recusar</button>
-                    </>
-                  ) : (
-                    <>
-                      <button type="button" className="botao-texto" onClick={() => aoAgir('editar', c)}>Editar</button>
-                      <button type="button" className="botao-texto" onClick={() => aoAgir('perfil', c)}>Perfil</button>
-                      {c.situacao === 'ativo' && (
-                        <button type="button" className="botao-texto" onClick={() => aoSenhaProvisoria(c)}>Senha provisória</button>
-                      )}
-                      <button
-                        type="button"
-                        className={`botao-texto ${c.situacao === 'ativo' ? 'botao-perigo' : ''}`}
-                        onClick={() => aoAgir('situacao', c)}
-                        disabled={propria && c.situacao === 'ativo'}
-                        title={propria ? 'Você não pode desativar a sua própria conta' : undefined}
-                      >
-                        {c.situacao === 'ativo' ? 'Desativar' : 'Reativar'}
-                      </button>
-                    </>
-                  )}
+                <td className="col-acoes">
+                  <button type="button" className="botao-texto" onClick={() => aoGerenciar(c)}>
+                    {pendente ? 'Revisar' : c.situacao === 'recusada' ? 'Consultar' : 'Gerenciar'}
+                  </button>
                 </td>
               </tr>
             );

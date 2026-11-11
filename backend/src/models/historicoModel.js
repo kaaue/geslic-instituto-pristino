@@ -1,4 +1,4 @@
-// Histórico de movimentações e auditoria (RF_F13, RF_S7, RN22).
+// Histórico de movimentações e auditoria (RF_F14, RF_S7, RN22).
 // A gravação acontece dentro da transação de cada operação, para todas as
 // contas; a consulta é exclusiva de quem tem a permissão auditoria.consultar.
 // Os eventos não podem ser alterados nem excluídos (gatilhos no banco).
@@ -19,11 +19,12 @@ async function registrar(conexao, evento) {
   await conexao.query(
     `INSERT INTO movimentacao
        (id_usuario, tipo, entidade, id_registro, id_licenca, id_instancia, id_apolice,
-        data_evento, descricao, motivo, dados_anteriores, dados_posteriores)
-     VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURDATE()), ?, ?, ?, ?)`,
+        id_solicitacao, data_evento, descricao, motivo, dados_anteriores, dados_posteriores)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURDATE()), ?, ?, ?, ?)`,
     [
       evento.idUsuario, evento.tipo, evento.entidade, evento.idRegistro,
       evento.idLicenca || null, evento.idInstancia || null, evento.idApolice || null,
+      evento.idSolicitacao || null,
       evento.dataEvento || null, evento.descricao.slice(0, 255),
       evento.motivo ? String(evento.motivo).slice(0, 255) : null,
       evento.antes ? JSON.stringify(semSegredos(evento.antes)) : null,
@@ -49,6 +50,10 @@ function montarFiltros(filtros) {
   if (filtros.entidade) {
     condicoes.push('m.entidade = ?');
     valores.push(filtros.entidade);
+  }
+  if (filtros.id_registro) {
+    condicoes.push('m.id_registro = ?');
+    valores.push(Number(filtros.id_registro));
   }
   if (filtros.id_usuario) {
     condicoes.push('m.id_usuario = ?');
