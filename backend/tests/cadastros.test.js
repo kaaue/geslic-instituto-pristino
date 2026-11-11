@@ -90,7 +90,8 @@ test('RF_B4: homônimo é avisado e permitido; e-mail repetido é bloqueado (RN1
   const homonimos = await op.get(`/colaboradores/homonimos?nome=${encodeURIComponent('juliana  moreira')}`);
   assert.equal(homonimos.status, 200);
   assert.equal(homonimos.corpo.length, 1);
-  assert.equal(homonimos.corpo[0].nome_setor, 'Projetos Ambientais');
+  // Juliana está em dois setores: os nomes vêm juntos, em ordem alfabética
+  assert.equal(homonimos.corpo[0].nome_setor, 'CAOMA, Onça');
 
   const repetido = await op.post('/colaboradores', { nome: 'Juliana Moreira', id_setor: 4, email: 'juliana.moreira@pristino.org.br' });
   assert.equal(repetido.status, 400);
@@ -98,25 +99,25 @@ test('RF_B4: homônimo é avisado e permitido; e-mail repetido é bloqueado (RN1
 
   const homonima = await op.post('/colaboradores', { nome: 'Juliana Moreira', id_setor: 4, cargo: 'Técnica de campo' });
   assert.equal(homonima.status, 201);
-  assert.equal((await op.post('/colaboradores', { nome: 'Em Setor Inativo', id_setor: 6 })).status, 400);
+  assert.equal((await op.post('/colaboradores', { nome: 'Em Setor Inativo', id_setor: await t.setorInativo() })).status, 400);
 });
 
 test('RF_B4: desligamento só pelo Administrador, com data efetiva; encerra utilizações e a coordenação (RN07, RN37)', async () => {
   const op = await t.entrarOperador();
   const admin = await t.entrarAdmin();
-  // Juliana (4) coordena Projetos Ambientais e passa a usar uma instância
+  // Juliana (4) coordena o CAOMA e passa a usar uma instância
   await t.sql(`INSERT INTO utilizacao (id_instancia, id_colaborador, data_inicio) VALUES (1, 4, ?)`, [t.dataLocal(-30)]);
 
   assert.equal((await op.post('/colaboradores/4/desligamento', { data_efetiva: ontem() })).status, 403);
   const previa = await admin.get('/colaboradores/4/previa-desligamento');
   assert.equal(previa.corpo.utilizacoes.length, 1);
-  assert.deepEqual(previa.corpo.setores_coordenados.map((s) => s.nome), ['Projetos Ambientais']);
+  assert.deepEqual(previa.corpo.setores_coordenados.map((s) => s.nome), ['CAOMA']);
 
   assert.equal((await admin.post('/colaboradores/4/desligamento', {})).status, 400);
   const r = await admin.post('/colaboradores/4/desligamento', { data_efetiva: ontem(), motivo: 'Fim do contrato' });
   assert.equal(r.status, 200);
   assert.equal(r.corpo.utilizacoes_encerradas, 1);
-  assert.deepEqual(r.corpo.setores_sem_coordenador, ['Projetos Ambientais']);
+  assert.deepEqual(r.corpo.setores_sem_coordenador, ['CAOMA']);
   assert.equal(r.corpo.colaborador.data_desligamento, ontem());
 
   const [utilizacao] = await t.sql(`SELECT DATE_FORMAT(data_fim, '%Y-%m-%d') AS fim FROM utilizacao WHERE id_colaborador = 4`);
@@ -144,9 +145,12 @@ test('RF_B5: coordenador precisa ser colaborador ativo; inativação com data ef
   assert.equal((await op.post('/setores', { nome: 'geoprocessamento' })).status, 400);
 
   const lista = (await op.get('/setores')).corpo;
-  const administrativo = lista.find((s) => s.nome === 'Administrativo');
+  const administrativo = lista.find((s) => s.nome === 'ADMINISTRATIVO');
   assert.ok(administrativo.colaboradores >= 1 && administrativo.equipamentos >= 1);
-  assert.ok(lista.find((s) => s.nome === 'Educação Ambiental').data_inativacao);
+  // quem está em dois setores conta nos dois: NUGEO tem Carlos, Pedro e Camila
+  assert.equal(lista.find((s) => s.nome === 'NUGEO').colaboradores, 3);
+  assert.deepEqual(lista.filter((s) => s.ativo && s.nome !== 'Geoprocessamento').map((s) => s.nome).sort(),
+    ['ADMINISTRATIVO', 'CAOMA', 'NUGEO', 'Onça']);
 
   // Administrador inativa pela edição: exige data efetiva
   const semData = await admin.put(`/setores/${novo.corpo.id_setor}`, { nome: 'Geoprocessamento', id_coordenador: 3, situacao: 'inativo' });

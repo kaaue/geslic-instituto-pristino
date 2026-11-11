@@ -48,14 +48,25 @@ CREATE TABLE colaborador (
   nome              VARCHAR(120) NOT NULL,
   cargo             VARCHAR(80),
   email             VARCHAR(120),
-  id_setor          INT          NOT NULL,
   ativo             BOOLEAN      NOT NULL DEFAULT TRUE,
   -- desligamento do colaborador (RF_B4): ativo = FALSE e data preenchida
   data_desligamento DATE,
   -- o e-mail é único, mas o nome pode repetir: o documento permite homônimos (RN19)
   CONSTRAINT uq_colaborador_email UNIQUE (email),
-  CONSTRAINT ck_colaborador_desligamento CHECK (data_desligamento IS NULL OR ativo = FALSE),
-  CONSTRAINT fk_colaborador_setor FOREIGN KEY (id_setor) REFERENCES setor (id_setor)
+  CONSTRAINT ck_colaborador_desligamento CHECK (data_desligamento IS NULL OR ativo = FALSE)
+);
+
+-- Setores do colaborador (migração 006): uma pessoa pode atuar em mais de
+-- um setor. O cadastro exige ao menos um.
+CREATE TABLE colaborador_setor (
+  id_colaborador INT NOT NULL,
+  id_setor       INT NOT NULL,
+  PRIMARY KEY (id_colaborador, id_setor),
+  KEY ix_colabsetor_setor (id_setor),
+  CONSTRAINT fk_colabsetor_colaborador FOREIGN KEY (id_colaborador)
+    REFERENCES colaborador (id_colaborador),
+  CONSTRAINT fk_colabsetor_setor FOREIGN KEY (id_setor)
+    REFERENCES setor (id_setor)
 );
 
 ALTER TABLE setor ADD CONSTRAINT fk_setor_coordenador

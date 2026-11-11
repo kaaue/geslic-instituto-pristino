@@ -13,6 +13,7 @@
 //   aparecem junto, diferenciadas e com a ação própria (RN33, RN41).
 
 const { pool, comTransacao } = require('../config/database');
+const { nomesSetoresSql } = require('./colaboradorSetor');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
 const { pode } = require('../middlewares/auth');
@@ -36,8 +37,8 @@ const ENTIDADES = {
   },
   colaborador: {
     rotulo: 'Colaborador', tela: '/colaboradores',
-    select: `SELECT c.id_colaborador AS id, CONCAT(c.nome, ' · ', s.nome) AS rotulo
-               FROM colaborador c JOIN setor s ON s.id_setor = c.id_setor`,
+    select: `SELECT c.id_colaborador AS id, CONCAT_WS(' · ', c.nome, ${nomesSetoresSql('c')}) AS rotulo
+               FROM colaborador c`,
     chave: 'c.id_colaborador', ordem: 'c.nome'
   },
   projeto: {

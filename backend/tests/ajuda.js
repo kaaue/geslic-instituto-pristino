@@ -91,6 +91,16 @@ async function sql(consulta, valores) {
   return linhas;
 }
 
+// Os exemplos têm só os quatro setores ativos; os testes que precisam de um
+// setor inativo criam este (uma vez por banco) e recebem o id
+async function setorInativo() {
+  const [existente] = await sql(`SELECT id_setor FROM setor WHERE nome = 'Educação Ambiental'`);
+  if (existente) return existente.id_setor;
+  const r = await sql(
+    `INSERT INTO setor (nome, ativo, data_inativacao) VALUES ('Educação Ambiental', FALSE, '2026-06-30')`);
+  return r.insertId;
+}
+
 function zerarLimites() {
   require('../src/middlewares/limiteTentativas').limparTodos();
 }
@@ -105,5 +115,5 @@ function dataLocal(dias = 0) {
 
 module.exports = {
   SENHAS, iniciar, encerrar, cliente, entrar, entrarAdmin, entrarAdministradora, entrarOperador,
-  sql, zerarLimites, dataLocal
+  sql, setorInativo, zerarLimites, dataLocal
 };

@@ -48,7 +48,7 @@ test('participação é a seleção do momento: mudar o colaborador de setor nã
   const admin = await t.entrarAdmin();
   const [{ id_projeto: id }] = await t.sql(`SELECT id_projeto FROM projeto WHERE codigo = '3100'`);
   const colaborador = (await admin.get('/colaboradores/6')).corpo;
-  const movido = await admin.put('/colaboradores/6', { ...colaborador, id_setor: 5 });
+  const movido = await admin.put('/colaboradores/6', { ...colaborador, ids_setores: [4] });
   assert.equal(movido.status, 200);
   assert.ok((await participantes(id)).includes(6));
 });
@@ -64,9 +64,9 @@ test('setor responsável: opcional, filtrável (com "sem setor") e precisa estar
   assert.deepEqual(setor4, ['3101']);
   const semSetor = (await op.get('/projetos?id_setor=sem')).corpo.map((p) => p.codigo);
   assert.ok(semSetor.includes('0007') && !semSetor.includes('3101'));
-  assert.equal((await op.get(`/projetos/${novo.corpo.id_projeto}`)).corpo.nome_setor, 'Campo e Monitoramento');
-  // setor inativo (Educação Ambiental) não pode ser escolhido
-  const [{ id_setor: inativo }] = await t.sql(`SELECT id_setor FROM setor WHERE ativo = FALSE LIMIT 1`);
+  assert.equal((await op.get(`/projetos/${novo.corpo.id_projeto}`)).corpo.nome_setor, 'ADMINISTRATIVO');
+  // setor inativo não pode ser escolhido
+  const inativo = await t.setorInativo();
   const recusado = await admin.put(`/projetos/${novo.corpo.id_projeto}`, { ...PROJETO, codigo: '3101', nome: 'Projeto com setor', id_responsavel: 5, id_setor: inativo });
   assert.equal(recusado.status, 400);
   assert.ok(recusado.corpo.erros.id_setor);
@@ -149,7 +149,10 @@ test('conta criada junto com um colaborador novo, numa única operação', async
   assert.equal(r.status, 201);
   assert.equal(r.corpo.conta.nome_colaborador, 'Helena Duarte');
   assert.ok(r.corpo.senha_expira_em);
-  const [colab] = await t.sql(`SELECT id_colaborador, email, id_setor, cargo FROM colaborador WHERE nome = 'Helena Duarte'`);
+  const [colab] = await t.sql(
+    `SELECT c.id_colaborador, c.email, cs.id_setor, c.cargo
+       FROM colaborador c JOIN colaborador_setor cs ON cs.id_colaborador = c.id_colaborador
+      WHERE c.nome = 'Helena Duarte'`);
   assert.equal(colab.email, 'helena.duarte@pristino.org.br');
   assert.equal(colab.id_setor, 3);
   assert.equal(r.corpo.conta.id_colaborador, colab.id_colaborador);
@@ -171,7 +174,7 @@ test('homônimo: a API mostra os cadastros existentes e só cria outro com confi
   const r = await admin.post('/usuarios', dados);
   assert.equal(r.status, 409);
   assert.equal(r.corpo.codigo, 'COLABORADOR_HOMONIMO');
-  assert.equal(r.corpo.homonimos[0].nome_setor, 'Comunicação');
+  assert.equal(r.corpo.homonimos[0].nome_setor, 'ADMINISTRATIVO');
   assert.equal((await t.sql(`SELECT COUNT(*) AS n FROM usuario WHERE login = 'tiago.f2'`))[0].n, 0);
 
   const confirmado = await admin.post('/usuarios', { ...dados, confirmar_homonimo: true });
@@ -184,35 +187,48 @@ test('solicitação de acesso guarda setor e cargo; o colaborador só nasce na a
   const setores = await publico.get('/auth/setores');
   assert.equal(setores.status, 200);
   assert.ok(setores.corpo.every((s) => Object.keys(s).sort().join() === 'id_setor,nome'));
-  assert.ok(!setores.corpo.some((s) => s.nome === 'Educação Ambiental'));
+  await t.setorInativo();
+  assert.ok(!(await publico.get('/auth/setores')).corpo.some((s) => s.nome === 'Educação Ambiental'));
 
   const base = { nome: 'Otávio Reis', email: 'otavio.reis@pristino.org.br', login: 'otavio.reis', senha: 'Otavio2026', confirmacao: 'Otavio2026' };
   const semSetor = await publico.post('/auth/cadastro', base);
   assert.equal(semSetor.status, 400);
   assert.ok(semSetor.corpo.erros.id_setor);
-  assert.equal((await publico.post('/auth/cadastro', { ...base, id_setor: 4, cargo: 'Técnico de campo' })).status, 201);
+  assert.equal((await publico.post('/auth/cadastro', { ...base, id_setor: 2, cargo: 'Técnico de campo' })).status, 201);
   assert.equal((await t.sql(`SELECT COUNT(*) AS n FROM colaborador WHERE nome = 'Otávio Reis'`))[0].n, 0);
 
   const admin = await t.entrarAdmin();
   const [{ id_usuario: id }] = await t.sql(`SELECT id_usuario FROM usuario WHERE login = 'otavio.reis'`);
   const pedido = (await admin.get('/usuarios?situacao=pendente')).corpo.find((c) => c.id_usuario === id);
-  assert.equal(pedido.nome_setor_solicitado, 'Campo e Monitoramento');
+  assert.equal(pedido.nome_setor_solicitado, 'Onça');
   assert.equal(pedido.cadastro_cargo, 'Técnico de campo');
 
-  // aprovação comum: sem motivo
+  // aprovação comum: sem motivo. O Administrador pode pôr o colaborador
+  // novo em mais de um setor (o informado no pedido e outro)
   const aprovada = await admin.post(`/usuarios/${id}/aprovacao`, {
-    id_perfil: await perfilId('Operador'), colaborador_novo: { id_setor: 4, cargo: 'Técnico de campo' }
+    id_perfil: await perfilId('Operador'), colaborador_novo: { ids_setores: [2, 3], cargo: 'Técnico de campo' }
   });
   assert.equal(aprovada.status, 200);
   assert.equal(aprovada.corpo.situacao, 'ativo');
   assert.equal(aprovada.corpo.nome_colaborador, 'Otávio Reis');
   assert.equal(aprovada.corpo.nome_aprovador, 'Administrador do sistema');
+  assert.equal(aprovada.corpo.nome_setor, 'CAOMA, Onça');
+  assert.deepEqual(aprovada.corpo.ids_setores, [3, 2]);
   const [evento] = await t.sql(`SELECT descricao FROM movimentacao WHERE entidade = 'usuario' AND id_registro = ? AND tipo = 'aprovacao'`, [id]);
   assert.match(evento.descricao, /cadastrado na aprovação/);
-  // filtro por setor
-  const doSetor = (await admin.get('/usuarios?id_setor=4')).corpo.map((c) => c.login);
+  // filtro por setor: vale qualquer um dos setores do colaborador
+  const doSetor = (await admin.get('/usuarios?id_setor=3')).corpo.map((c) => c.login);
   assert.ok(doSetor.includes('otavio.reis'));
   assert.ok(!doSetor.includes('carlos.alves'));
+  const doNugeo = (await admin.get('/usuarios?id_setor=1')).corpo.map((c) => c.login);
+  assert.ok(doNugeo.includes('carlos.alves') && doNugeo.includes('operador') && doNugeo.includes('gustavo.sales'));
+  // sem setor ativo, a aprovação é recusada
+  const [{ id_usuario: idFernanda }] = await t.sql(`SELECT id_usuario FROM usuario WHERE login = 'fernanda.vieira'`);
+  const semSetorAtivo = await admin.post(`/usuarios/${idFernanda}/aprovacao`, {
+    id_perfil: await perfilId('Operador'), colaborador_novo: { ids_setores: [] }
+  });
+  assert.equal(semSetorAtivo.status, 400);
+  assert.ok(semSetorAtivo.corpo.erros.colaborador_ids_setores);
 });
 
 test('aprovação reaproveita colaborador existente e recusa duplicar por e-mail', async () => {

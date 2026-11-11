@@ -9,13 +9,17 @@
 //   sempre um colaborador ativo).
 // - A participação em projetos é mostrada aqui, mas gerenciada no cadastro
 //   do projeto (RN38). O cadastro não cria conta de acesso.
+// - O colaborador pode pertencer a mais de um setor (colaborador_setor,
+//   migração 006); ao menos um é obrigatório.
 
 const { pool, comTransacao } = require('../config/database');
 const AppError = require('../utils/AppError');
 const Historico = require('./historicoModel');
+const Setores = require('./colaboradorSetor');
 
 const COLUNAS = `
-    c.id_colaborador, c.nome, c.cargo, c.email, c.id_setor, s.nome AS nome_setor, c.ativo,
+    c.id_colaborador, c.nome, c.cargo, c.email,
+    ${Setores.idsSetoresSql('c')} AS ids_setores, ${Setores.nomesSetoresSql('c')} AS nome_setor, c.ativo,
     DATE_FORMAT(c.data_desligamento, '%Y-%m-%d') AS data_desligamento,
     (SELECT GROUP_CONCAT(p.codigo ORDER BY p.codigo SEPARATOR ', ')
        FROM colaborador_projeto cp JOIN projeto p ON p.id_projeto = cp.id_projeto
@@ -23,14 +27,13 @@ const COLUNAS = `
     (SELECT u.login FROM usuario u WHERE u.id_colaborador = c.id_colaborador) AS login_conta`;
 
 const TABELAS = `
-    FROM colaborador c
-    JOIN setor s ON s.id_setor = c.id_setor`;
+    FROM colaborador c`;
 
-const publico = (l) => l && { ...l, ativo: Boolean(l.ativo) };
+const publico = (l) => l && Setores.comSetores({ ...l, ativo: Boolean(l.ativo) });
 
 function retrato(c) {
   return {
-    nome: c.nome, cargo: c.cargo, email: c.email, id_setor: c.id_setor,
+    nome: c.nome, cargo: c.cargo, email: c.email, ids_setores: [...(c.ids_setores || [])].sort((a, b) => a - b),
     ativo: c.ativo === undefined ? true : Boolean(c.ativo), data_desligamento: c.data_desligamento || null
   };
 }
@@ -50,22 +53,31 @@ async function conferirEmail(conexao, email, idAtual) {
   if (linhas.length) throw AppError.campos({ email: 'Este e-mail já pertence a outro colaborador.' });
 }
 
-// Setor existente; para vínculo novo, ativo
-async function conferirSetor(conexao, idSetor, idSetorAtual) {
-  const [[setor]] = await conexao.query('SELECT ativo FROM setor WHERE id_setor = ?', [idSetor]);
-  if (!setor) throw AppError.campos({ id_setor: 'Setor não encontrado.' });
-  if (!setor.ativo && idSetor !== idSetorAtual) throw AppError.campos({ id_setor: 'Este setor está inativo.' });
-}
-
 // Só colaboradores ativos podem ser escolhidos como responsáveis
 async function listarAtivos() {
   const [linhas] = await pool.query(
-    `SELECT c.id_colaborador, c.nome, c.cargo, c.id_setor, s.nome AS nome_setor
+    `SELECT c.id_colaborador, c.nome, c.cargo,
+            ${Setores.idsSetoresSql('c')} AS ids_setores, ${Setores.nomesSetoresSql('c')} AS nome_setor
        FROM colaborador c
-       JOIN setor s ON s.id_setor = c.id_setor
       WHERE c.ativo = TRUE
       ORDER BY c.nome`);
-  return linhas;
+  return linhas.map(Setores.comSetores);
+}
+
+// Projetos de cada colaborador da lista (código, nome e situação), num só acesso
+async function anexarProjetos(colaboradores) {
+  if (!colaboradores.length) return colaboradores;
+  const [linhas] = await pool.query(
+    `SELECT cp.id_colaborador, p.id_projeto, p.codigo, p.nome, p.situacao
+       FROM colaborador_projeto cp JOIN projeto p ON p.id_projeto = cp.id_projeto
+      WHERE cp.id_colaborador IN (?)
+      ORDER BY p.codigo`, [colaboradores.map((c) => c.id_colaborador)]);
+  const porColaborador = new Map();
+  for (const { id_colaborador: id, ...projeto } of linhas) {
+    if (!porColaborador.has(id)) porColaborador.set(id, []);
+    porColaborador.get(id).push(projeto);
+  }
+  return colaboradores.map((c) => ({ ...c, participacoes: porColaborador.get(c.id_colaborador) || [] }));
 }
 
 async function listar(filtros = {}) {
@@ -77,8 +89,15 @@ async function listar(filtros = {}) {
     valores.push(termo, termo, termo);
   }
   if (filtros.id_setor) {
-    condicoes.push('c.id_setor = ?');
+    condicoes.push(Setores.noSetorSql('c'));
     valores.push(Number(filtros.id_setor));
+  }
+  // Projeto de que participa, por parte do nome ou do código
+  if (filtros.projeto && String(filtros.projeto).trim()) {
+    const termo = `%${String(filtros.projeto).trim()}%`;
+    condicoes.push(`EXISTS (SELECT 1 FROM colaborador_projeto cp JOIN projeto p ON p.id_projeto = cp.id_projeto
+                             WHERE cp.id_colaborador = c.id_colaborador AND (p.nome LIKE ? OR p.codigo LIKE ?))`);
+    valores.push(termo, termo);
   }
   if (filtros.situacao === 'ativo') condicoes.push('c.ativo = TRUE');
   if (filtros.situacao === 'desligado') condicoes.push('c.ativo = FALSE');
@@ -86,18 +105,18 @@ async function listar(filtros = {}) {
     `SELECT ${COLUNAS} ${TABELAS}
       ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''}
       ORDER BY c.ativo DESC, c.nome`, valores);
-  return linhas.map(publico);
+  return anexarProjetos(linhas.map(publico));
 }
 
 // Possíveis homônimos (RN19): mesmo nome, comparado sem maiúsculas e espaços extras
 async function homonimos(nome, exceto) {
   if (!nome) return [];
   const [linhas] = await pool.query(
-    `SELECT c.id_colaborador, c.nome, s.nome AS nome_setor, c.ativo
-       FROM colaborador c JOIN setor s ON s.id_setor = c.id_setor
+    `SELECT c.id_colaborador, c.nome, ${Setores.nomesSetoresSql('c')} AS nome_setor, c.ativo
+       FROM colaborador c
       WHERE c.nome = ? AND c.id_colaborador <> ?
       ORDER BY c.ativo DESC`, [nome, exceto || 0]);
-  return linhas.map(publico);
+  return linhas.map((l) => ({ ...l, ativo: Boolean(l.ativo), nome_setor: l.nome_setor || '' }));
 }
 
 async function buscar(id) {
@@ -112,10 +131,11 @@ async function buscar(id) {
 async function incluir(dados, idUsuario) {
   return comTransacao(async (conexao) => {
     await conferirEmail(conexao, dados.email, null);
-    await conferirSetor(conexao, dados.id_setor, null);
+    await Setores.conferirSetores(conexao, dados.ids_setores);
     const [r] = await conexao.query(
-      'INSERT INTO colaborador (nome, cargo, email, id_setor) VALUES (?, ?, ?, ?)',
-      [dados.nome, dados.cargo, dados.email, dados.id_setor]);
+      'INSERT INTO colaborador (nome, cargo, email) VALUES (?, ?, ?)',
+      [dados.nome, dados.cargo, dados.email]);
+    await Setores.gravarSetores(conexao, r.insertId, dados.ids_setores);
     await Historico.registrar(conexao, {
       idUsuario, tipo: 'criacao', entidade: 'colaborador', idRegistro: r.insertId,
       descricao: `Colaborador ${dados.nome} cadastrado`, depois: retrato(dados)
@@ -128,10 +148,11 @@ async function alterar(id, dados, idUsuario) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id, true);
     await conferirEmail(conexao, dados.email, id);
-    await conferirSetor(conexao, dados.id_setor, atual.id_setor);
+    await Setores.conferirSetores(conexao, dados.ids_setores, atual.ids_setores);
     await conexao.query(
-      'UPDATE colaborador SET nome = ?, cargo = ?, email = ?, id_setor = ? WHERE id_colaborador = ?',
-      [dados.nome, dados.cargo, dados.email, dados.id_setor, id]);
+      'UPDATE colaborador SET nome = ?, cargo = ?, email = ? WHERE id_colaborador = ?',
+      [dados.nome, dados.cargo, dados.email, id]);
+    await Setores.gravarSetores(conexao, id, dados.ids_setores);
     await Historico.registrar(conexao, {
       idUsuario, tipo: 'correcao', entidade: 'colaborador', idRegistro: id,
       descricao: `Colaborador ${dados.nome}: dados corrigidos`,

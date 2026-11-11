@@ -5,6 +5,7 @@
 
 const { normalizarTexto, textoOuNulo, dataValida, hoje } = require('../utils/normalizacao');
 const { problemaNaSenha } = require('../utils/senha');
+const { lerSetores } = require('./colaboradorSetor');
 
 // Login: minúsculas, números, ponto, hífen e sublinhado; começa com letra ou número
 const FORMATO_LOGIN = /^[a-z0-9][a-z0-9._-]{2,39}$/;
@@ -59,20 +60,21 @@ function validarSolicitacao(corpo) {
 
 // Colaborador novo, cadastrado junto com a conta (criação ou aprovação).
 // O nome padrão é o da conta. Devolve null quando não foi enviado.
+// O colaborador pode ficar em mais de um setor (ids_setores; aceita também
+// o antigo id_setor, um só).
 function lerColaboradorNovo(corpo, nomeConta, erros) {
   const novo = corpo.colaborador_novo;
   if (!novo || typeof novo !== 'object') return null;
   // na aprovação (nomeConta null), sem nome informado vale o nome da conta solicitada
   const nome = normalizarTexto(novo.nome) || nomeConta || null;
   const cargo = textoOuNulo(novo.cargo);
-  const idSetor = Number(novo.id_setor);
+  const idsSetores = lerSetores(novo, erros, 'colaborador_ids_setores', 'Selecione ao menos um setor do colaborador.');
   if (nome !== null || nomeConta !== null) {
     if (!nome || nome.length < 3) erros.colaborador_nome = 'Informe o nome do colaborador.';
     else if (nome.length > 120) erros.colaborador_nome = 'O nome deve ter no máximo 120 caracteres.';
   }
-  if (!Number.isInteger(idSetor) || idSetor <= 0) erros.colaborador_id_setor = 'Selecione o setor do colaborador.';
   if (cargo && cargo.length > 80) erros.colaborador_cargo = 'O cargo deve ter no máximo 80 caracteres.';
-  return { nome, cargo, id_setor: idSetor };
+  return { nome, cargo, ids_setores: idsSetores };
 }
 
 // id do colaborador vinculado: opcional

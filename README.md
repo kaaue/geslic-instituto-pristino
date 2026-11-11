@@ -105,8 +105,9 @@ npm run db:reset            # APAGA o banco e recria tudo (aceita -- --exemplos)
 | `schema.sql` | as tabelas do modelo relacional (base da ERS 2.4, com sessões e recuperação de senha e, da ERS 2.6, o que as funções básicas usam: coordenador e datas efetivas, campos por categoria do bem, preferências por tipo e prazo, solicitações de ajuste e presença) |
 | `seed.sql` | perfis Administrador e Operador, catálogo de permissões com a matriz fixa por perfil (RN21, RN41) e os tipos de aviso (RN24) |
 | usuário `admin` | Administrador, com a senha de `ADMIN_SENHA` (`geslic123` em desenvolvimento). Com `ADMIN_SENHA` vazia, recebe senha provisória, mostrada uma vez, com troca obrigatória no primeiro acesso |
-| `seed_dev.sql` | só com exemplos: 6 setores (1 inativo) com coordenadores, 9 colaboradores (1 desligado), 15 equipamentos, 7 projetos, 3 licenças alocadas, 4 fornecedores e seguradoras, 5 softwares, 4 bens seguráveis, 5 tipos de seguro com coberturas e 2 apólices de exemplo (o drone DJI Mavic 3 é coberto pelas duas, RN40) |
-| usuários de teste | só com exemplos: `ana.ribeiro` (Administrador) e `carlos.alves` (Operador), senha `SENHA_USUARIOS_TESTE` (padrão `Geslic2026`); também uma solicitação de acesso pendente (`luciana.prado`) e duas solicitações de ajuste do Operador, uma pendente e uma concluída |
+| `seed_dev.sql` | só com exemplos: 4 setores (NUGEO, Onça, CAOMA e ADMINISTRATIVO) com coordenadores, 11 colaboradores (1 desligado; Marina, Carlos, Juliana e Pedro em dois setores), 15 equipamentos, 7 projetos (4 com setor responsável), 3 licenças alocadas, 4 fornecedores e seguradoras, 5 softwares, 4 bens seguráveis, 5 tipos de seguro com coberturas e 2 apólices de exemplo (o drone DJI Mavic 3 é coberto pelas duas, RN40) |
+| conta `operador` | só com exemplos: perfil Operador, senha de `OPERADOR_SENHA` (**`operador` / `geslic123`** em desenvolvimento), ligada ao colaborador Pedro Henrique Matos (NUGEO e Onça) |
+| usuários de teste | só com exemplos: `ana.ribeiro` (Administrador) e `carlos.alves` (Operador), senha `SENHA_USUARIOS_TESTE` (padrão `Geslic2026`); também três solicitações de acesso pendentes (`luciana.prado`, `fernanda.vieira` e `gustavo.sales`, cada uma com setor e cargo) e oito solicitações de ajuste dos dois Operadores (`carlos.alves` e `operador`) em cadastros variados — colaborador, setor, fornecedor, projeto, software, bem e equipamento —, cinco pendentes e três concluídas |
 
 O modelo de dados, as decisões de modelagem, as migrações e o procedimento
 de cópia de segurança estão em [`database/README.md`](database/README.md).
@@ -129,6 +130,7 @@ Rodar de novo não faz nada.
 | `001_autenticacao.sql` | situação da conta (pendente, ativo, inativo), senha provisória, último acesso; tabelas `sessao` e `recuperacao_senha`; catálogo de permissões e matriz por perfil |
 | `002_gatilhos_restauraveis.sql` | recria os gatilhos do histórico (RN22) com `BEGIN ... END`. Os antigos gravavam um `;` dentro do corpo, e o arquivo do `mysqldump` não podia ser restaurado |
 | `003_funcoes_basicas.sql` | funções básicas da ERS 2.6: coordenador e data efetiva no setor (o antigo texto "responsável" vira o coordenador quando o nome confere com um colaborador ativo); campos por categoria e data efetiva no bem (equipamentos já inativados recebem a data do evento do histórico, quando existe); observações no software; sem "último acesso" e com quem aprovou a conta; matriz de permissões fixa e refeita por perfil; preferências por tipo e prazo (as antecedências antigas viram prazos); solicitações de ajuste com presença |
+| `006_colaborador_varios_setores.sql` | o colaborador pode estar em mais de um setor: cria `colaborador_setor` (N:N), copia para ela o setor de cada colaborador e só então retira `colaborador.id_setor`. Nenhum vínculo se perde |
 
 Para mudar o banco daqui em diante: crie `database/migrations/NNN_descricao.sql`
 e aplique a mesma mudança no `schema.sql`, para instalações novas.
@@ -136,7 +138,10 @@ e aplique a mesma mudança no `schema.sql`, para instalações novas.
 ### Senha do admin
 
 Em desenvolvimento, a equipe usa a senha fixa **`admin` / `geslic123`**,
-definida em `ADMIN_SENHA` no `backend/.env`. Para aplicar essa senha a uma conta
+definida em `ADMIN_SENHA` no `backend/.env`. Com os dados de exemplo
+(`npm run db:reset -- --exemplos`), há também a conta **`operador` /
+`geslic123`** (perfil Operador, senha em `OPERADOR_SENHA`), ligada ao
+colaborador Pedro Henrique Matos, para testar as telas do Operador. Para aplicar essa senha a uma conta
 `admin` que já existe (ou recuperar o acesso quando ninguém consegue entrar
 como Administrador, RN27 e Apêndice 3 da ERS):
 
@@ -480,7 +485,7 @@ conta responsável, a data efetiva e a data e a hora do registro.
 | RF_B1 Fornecedores e seguradoras | `/fornecedores` | CNPJ obrigatório e único (14 dígitos); tipo software ou seguradora, que não muda contra os vínculos; com licenças ou apólices, não exclui |
 | RF_B2 Softwares | `/softwares`, `/softwares/categorias` | nome + versão não se repetem (RN19); observações; quantas licenças cada um tem; com licença, não exclui |
 | RF_B3 Equipamentos | `/equipamentos`, `/:id/previa-inativacao` | etiquetas (RN20); inativar = descarte com data efetiva e motivo: as instâncias não transferíveis ficam inativas na mesma data e os vínculos delas terminam (RN08); com licença alocada ou apólice, não exclui |
-| RF_B4 Colaboradores | `/colaboradores`, `/ativos`, `/homonimos`, `/:id/previa-desligamento`, `/:id/desligamento` | homônimo avisa e permite; e-mail repetido bloqueia (RN19); desligamento só pelo Administrador, com data efetiva: encerra as utilizações nessa data e deixa as instâncias ativas e vagas (RN07); quem coordenava um setor deixa de coordenar; participação em projetos só de leitura (RN38) |
+| RF_B4 Colaboradores | `/colaboradores` (filtros: busca, id_setor, projeto, situacao), `/ativos`, `/homonimos`, `/:id/previa-desligamento`, `/:id/desligamento` | um ou mais setores por colaborador (`ids_setores`, ao menos um; `nome_setor` traz os nomes em ordem alfabética); filtro por setor encontra a pessoa em qualquer um dos seus setores; filtro por projeto (parte do nome ou do código); cada linha traz `participacoes` (código, nome e situação dos projetos); homônimo avisa e permite; e-mail repetido bloqueia (RN19); desligamento só pelo Administrador, com data efetiva: encerra as utilizações nessa data e deixa as instâncias ativas e vagas (RN07); quem coordenava um setor deixa de coordenar; participação em projetos só de leitura (RN38) |
 | RF_B5 Setores | `/setores`, `/ativos` | coordenador é colaborador ativo; contagem de colaboradores, equipamentos e bens; inativação com data efetiva (também pela edição do Administrador) |
 | RF_B6 Bens seguráveis | `/bens-seguraveis` | campos por categoria (RN20, ERS 2.7): obrigatórios a placa do veículo (única), o número de série do drone e do equipamento e o endereço do imóvel; Renavam, ano/modelo, matrícula e área opcionais; sem campo de projeto: apólices e projetos financiadores aparecem na listagem e no painel (RN40, CA18); equipamentos aparecem aqui, mas inativação e exclusão seguem pela RF_B3 |
 | RF_B7 Tipos de seguro e coberturas | `/tipos-seguro`, `/:id/coberturas`, `/coberturas/:id` | descrição única; coberturas incluídas, renomeadas, inativadas e reativadas no painel do tipo; cobertura usada em apólice só é inativada |
@@ -543,14 +548,17 @@ Migração: `004_revisoes_funcionais.sql` (só acrescenta colunas).
 - **Gerenciar usuários:** botão único "Gerenciar" (ou "Revisar", no pedido
   pendente) abrindo o painel da conta com editar, alterar perfil, senha
   provisória, desativar ou reativar e transferir privilégios. Filtro por
-  setor (do colaborador; no pedido pendente, o setor informado).
+  setor (qualquer um dos setores do colaborador; no pedido pendente, o setor
+  informado).
 - **Conta e colaborador num só fluxo:** toda conta nova, criada ou aprovada,
   fica ligada a um colaborador, escolhido entre os existentes ou cadastrado
   na mesma transação (com o e-mail da conta). Homônimo devolve 409
   `COLABORADOR_HOMONIMO` com setor e cargo de cada um, e só segue com
   `confirmar_homonimo`. A solicitação de acesso pede setor e cargo
   (`GET /api/auth/setores` lista os setores ativos, só id e nome); o
-  colaborador só é criado na aprovação.
+  colaborador só é criado na aprovação. O pedido traz um setor; na
+  aprovação, ele já vem marcado e o Administrador pode marcar outros
+  (`colaborador_novo.ids_setores`).
 - **Motivo na aprovação:** pedido só quando a conta recebe o perfil
   Administrador; a aprovação comum não pede motivo. Cada motivo fica no
   evento dele (aprovação, perfil, desativação, encerramento, reabertura).
@@ -573,6 +581,33 @@ cadastrados, com registro no histórico; senha provisória de sete dias; e
 campos obrigatórios dos bens — placa (veículo), número de série (drone e
 equipamento) e endereço (imóvel). Bens já cadastrados sem esses dados passam
 a exigi-los na próxima edição.
+
+## Colaborador em mais de um setor
+
+Migração `006_colaborador_varios_setores.sql`: o vínculo único
+`colaborador.id_setor` deu lugar à tabela `colaborador_setor` (N:N). Os
+vínculos existentes foram copiados antes de a coluna sair.
+
+- **Cadastro (RF_B4):** o formulário tem a lista "Setores *" para marcar um
+  ou mais; ao menos um é obrigatório (API e interface). Um setor inativo não
+  entra como vínculo novo, mas continua no cadastro de quem já estava nele.
+  O Operador inclui com vários setores; corrigir os setores é do
+  Administrador, como os demais dados (o Operador pede por solicitação de
+  ajuste). O histórico guarda `ids_setores` antes e depois. A API ainda
+  aceita o antigo `id_setor` (um só).
+- **Onde o setor aparece:** a listagem, o seletor de responsável ("nome —
+  setores"), a busca de participantes, os homônimos e o rótulo da solicitação
+  de ajuste mostram todos os setores, em ordem alfabética ("CAOMA, Onça").
+- **Filtros por setor** (Colaboradores e Gerenciar usuários) encontram a
+  pessoa em qualquer um dos seus setores; a contagem de colaboradores de um
+  setor inclui quem também está em outro.
+- **Setor responsável do projeto (RN43)** e a inclusão de participantes
+  "por setor": entram os colaboradores ativos que tenham aquele setor entre
+  os seus.
+- **Tela de Colaboradores:** filtro "Projeto" (parte do nome ou do código);
+  sem a coluna com o número de projetos; cada linha se abre ao clique e
+  mostra os projetos da pessoa (código, nome e situação), com "Abrir
+  projeto", que leva ao painel do projeto (`/projetos?abrir=ID`).
 
 ## Divergências em relação à ERS
 

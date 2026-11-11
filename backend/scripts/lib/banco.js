@@ -177,47 +177,94 @@ const USUARIOS_TESTE = [
   { login: 'carlos.alves', perfil: 'Operador', email: 'carlos.alves@pristino.org.br' }
 ];
 
+// Conta de exemplo do perfil Operador, no padrão da conta admin: login fixo
+// e a senha de OPERADOR_SENHA (geslic123 em desenvolvimento), ligada ao
+// colaborador Pedro Henrique Matos (NUGEO e Onça).
+const CONTA_OPERADOR = { login: 'operador', perfil: 'Operador', email: 'pedro.matos@pristino.org.br' };
+
+async function criarContaDeColaborador(conexao, usuario, senha) {
+  const [[colaborador]] = await conexao.query(
+    'SELECT id_colaborador, nome FROM colaborador WHERE email = ?', [usuario.email]);
+  await criarUsuario(conexao, {
+    ...usuario, nome: colaborador.nome, colaborador: colaborador.id_colaborador, senha
+  });
+}
+
 async function criarUsuariosTeste(conexao) {
-  for (const usuario of USUARIOS_TESTE) {
-    const [[colaborador]] = await conexao.query(
-      'SELECT id_colaborador, nome FROM colaborador WHERE email = ?', [usuario.email]);
-    await criarUsuario(conexao, {
-      ...usuario, nome: colaborador.nome, colaborador: colaborador.id_colaborador,
-      senha: contas.senhaUsuariosTeste
-    });
-  }
+  for (const usuario of USUARIOS_TESTE) await criarContaDeColaborador(conexao, usuario, contas.senhaUsuariosTeste);
   console.log(`  usuários de teste criados: ${USUARIOS_TESTE.map((u) => `${u.login} (${u.perfil})`).join(', ')}`);
   console.log('  senha dos usuários de teste: a de SENHA_USUARIOS_TESTE no .env (padrão no .env.example)');
+  await criarContaDeColaborador(conexao, CONTA_OPERADOR, contas.operadorSenha);
+  console.log('  usuário "operador" criado (Operador, senha de OPERADOR_SENHA; padrão geslic123)');
   await criarExemplosDoPainel(conexao);
 }
 
-// Exemplos para o painel (RF_B8 e RF_B10): uma solicitação pública de acesso
-// aguardando aprovação e duas solicitações de ajuste do Operador de teste,
-// uma pendente e outra concluída pela Administradora de teste.
-async function criarExemplosDoPainel(conexao) {
-  await conexao.query(
-    `INSERT INTO usuario (id_perfil, nome, login, email, senha_hash, situacao, senha_alterada_em, criada_em,
-                          cadastro_id_setor, cadastro_cargo)
-     SELECT id_perfil, 'Luciana Prado', 'luciana.prado', 'luciana.prado@pristino.org.br', ?, 'pendente', NOW(),
-            DATE_SUB(NOW(), INTERVAL 1 DAY), 1, 'Assistente'
-       FROM perfil WHERE nome = 'Operador'`,
-    [gerarHashSenha(contas.senhaUsuariosTeste)]);
+// Solicitações de acesso aguardando aprovação (RF_B8): setor e cargo
+// informados no pedido; o colaborador só nasce na aprovação.
+const PEDIDOS_DE_ACESSO = [
+  { nome: 'Luciana Prado', login: 'luciana.prado', setor: 'ADMINISTRATIVO', cargo: 'Assistente', horas: 24 },
+  { nome: 'Fernanda Lopes Vieira', login: 'fernanda.vieira', setor: 'Onça', cargo: 'Bióloga de campo', horas: 50 },
+  { nome: 'Gustavo Sales', login: 'gustavo.sales', setor: 'NUGEO', cargo: 'Estagiário de geoprocessamento', horas: 3 }
+];
 
-  const [[operador]] = await conexao.query(`SELECT id_usuario FROM usuario WHERE login = 'carlos.alves'`);
-  const [[administradora]] = await conexao.query(`SELECT id_usuario FROM usuario WHERE login = 'ana.ribeiro'`);
-  await conexao.query(
-    `INSERT INTO solicitacao_ajuste
-       (id_solicitante, criada_em, entidade, id_registro, rotulo_registro, descricao,
-        situacao, id_concluinte, concluida_em, observacao_conclusao)
-     VALUES
-       (?, DATE_SUB(NOW(), INTERVAL 9 DAY), 'colaborador', 6, 'Beatriz Nogueira · Projetos Ambientais',
-        'O cargo está desatualizado: desde setembro ela é coordenadora de projetos.',
-        'concluida', ?, DATE_SUB(NOW(), INTERVAL 8 DAY), 'Cargo corrigido conforme a solicitação.'),
-       (?, DATE_SUB(NOW(), INTERVAL 2 HOUR), 'equipamento', 7, 'IP0107 · Notebook Positivo Motion',
-        'O notebook passou para o setor Projetos Ambientais; o responsável agora é Beatriz Nogueira.',
-        'pendente', NULL, NULL, NULL)`,
-    [operador.id_usuario, administradora.id_usuario, operador.id_usuario]);
-  console.log('  exemplos do painel: 1 solicitação de acesso e 2 solicitações de ajuste');
+// Solicitações de ajuste (RF_B10) dos dois Operadores, em cadastros
+// variados; as concluídas, pela Administradora de teste ou pelo admin.
+// O rótulo segue o formato da lista de escolha da tela.
+const AJUSTES = [
+  { de: 'carlos.alves', dias: 9, entidade: 'colaborador', id: 6, rotulo: 'Beatriz Nogueira · CAOMA',
+    descricao: 'O cargo está desatualizado: desde setembro ela é coordenadora de projetos.',
+    concluida: { por: 'ana.ribeiro', dias: 8, observacao: 'Cargo corrigido conforme a solicitação.' } },
+  { de: 'operador', dias: 6, entidade: 'setor', id: 1, rotulo: 'NUGEO',
+    descricao: 'A coordenação do NUGEO passou para Camila Duarte Rocha.',
+    concluida: { por: 'ana.ribeiro', dias: 5, observacao: 'Coordenadora atualizada.' } },
+  { de: 'carlos.alves', dias: 4, entidade: 'fornecedor', id: 2, rotulo: 'Imagem',
+    descricao: 'Incluir o e-mail de vendas da Imagem: vendas@imagem.example.',
+    concluida: { por: 'admin', dias: 3, observacao: 'E-mail incluído.' } },
+  { de: 'operador', dias: 2, entidade: 'projeto', id: 6, rotulo: '1301 · Monitoramento do Rio Paraná',
+    descricao: 'Incluir Camila Duarte Rocha entre os participantes: ela passou a apoiar as análises de campo.' },
+  { de: 'operador', dias: 1, entidade: 'colaborador', id: 5, rotulo: 'Rafael Souza Pinto · Onça',
+    descricao: 'Rafael também atua no CAOMA desde outubro: incluir o setor no cadastro.' },
+  { de: 'carlos.alves', dias: 1, entidade: 'software', id: 2, rotulo: 'ArcGIS Desktop 10.8',
+    descricao: 'A versão instalada nas estações do NUGEO agora é a 10.8.2.' },
+  { de: 'operador', horas: 5, entidade: 'bem', id: 16, rotulo: 'Veículo · Toyota Hilux · QAB-1D23',
+    descricao: 'O ano/modelo correto é 2024/2025, conforme o documento do veículo.' },
+  { de: 'carlos.alves', horas: 2, entidade: 'equipamento', id: 7, rotulo: 'IP0107 · Notebook Positivo Motion',
+    descricao: 'O notebook passou para o setor CAOMA; o responsável agora é Beatriz Nogueira.' }
+];
+
+async function idDoLogin(conexao, login) {
+  const [[conta]] = await conexao.query('SELECT id_usuario FROM usuario WHERE login = ?', [login]);
+  return conta.id_usuario;
+}
+
+const intervalo = ({ dias, horas }) => (dias ? `${Number(dias)} DAY` : `${Number(horas || 0)} HOUR`);
+
+async function criarExemplosDoPainel(conexao) {
+  const hash = gerarHashSenha(contas.senhaUsuariosTeste);
+  for (const p of PEDIDOS_DE_ACESSO) {
+    await conexao.query(
+      `INSERT INTO usuario (id_perfil, nome, login, email, senha_hash, situacao, senha_alterada_em, criada_em,
+                            cadastro_id_setor, cadastro_cargo)
+       SELECT pf.id_perfil, ?, ?, ?, ?, 'pendente', NOW(), DATE_SUB(NOW(), INTERVAL ? HOUR), s.id_setor, ?
+         FROM perfil pf JOIN setor s ON s.nome = ?
+        WHERE pf.nome = 'Operador'`,
+      [p.nome, p.login, `${p.login}@pristino.org.br`, hash, p.horas, p.cargo, p.setor]);
+  }
+
+  for (const a of AJUSTES) {
+    const c = a.concluida;
+    await conexao.query(
+      `INSERT INTO solicitacao_ajuste
+         (id_solicitante, criada_em, entidade, id_registro, rotulo_registro, descricao,
+          situacao, id_concluinte, concluida_em, observacao_conclusao)
+       VALUES (?, DATE_SUB(NOW(), INTERVAL ${intervalo(a)}), ?, ?, ?, ?, ?, ?,
+               ${c ? `DATE_SUB(NOW(), INTERVAL ${intervalo(c)})` : 'NULL'}, ?)`,
+      [await idDoLogin(conexao, a.de), a.entidade, a.id, a.rotulo, a.descricao,
+       c ? 'concluida' : 'pendente', c ? await idDoLogin(conexao, c.por) : null, c ? c.observacao : null]);
+  }
+  const concluidas = AJUSTES.filter((a) => a.concluida).length;
+  console.log(`  exemplos do painel: ${PEDIDOS_DE_ACESSO.length} solicitações de acesso e ` +
+    `${AJUSTES.length} solicitações de ajuste (${AJUSTES.length - concluidas} pendentes, ${concluidas} concluídas)`);
 }
 
 module.exports = {

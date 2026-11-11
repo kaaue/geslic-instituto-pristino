@@ -71,7 +71,8 @@ export default function FormularioProjeto({
   // retirado à mão. É uma cópia do momento: o projeto não acompanha o setor.
   function mudarSetor(valor) {
     setForm((atual) => {
-      const membros = colaboradores.filter((c) => String(c.id_setor) === String(valor)).map((c) => c.id_colaborador);
+      // quem está em vários setores entra por qualquer um deles
+      const membros = colaboradores.filter((c) => (c.ids_setores || []).includes(Number(valor))).map((c) => c.id_colaborador);
       return { ...atual, id_setor: valor, participantes: [...new Set([...atual.participantes, ...membros])] };
     });
   }

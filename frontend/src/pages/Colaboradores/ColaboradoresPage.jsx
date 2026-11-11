@@ -7,8 +7,12 @@
 // utilizações e deixa as instâncias ativas e vagas (RN07); o colaborador
 // desligado aparece esmaecido, com a data. A participação em projetos é
 // mostrada aqui e gerenciada no cadastro do projeto (RN38).
+// O colaborador pode estar em mais de um setor (ao menos um). Cada linha da
+// tabela abre, ao ser clicada, os projetos de que a pessoa participa, com
+// acesso ao cadastro de cada projeto.
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import useMensagem from '../../hooks/useMensagem';
 import useListagem from '../../hooks/useListagem';
@@ -17,6 +21,7 @@ import usePainelCadastro, { acaoDeLinha } from '../../hooks/usePainelCadastro';
 import Mensagem from '../../components/common/Mensagem.jsx';
 import Campo from '../../components/common/Campo.jsx';
 import PainelLateral from '../../components/common/PainelLateral.jsx';
+import SeletorSetores from '../../components/common/SeletorSetores.jsx';
 import DialogoInativacao from '../../components/common/DialogoInativacao.jsx';
 import BotaoSolicitarAjuste from '../../components/solicitacoes/BotaoSolicitarAjuste.jsx';
 import FaixaCorrecao from '../../components/solicitacoes/FaixaCorrecao.jsx';
@@ -24,11 +29,13 @@ import { colaboradorCadastro as servico } from '../../services/colaboradorServic
 import { listarSetores } from '../../services/setorService';
 import { dataDaApi } from '../../utils/mascaras';
 
-const FILTROS = { busca: '', id_setor: '', situacao: '' };
+const FILTROS = { busca: '', id_setor: '', projeto: '', situacao: '' };
+
+const ROTULO_SITUACAO_PROJETO = { em_andamento: 'em andamento', encerrado: 'encerrado' };
 
 function FormularioColaborador({ registro, setores, controle, aoSalvar, ehOperador }) {
   const [form, setForm] = useState({
-    nome: registro?.nome || '', id_setor: registro?.id_setor ? String(registro.id_setor) : '',
+    nome: registro?.nome || '', ids_setores: registro?.ids_setores ? [...registro.ids_setores] : [],
     cargo: registro?.cargo || '', email: registro?.email || ''
   });
   const [homonimos, setHomonimos] = useState([]);
@@ -54,11 +61,12 @@ function FormularioColaborador({ registro, setores, controle, aoSalvar, ehOperad
     if (registro) servico.buscar(registro.id_colaborador).then((c) => setParticipacoes(c.participacoes)).catch(() => {});
   }, [registro]);
 
-  // O setor atual continua na lista, mesmo que tenha sido inativado
+  // Os setores atuais continuam na lista, mesmo que tenham sido inativados
   const opcoesSetor = [...setores];
-  if (registro && !opcoesSetor.some((s) => s.id_setor === registro.id_setor)) {
-    opcoesSetor.unshift({ id_setor: registro.id_setor, nome: `${registro.nome_setor} (inativo)` });
-  }
+  const nomesAtuais = (registro?.nome_setor || '').split(', ');
+  (registro?.ids_setores || []).forEach((id, i) => {
+    if (!opcoesSetor.some((s) => s.id_setor === id)) opcoesSetor.push({ id_setor: id, nome: `${nomesAtuais[i] || `Setor ${id}`} (inativo)` });
+  });
 
   return (
     <PainelLateral
@@ -86,17 +94,11 @@ function FormularioColaborador({ registro, setores, controle, aoSalvar, ehOperad
           Se for outra pessoa, continue o cadastro (RN19).
         </p>
       )}
-      <div className="dupla">
-        <Campo rotulo="Setor *" erro={erros.id_setor}>
-          <select value={form.id_setor} onChange={mudar('id_setor')} className={comErro('id_setor')}>
-            <option value="">Selecione</option>
-            {opcoesSetor.map((s) => <option key={s.id_setor} value={s.id_setor}>{s.nome}</option>)}
-          </select>
-        </Campo>
-        <Campo rotulo="Cargo" erro={erros.cargo}>
-          <input type="text" value={form.cargo} maxLength={80} onChange={mudar('cargo')} className={comErro('cargo')} />
-        </Campo>
-      </div>
+      <Campo rotulo="Cargo" erro={erros.cargo}>
+        <input type="text" value={form.cargo} maxLength={80} onChange={mudar('cargo')} className={comErro('cargo')} />
+      </Campo>
+      <SeletorSetores setores={opcoesSetor} selecionados={form.ids_setores} erro={erros.ids_setores}
+        aoMudar={(ids) => setForm((atual) => ({ ...atual, ids_setores: ids }))} />
       <Campo rotulo="E-mail" erro={erros.email}>
         <input type="email" value={form.email} maxLength={120} onChange={mudar('email')} className={comErro('email')} />
       </Campo>
@@ -205,6 +207,9 @@ export default function ColaboradoresPage() {
   }
 
   const desligados = itens.filter((c) => !c.ativo).length;
+  // Linhas abertas, com os projetos do colaborador
+  const [abertos, setAbertos] = useState([]);
+  const alternarLinha = (id) => setAbertos((atual) => (atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id]));
 
   return (
     <>
@@ -237,6 +242,11 @@ export default function ColaboradoresPage() {
               </select>
             </label>
             <label className="campo">
+              <span>Projeto</span>
+              <input type="search" placeholder="Nome ou código" value={filtros.projeto}
+                onChange={(e) => setFiltros({ ...filtros, projeto: e.target.value })} />
+            </label>
+            <label className="campo">
               <span>Situação</span>
               <select value={filtros.situacao} onChange={(e) => setFiltros({ ...filtros, situacao: e.target.value })}>
                 <option value="">Todas</option>
@@ -262,20 +272,32 @@ export default function ColaboradoresPage() {
           <div className="tabela-area">
             <table className="tabela">
               <thead>
-                <tr><th>Nome</th><th>Setor</th><th>E-mail</th><th>Projetos</th><th>Situação</th><th aria-label="Ações" /></tr>
+                <tr><th>Nome</th><th>Setor</th><th>E-mail</th><th>Situação</th><th aria-label="Ações" /></tr>
               </thead>
               <tbody>
-                {itens.map((c) => (
-                  <tr key={c.id_colaborador} className={c.ativo ? '' : 'linha-inativa'}>
-                    <td>{c.nome}{c.cargo && <span className="marca-alocado">{c.cargo}</span>}</td>
+                {itens.map((c) => {
+                  const aberto = abertos.includes(c.id_colaborador);
+                  const idDetalhe = `projetos-colaborador-${c.id_colaborador}`;
+                  return (
+                  <Fragment key={c.id_colaborador}>
+                  <tr className={`linha-expansivel${aberto ? ' linha-aberta' : ''}${c.ativo ? '' : ' linha-inativa'}`}
+                    onClick={() => alternarLinha(c.id_colaborador)}>
+                    <td>
+                      <button type="button" className="botao-expandir" aria-expanded={aberto} aria-controls={idDetalhe}
+                        title={aberto ? 'Ocultar projetos' : 'Ver projetos'}
+                        onClick={(e) => { e.stopPropagation(); alternarLinha(c.id_colaborador); }}>
+                        <span className="seta-expandir" aria-hidden="true" />
+                        <span className="nome-expandir">{c.nome}</span>
+                      </button>
+                      {c.cargo && <span className="marca-alocado marca-recuada">{c.cargo}</span>}
+                    </td>
                     <td>{c.nome_setor}</td>
                     <td className="col-email">{c.email || <span className="vazio">—</span>}</td>
-                    <td>{c.projetos || <span className="vazio">—</span>}</td>
                     <td>
                       <span className={`situacao situacao-${c.ativo ? 'ativo' : 'inativo'}`}>{c.ativo ? 'ativo' : 'desligado'}</span>
                       {!c.ativo && c.data_desligamento && <span className="texto-inativo">data efetiva {dataDaApi(c.data_desligamento)}</span>}
                     </td>
-                    <td className="col-acoes col-acoes-varias">
+                    <td className="col-acoes col-acoes-varias" onClick={(e) => e.stopPropagation()}>
                       {podeAlterar && <button type="button" className="botao-texto" onClick={() => abrir('form', c)}>Editar</button>}
                       {c.ativo && podeAlterar && (
                         <button type="button" className="botao-texto" onClick={() => abrir('desligar', c)}>Desligar</button>
@@ -291,7 +313,32 @@ export default function ColaboradoresPage() {
                         aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />
                     </td>
                   </tr>
-                ))}
+                  {aberto && (
+                    <tr className="linha-detalhe" id={idDetalhe}>
+                      <td colSpan={5}>
+                        {c.participacoes.length === 0 ? (
+                          <p className="detalhe-vazio">{c.nome} não participa de nenhum projeto.</p>
+                        ) : (
+                          <ul className="lista-projetos-colaborador" aria-label={`Projetos de ${c.nome}`}>
+                            {c.participacoes.map((p) => (
+                              <li key={p.id_projeto}>
+                                <span className="col-etiqueta">{p.codigo}</span>
+                                <span className="nome-projeto">{p.nome}</span>
+                                <span className={`situacao ${p.situacao === 'em_andamento' ? 'situacao-ativo' : 'situacao-inativo'}`}>
+                                  {ROTULO_SITUACAO_PROJETO[p.situacao] || p.situacao}
+                                </span>
+                                <Link className="botao-texto" to={`/projetos?abrir=${p.id_projeto}`}>Abrir projeto</Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <p className="nota">A participação é gerenciada no cadastro do projeto (RN38).</p>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

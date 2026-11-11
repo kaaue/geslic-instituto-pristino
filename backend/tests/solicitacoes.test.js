@@ -34,25 +34,25 @@ test('Operador emite solicitação de ajuste; o Administrador corrige direto e n
   assert.equal((await op.post('/solicitacoes-ajuste', { entidade: 'equipamento', id_registro: 1, descricao: 'x' })).status, 400);
 
   const r = await op.post('/solicitacoes-ajuste', {
-    entidade: 'setor', id_registro: 5, descricao: 'O setor Comunicação mudou de nome para Comunicação e Marketing.'
+    entidade: 'setor', id_registro: 4, descricao: 'O setor ADMINISTRATIVO mudou de nome para Administrativo e Financeiro.'
   });
   assert.equal(r.status, 201);
   assert.equal(r.corpo.situacao, 'pendente');
   assert.equal(r.corpo.nome_solicitante, 'Carlos Eduardo Alves');
-  assert.equal(r.corpo.rotulo_registro, 'Comunicação');
+  assert.equal(r.corpo.rotulo_registro, 'ADMINISTRATIVO');
   assert.match(r.corpo.codigo, /^SA-\d{3}$/);
 
   // o Operador não altera o cadastro nem conclui; o Administrador não emite
-  assert.equal((await op.put('/setores/5', { nome: 'Comunicação e Marketing' })).status, 403);
+  assert.equal((await op.put('/setores/4', { nome: 'Administrativo e Financeiro' })).status, 403);
   assert.equal((await op.post(`/solicitacoes-ajuste/${r.corpo.id_solicitacao}/conclusao`, {})).status, 403);
-  assert.equal((await admin.post('/solicitacoes-ajuste', { entidade: 'setor', id_registro: 5, descricao: 'teste do admin' })).status, 403);
+  assert.equal((await admin.post('/solicitacoes-ajuste', { entidade: 'setor', id_registro: 4, descricao: 'teste do admin' })).status, 403);
 
   // o Administrador corrige o cadastro e a correção aparece no detalhe, com antes e depois
-  assert.equal((await admin.put('/setores/5', { nome: 'Comunicação e Marketing', id_coordenador: 7 })).status, 200);
+  assert.equal((await admin.put('/setores/4', { nome: 'Administrativo e Financeiro', id_coordenador: 1 })).status, 200);
   const detalhe = await admin.get(`/solicitacoes-ajuste/${r.corpo.id_solicitacao}`);
   assert.equal(detalhe.corpo.correcoes.length, 1);
-  assert.equal(detalhe.corpo.correcoes[0].dados_anteriores.nome, 'Comunicação');
-  assert.equal(detalhe.corpo.correcoes[0].dados_posteriores.nome, 'Comunicação e Marketing');
+  assert.equal(detalhe.corpo.correcoes[0].dados_anteriores.nome, 'ADMINISTRATIVO');
+  assert.equal(detalhe.corpo.correcoes[0].dados_posteriores.nome, 'Administrativo e Financeiro');
   // o Operador acompanha, sem os detalhes da auditoria
   assert.equal((await op.get(`/solicitacoes-ajuste/${r.corpo.id_solicitacao}`)).corpo.correcoes, undefined);
 
@@ -80,7 +80,7 @@ test('todos os operadores veem as solicitações de todos; contas aguardando só
   assert.ok(painelCarlos.concluidas.length >= 1);
 
   const painelAdmin = (await admin.get('/solicitacoes-ajuste/painel')).corpo;
-  assert.ok(painelAdmin.pendentes.itens.some((i) => i.tipo === 'conta' && i.login === 'luciana.prado'));
+  assert.ok(painelAdmin.pendentes.itens.some((i) => i.tipo === 'conta' && i.login === 'gustavo.sales'));
   // concluídas: da mais recente para a mais antiga
   const datas = painelAdmin.concluidas.map((c) => c.concluida_em);
   assert.deepEqual(datas, [...datas].sort().reverse());
@@ -169,11 +169,13 @@ test('preferências por tipo e prazo; aviso de conta aguardando só para o Admin
   ]);
 
   // desativar o aviso não tira a conta aguardando do painel (CA22): o painel
-  // do Administrador continua com uma pendência a mais que o do Operador
+  // do Administrador continua com as contas aguardando a mais que o do Operador
   await admin.put('/conta/preferencias', { preferencias: [{ codigo: 'conta_aguardando', ativo: false }] });
   const totalAdmin = (await admin.get('/solicitacoes-ajuste/painel')).corpo.pendentes.total;
   const totalOperador = (await op.get('/solicitacoes-ajuste/painel')).corpo.pendentes.total;
-  assert.equal(totalAdmin - totalOperador, 1);
+  const [{ n: aguardando }] = await t.sql(`SELECT COUNT(*) AS n FROM usuario WHERE situacao = 'pendente'`);
+  assert.ok(aguardando >= 1);
+  assert.equal(totalAdmin - totalOperador, aguardando);
 });
 
 test('dez minutos sem atividade encerram a sessão; consultas automáticas não a prolongam (RN32, CA04)', async () => {

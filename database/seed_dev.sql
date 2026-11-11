@@ -2,6 +2,8 @@
 -- Carga de demonstração, só para desenvolvimento e apresentação.
 -- Rode depois de schema.sql e seed.sql.
 --
+-- Quatro setores (NUGEO, Onça, CAOMA e ADMINISTRATIVO); alguns colaboradores
+-- atuam em mais de um setor (colaborador_setor, migração 006).
 -- Dados variados de propósito: setores diferentes, equipamentos ativos e
 -- inativos, alguns de uso geral e alguns com licença alocada, projetos em
 -- situações diferentes, para os filtros e as validações terem efeito visível
@@ -13,34 +15,54 @@ SET NAMES utf8mb4;
 -- Setores e colaboradores
 -- ---------------------------------------------------------------
 
+-- 1 NUGEO (núcleo de geoprocessamento), 2 Onça (projetos de campo com a
+-- onça-pintada), 3 CAOMA (projetos de cooperação ambiental) e 4 ADMINISTRATIVO
 INSERT INTO setor (nome) VALUES
-  ('Administrativo'),
-  ('Coordenação de TI'),
-  ('Projetos Ambientais'),
-  ('Campo e Monitoramento'),
-  ('Comunicação');
+  ('NUGEO'),
+  ('Onça'),
+  ('CAOMA'),
+  ('ADMINISTRATIVO');
 
--- Setor inativo, com a data efetiva da inativação (RN37) e sem vínculos
-INSERT INTO setor (nome, ativo, data_inativacao) VALUES ('Educação Ambiental', FALSE, '2026-06-30');
-
-INSERT INTO colaborador (nome, cargo, email, id_setor) VALUES
-  ('Ana Paula Ribeiro',   'Gestora',              'ana.ribeiro@pristino.org.br',   1),
-  ('Marina Castro Lima',  'Gestora',              'marina.lima@pristino.org.br',   1),
-  ('Carlos Eduardo Alves','Analista de TI',       'carlos.alves@pristino.org.br',  2),
-  ('Juliana Moreira',     'Bióloga',              'juliana.moreira@pristino.org.br', 3),
-  ('Rafael Souza Pinto',  'Técnico de campo',     'rafael.pinto@pristino.org.br',  4),
-  ('Beatriz Nogueira',    'Analista de projetos', 'beatriz.nogueira@pristino.org.br', 3),
-  ('Tiago Fernandes',     'Designer',             'tiago.fernandes@pristino.org.br', 5),
-  ('Luciana Prado',       'Assistente',           'luciana.prado@pristino.org.br', 1);
+INSERT INTO colaborador (nome, cargo, email) VALUES
+  ('Ana Paula Ribeiro',   'Gestora',              'ana.ribeiro@pristino.org.br'),
+  ('Marina Castro Lima',  'Gestora',              'marina.lima@pristino.org.br'),
+  ('Carlos Eduardo Alves','Analista de TI',       'carlos.alves@pristino.org.br'),
+  ('Juliana Moreira',     'Bióloga',              'juliana.moreira@pristino.org.br'),
+  ('Rafael Souza Pinto',  'Técnico de campo',     'rafael.pinto@pristino.org.br'),
+  ('Beatriz Nogueira',    'Analista de projetos', 'beatriz.nogueira@pristino.org.br'),
+  ('Tiago Fernandes',     'Designer',             'tiago.fernandes@pristino.org.br'),
+  ('Luciana Prado',       'Assistente',           'luciana.prado@pristino.org.br');
 
 -- Colaborador desligado, com a data efetiva do desligamento (RN07, RN37)
-INSERT INTO colaborador (nome, cargo, email, id_setor, ativo, data_desligamento) VALUES
-  ('Rafael Antunes', 'Técnico de campo', 'rafael.antunes@pristino.org.br', 4, FALSE, '2026-09-30');
+INSERT INTO colaborador (nome, cargo, email, ativo, data_desligamento) VALUES
+  ('Rafael Antunes', 'Técnico de campo', 'rafael.antunes@pristino.org.br', FALSE, '2026-09-30');
+
+-- Equipe do NUGEO. Pedro Henrique Matos é o colaborador da conta de
+-- exemplo "operador" (perfil Operador, criada pelo setup-db.js).
+INSERT INTO colaborador (nome, cargo, email) VALUES
+  ('Pedro Henrique Matos', 'Analista de geoprocessamento', 'pedro.matos@pristino.org.br'),
+  ('Camila Duarte Rocha',  'Geógrafa',                     'camila.rocha@pristino.org.br');
+
+-- Setores de cada colaborador. Em mais de um setor: Marina (CAOMA e
+-- ADMINISTRATIVO), Carlos (NUGEO e ADMINISTRATIVO), Juliana (Onça e CAOMA)
+-- e Pedro (NUGEO e Onça).
+INSERT INTO colaborador_setor (id_colaborador, id_setor) VALUES
+  ( 1, 4),
+  ( 2, 3), ( 2, 4),
+  ( 3, 1), ( 3, 4),
+  ( 4, 2), ( 4, 3),
+  ( 5, 2),
+  ( 6, 3),
+  ( 7, 4),
+  ( 8, 4),
+  ( 9, 2),
+  (10, 1), (10, 2),
+  (11, 1);
 
 -- Coordenadores dos setores: colaboradores ativos (RF_B5)
 UPDATE setor SET id_coordenador = CASE id_setor
-    WHEN 1 THEN 1 WHEN 2 THEN 3 WHEN 3 THEN 4 WHEN 4 THEN 5 WHEN 5 THEN 7 END
- WHERE id_setor BETWEEN 1 AND 5;
+    WHEN 1 THEN 11 WHEN 2 THEN 5 WHEN 3 THEN 4 WHEN 4 THEN 1 END
+ WHERE id_setor BETWEEN 1 AND 4;
 
 -- ---------------------------------------------------------------
 -- Equipamentos (RF_B3): grava primeiro em bem e depois em equipamento,
@@ -48,21 +70,21 @@ UPDATE setor SET id_coordenador = CASE id_setor
 -- ---------------------------------------------------------------
 
 INSERT INTO bem (categoria, identificacao, id_setor, situacao) VALUES
-  ('equipamento','Notebook Dell Latitude 5440', 2, 'ativo'),
+  ('equipamento','Notebook Dell Latitude 5440', 1, 'ativo'),
   ('equipamento','Notebook Dell Latitude 5440', 3, 'ativo'),
-  ('equipamento','Desktop Lenovo ThinkCentre M70', 1, 'ativo'),
-  ('equipamento','Desktop Lenovo ThinkCentre M70', 1, 'ativo'),
-  ('equipamento','Notebook Acer Aspire 5', 5, 'ativo'),
-  ('equipamento','Estação gráfica HP Z2 G9', 5, 'ativo'),
-  ('equipamento','Notebook Positivo Motion', 4, 'ativo'),
-  ('equipamento','Tablet Samsung Galaxy Tab A9', 4, 'ativo'),
-  ('equipamento','Desktop Dell OptiPlex 3000', 2, 'ativo'),
+  ('equipamento','Desktop Lenovo ThinkCentre M70', 4, 'ativo'),
+  ('equipamento','Desktop Lenovo ThinkCentre M70', 4, 'ativo'),
+  ('equipamento','Notebook Acer Aspire 5', 4, 'ativo'),
+  ('equipamento','Estação gráfica HP Z2 G9', 1, 'ativo'),
+  ('equipamento','Notebook Positivo Motion', 2, 'ativo'),
+  ('equipamento','Tablet Samsung Galaxy Tab A9', 2, 'ativo'),
+  ('equipamento','Desktop Dell OptiPlex 3000', 4, 'ativo'),
   ('equipamento','Notebook Dell Vostro 3520', 3, 'ativo'),
-  ('equipamento','Desktop da sala de reunião', 1, 'ativo'),
-  ('equipamento','Notebook da sala de treinamento', 1, 'ativo'),
-  ('equipamento','Desktop Itautec ST-4265', 1, 'inativo'),
+  ('equipamento','Desktop da sala de reunião', 4, 'ativo'),
+  ('equipamento','Notebook da sala de treinamento', 4, 'ativo'),
+  ('equipamento','Desktop Itautec ST-4265', 4, 'inativo'),
   ('equipamento','Notebook Dell Inspiron 3421', 3, 'inativo'),
-  ('equipamento','Servidor Dell PowerEdge T150', 2, 'ativo');
+  ('equipamento','Servidor Dell PowerEdge T150', 4, 'ativo');
 
 INSERT INTO equipamento
   (id_equipamento, etiqueta_instituto, etiqueta_netscanner, tipo, id_responsavel, uso_geral) VALUES
@@ -93,6 +115,9 @@ UPDATE bem SET data_inativacao = '2026-03-12' WHERE id_bem = 14;
 -- - 1022 está encerrado e mantém uma licença vinculada (RN18)
 -- - 1450 não tem nenhum vínculo: pode ser excluído (RN22)
 -- - 0007 não tem término previsto
+-- Setor responsável (RN43): 2041 no NUGEO, 1022 e 1023 no CAOMA e 1301 na
+-- Onça; os demais sem setor. Os colaboradores ativos do setor constam entre
+-- os participantes, como faria o formulário ao escolher o setor.
 -- Códigos livres para cadastrar na hora: 1500 em diante.
 -- ---------------------------------------------------------------
 
@@ -107,13 +132,20 @@ INSERT INTO projeto
   ('1301', 'Monitoramento do Rio Paraná',      'Convênio municipal 02/2025',    5, '2025-02-01', '2026-09-30', NULL,         'em_andamento'),
   ('1450', 'Educação Ambiental nas Escolas',   'Doação institucional',          7, '2026-08-01', '2027-07-31', NULL,         'em_andamento');
 
+UPDATE projeto SET id_setor = CASE codigo
+    WHEN '2041' THEN 1 WHEN '1301' THEN 2 WHEN '1022' THEN 3 WHEN '1023' THEN 3 END
+ WHERE codigo IN ('2041', '1301', '1022', '1023');
+
 -- Participações (por código, para não depender dos ids gerados)
 INSERT INTO colaborador_projeto (id_colaborador, id_projeto)
 SELECT c.id, p.id_projeto
   FROM (SELECT 1 AS id, '0007' AS codigo UNION ALL
-        SELECT 2, '1023' UNION ALL SELECT 4, '1023' UNION ALL SELECT 6, '1234' UNION ALL
-        SELECT 3, '2041' UNION ALL SELECT 4, '2041' UNION ALL SELECT 5, '1301' UNION ALL
-        SELECT 4, '1022' UNION ALL SELECT 7, '1450') c
+        SELECT 2, '1023' UNION ALL SELECT 4, '1023' UNION ALL SELECT 6, '1023' UNION ALL
+        SELECT 6, '1234' UNION ALL
+        SELECT 3, '2041' UNION ALL SELECT 4, '2041' UNION ALL SELECT 10, '2041' UNION ALL SELECT 11, '2041' UNION ALL
+        SELECT 5, '1301' UNION ALL SELECT 4, '1301' UNION ALL SELECT 10, '1301' UNION ALL
+        SELECT 4, '1022' UNION ALL SELECT 6, '1022' UNION ALL
+        SELECT 7, '1450') c
   JOIN projeto p ON p.codigo = c.codigo;
 
 -- ---------------------------------------------------------------
@@ -190,15 +222,15 @@ INSERT INTO alocacao (id_instancia, id_equipamento, data_inicio) VALUES
 -- ---------------------------------------------------------------
 
 INSERT INTO bem (categoria, identificacao, placa, renavam, ano_modelo, valor, id_setor) VALUES
-  ('veiculo', 'Toyota Hilux', 'QAB-1D23', '01234567890', '2023/2024', 285000.00, 4);
+  ('veiculo', 'Toyota Hilux', 'QAB-1D23', '01234567890', '2023/2024', 285000.00, 2);
 
 INSERT INTO bem (categoria, identificacao, numero_serie, patrimonio, valor, id_setor) VALUES
-  ('drone', 'DJI Mavic 3',   '1581F4QF', '0451', 21500.00, 3),
-  ('drone', 'DJI Phantom 4', '0AXDE8',   NULL,    9800.00, 4);
+  ('drone', 'DJI Mavic 3',   '1581F4QF', '0451', 21500.00, 1),
+  ('drone', 'DJI Phantom 4', '0AXDE8',   NULL,    9800.00, 2);
 
 INSERT INTO bem (categoria, identificacao, endereco, matricula, area_construida_m2, valor, id_setor) VALUES
   ('imovel', 'Base de campo de Três Marias', 'Rua das Garças, 120 · Três Marias – MG',
-   '12.345 · 1º CRI', 180.00, 610000.00, 1);
+   '12.345 · 1º CRI', 180.00, 610000.00, 4);
 
 INSERT INTO tipo_seguro (descricao) VALUES
   ('Automóvel / frota'), ('Equipamentos'), ('Vida em grupo'), ('Responsabilidade civil'), ('Imóvel');
@@ -225,8 +257,8 @@ SELECT t.id_tipo_seguro, c.descricao
 INSERT INTO apolice (id_seguradora, numero, id_tipo_seguro, id_responsavel, id_setor, id_projeto_responsavel)
 SELECT f.id_fornecedor, a.numero, t.id_tipo_seguro, a.responsavel, a.setor, p.id_projeto
   FROM (SELECT 'AP-003' AS numero, 'Seguradora Exemplo S.A.' AS seguradora, 'Equipamentos' AS tipo,
-               5 AS responsavel, 4 AS setor, '1301' AS projeto UNION ALL
-        SELECT 'AP-007', 'Serra Verde Seguros S.A.', 'Responsabilidade civil', 3, 3, '2041') a
+               5 AS responsavel, 2 AS setor, '1301' AS projeto UNION ALL
+        SELECT 'AP-007', 'Serra Verde Seguros S.A.', 'Responsabilidade civil', 3, 1, '2041') a
   JOIN fornecedor f  ON f.razao_social = a.seguradora
   JOIN tipo_seguro t ON t.descricao = a.tipo
   JOIN projeto p     ON p.codigo = a.projeto

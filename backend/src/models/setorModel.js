@@ -12,7 +12,8 @@ const { lerDataEfetiva, lerMotivo } = require('../utils/normalizacao');
 const COLUNAS = `
     s.id_setor, s.nome, s.ativo, DATE_FORMAT(s.data_inativacao, '%Y-%m-%d') AS data_inativacao,
     s.id_coordenador, c.nome AS nome_coordenador,
-    (SELECT COUNT(*) FROM colaborador x WHERE x.id_setor = s.id_setor AND x.ativo = TRUE) AS colaboradores,
+    (SELECT COUNT(*) FROM colaborador_setor cs JOIN colaborador x ON x.id_colaborador = cs.id_colaborador
+      WHERE cs.id_setor = s.id_setor AND x.ativo = TRUE) AS colaboradores,
     (SELECT COUNT(*) FROM bem b JOIN equipamento e ON e.id_equipamento = b.id_bem
       WHERE b.id_setor = s.id_setor AND b.situacao = 'ativo') AS equipamentos,
     (SELECT COUNT(*) FROM bem b LEFT JOIN equipamento e ON e.id_equipamento = b.id_bem

@@ -85,7 +85,7 @@ export default function SeletorColaboradores({
     () => new Map([...conhecidos, ...colaboradores].map((c) => [c.id_colaborador, c])),
     [conhecidos, colaboradores]);
 
-  const doSetor = colaboradores.filter((c) => String(c.id_setor) === String(idSetor));
+  const doSetor = colaboradores.filter((c) => (c.ids_setores || []).includes(Number(idSetor)));
   const novosDoSetor = doSetor.filter((c) => !selecionados.includes(c.id_colaborador));
 
   function adicionar(ids) {
@@ -96,7 +96,7 @@ export default function SeletorColaboradores({
     setIdSetor(valor);
     // por padrão, todos os ativos do setor que ainda não participam
     setMarcados(colaboradores
-      .filter((c) => String(c.id_setor) === String(valor) && !selecionados.includes(c.id_colaborador))
+      .filter((c) => (c.ids_setores || []).includes(Number(valor)) && !selecionados.includes(c.id_colaborador))
       .map((c) => c.id_colaborador));
   }
 

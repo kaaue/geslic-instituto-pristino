@@ -8,7 +8,7 @@ com as tabelas de sessão e de recuperação de senha da autenticação.
 |---|---|
 | `schema.sql` | 30 tabelas e 2 gatilhos: as 28 tabelas do modelo da ERS, mais `sessao` e `recuperacao_senha`, já no formato da última migração |
 | `seed.sql` | dados de referência: perfis Administrador e Operador, catálogo de permissões e a matriz da RN21 |
-| `seed_dev.sql` | dados de exemplo para desenvolvimento e apresentação: setores, colaboradores, equipamentos, projetos, fornecedores, softwares e licenças com instâncias alocadas |
+| `seed_dev.sql` | dados de exemplo para desenvolvimento e apresentação: quatro setores (NUGEO, Onça, CAOMA e ADMINISTRATIVO), colaboradores (alguns em mais de um setor), equipamentos, projetos, fornecedores, softwares e licenças com instâncias alocadas |
 | `migrations/NNN_*.sql` | mudanças incrementais para atualizar bancos já existentes, sem apagar dados |
 
 Os scripts rodam pelo backend (`backend/scripts/`), e não direto no cliente
@@ -46,6 +46,7 @@ npm run admin:redefinir     # aplica a senha de ADMIN_SENHA à conta "admin"
 | `admin` | Administrador | `ADMIN_SENHA` do `.env` (desenvolvimento: `geslic123`) | ativa | `db:setup`, `db:migrate` (se não houver Administrador) |
 | `ana.ribeiro` | Administrador | `SENHA_USUARIOS_TESTE` (padrão `Geslic2026`) | ativa | `db:setup:exemplos` |
 | `carlos.alves` | Operador | `SENHA_USUARIOS_TESTE` (padrão `Geslic2026`) | ativa | `db:setup:exemplos` |
+| `operador` | Operador | `OPERADOR_SENHA` do `.env` (desenvolvimento: `geslic123`) | ativa | `db:setup:exemplos` (colaborador Pedro Henrique Matos) |
 
 Com `ADMIN_SENHA` vazia, o `admin` recebe uma senha provisória, mostrada uma
 única vez no terminal, com troca obrigatória no primeiro acesso. Com
@@ -67,6 +68,7 @@ o `db:setup` só as registra como aplicadas.
 | `003_funcoes_basicas.sql` | funções básicas da ERS 2.6: `setor.id_coordenador` e `data_inativacao`; campos por categoria e `data_inativacao` em `bem`; `software.observacoes`; `usuario` sem `ultimo_acesso_em` e com `id_aprovador`/`aprovada_em`; `permissao.exclusiva_operador` e matriz fixa refeita; `tipo_notificacao`, `preferencia_notificacao` (por tipo) e `prazo_notificacao`; `solicitacao_ajuste` e `presenca_solicitacao` com gatilhos; `movimentacao.id_solicitacao`. Conferida da mesma forma: um banco no formato anterior, migrado, ficou idêntico a um criado do zero |
 | `004_revisoes_funcionais.sql` | revisões funcionais: `usuario.senha_provisoria_expira_em` (prazo da senha provisória) e `cadastro_id_setor`/`cadastro_cargo` (setor e cargo informados na solicitação de acesso). Só acrescenta colunas |
 | `005_decisoes_ers27.sql` | decisões da ERS 2.7: `projeto.id_setor` (setor responsável, opcional); situação `recusada` em `usuario` (a solicitação recusada é preservada); inclusão do responsável entre os participantes dos projetos existentes, com um evento no histórico por projeto. Nada é apagado |
+| `006_colaborador_varios_setores.sql` | colaborador em mais de um setor: tabela `colaborador_setor` (N:N), com o setor atual de cada colaborador copiado para ela antes de `colaborador.id_setor` sair |
 
 As duas migrações foram conferidas assim:
 
@@ -105,7 +107,7 @@ Rode `npm run db:migrate` antes de fazer a cópia.
 
 | Tabela | Conteúdo |
 |---|---|
-| `setor`, `colaborador`, `colaborador_projeto` | setores, colaboradores (`ativo` e `data_desligamento`) e participação em projetos |
+| `setor`, `colaborador`, `colaborador_setor`, `colaborador_projeto` | setores, colaboradores (`ativo` e `data_desligamento`), setores de cada colaborador (um ou mais) e participação em projetos |
 | `bem`, `equipamento` | bem segurável e sua especialização equipamento (mesma chave: `equipamento.id_equipamento` = `bem.id_bem`) |
 | `projeto` | projetos institucionais, com código de 4 dígitos, término previsto e encerramento manual |
 | `fornecedor`, `software` | fornecedores e seguradoras (CNPJ único) e softwares |

@@ -23,6 +23,7 @@ const { gerarHashSenha, verificarSenha, gerarSenhaProvisoria } = require('../uti
 const { senhaProvisoriaHoras } = require('../config/env');
 const Sessao = require('./sessaoModel');
 const Historico = require('./historicoModel');
+const Setores = require('./colaboradorSetor');
 
 const ADMINISTRADOR = 'Administrador';
 const OPERADOR = 'Operador';
@@ -34,7 +35,8 @@ const COLUNAS = `
     u.id_usuario, u.nome, u.login, u.email, u.situacao,
     u.troca_senha_obrigatoria, u.id_perfil, p.nome AS perfil,
     p.visualiza_dados_sensiveis, u.id_colaborador, c.nome AS nome_colaborador,
-    c.id_setor, sc.nome AS nome_setor, c.cargo AS cargo_colaborador,
+    ${Setores.idsSetoresSql('c')} AS ids_setores, ${Setores.nomesSetoresSql('c')} AS nome_setor,
+    c.cargo AS cargo_colaborador,
     u.cadastro_id_setor, scad.nome AS nome_setor_solicitado, u.cadastro_cargo,
     DATE_FORMAT(u.senha_provisoria_expira_em, '%Y-%m-%dT%H:%i:%s') AS senha_provisoria_expira_em,
     DATE_FORMAT(u.criada_em, '%Y-%m-%dT%H:%i:%s')   AS criada_em,
@@ -46,13 +48,14 @@ const TABELAS = `
     JOIN perfil p           ON p.id_perfil = u.id_perfil
     LEFT JOIN colaborador c ON c.id_colaborador = u.id_colaborador
     LEFT JOIN usuario ua    ON ua.id_usuario = u.id_aprovador
-    LEFT JOIN setor sc      ON sc.id_setor = c.id_setor
     LEFT JOIN setor scad    ON scad.id_setor = u.cadastro_id_setor`;
 
 function publico(linha) {
   if (!linha) return null;
   return {
     ...linha,
+    ids_setores: Setores.lerIds(linha.ids_setores),
+    nome_setor: linha.nome_setor || null,
     troca_senha_obrigatoria: Boolean(linha.troca_senha_obrigatoria),
     visualiza_dados_sensiveis: Boolean(linha.visualiza_dados_sensiveis)
   };
@@ -138,8 +141,11 @@ async function resolverColaborador(conexao, dados, email, idConta, erros) {
     erros.id_colaborador = 'Selecione o colaborador da conta ou cadastre um novo.';
     return null;
   }
-  const [[setor]] = await conexao.query('SELECT ativo FROM setor WHERE id_setor = ?', [novo.id_setor || 0]);
-  if (!setor || !setor.ativo) erros.colaborador_id_setor = 'Selecione um setor ativo.';
+  if (novo.ids_setores.length) {
+    const [setores] = await conexao.query(
+      'SELECT id_setor FROM setor WHERE id_setor IN (?) AND ativo = TRUE', [novo.ids_setores]);
+    if (setores.length !== novo.ids_setores.length) erros.colaborador_ids_setores = 'Selecione somente setores ativos.';
+  }
   const [comEmail] = await conexao.query(
     'SELECT id_colaborador, nome FROM colaborador WHERE email = ?', [email]);
   if (comEmail.length) {
@@ -149,9 +155,9 @@ async function resolverColaborador(conexao, dados, email, idConta, erros) {
 
   if (!dados.confirmar_homonimo) {
     const [homonimos] = await conexao.query(
-      `SELECT c.id_colaborador, c.nome, c.cargo, s.nome AS nome_setor, c.ativo,
+      `SELECT c.id_colaborador, c.nome, c.cargo, ${Setores.nomesSetoresSql('c')} AS nome_setor, c.ativo,
               (SELECT COUNT(*) FROM usuario u WHERE u.id_colaborador = c.id_colaborador) AS tem_conta
-         FROM colaborador c JOIN setor s ON s.id_setor = c.id_setor
+         FROM colaborador c
         WHERE c.nome = ? ORDER BY c.ativo DESC`, [novo.nome]);
     if (homonimos.length) {
       throw AppError.conflito(
@@ -161,8 +167,9 @@ async function resolverColaborador(conexao, dados, email, idConta, erros) {
     }
   }
   const [r] = await conexao.query(
-    'INSERT INTO colaborador (nome, cargo, email, id_setor, ativo) VALUES (?, ?, ?, ?, TRUE)',
-    [novo.nome, novo.cargo, email, novo.id_setor]);
+    'INSERT INTO colaborador (nome, cargo, email, ativo) VALUES (?, ?, ?, TRUE)',
+    [novo.nome, novo.cargo, email]);
+  await Setores.gravarSetores(conexao, r.insertId, novo.ids_setores);
   return r.insertId;
 }
 
@@ -321,9 +328,10 @@ async function listar(filtros) {
     condicoes.push('u.situacao = ?');
     valores.push(filtros.situacao);
   }
-  // Setor do colaborador vinculado; no pedido pendente, o setor informado
+  // Setores do colaborador vinculado (qualquer um deles); no pedido sem
+  // colaborador, o setor informado
   if (filtros.id_setor) {
-    condicoes.push('(c.id_setor = ? OR (u.id_colaborador IS NULL AND u.cadastro_id_setor = ?))');
+    condicoes.push(`(${Setores.noSetorSql('c')} OR (u.id_colaborador IS NULL AND u.cadastro_id_setor = ?))`);
     valores.push(Number(filtros.id_setor), Number(filtros.id_setor));
   }
   const [linhas] = await pool.query(

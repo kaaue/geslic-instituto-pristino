@@ -13,6 +13,7 @@ const AppError = require('../utils/AppError');
 const { lancarSeHouverErros } = require('../utils/AppError');
 const { validarEncerramento, validarProrrogacao } = require('./projetoValidacao');
 const Historico = require('./historicoModel');
+const { nomesSetoresSql } = require('./colaboradorSetor');
 
 // Campos que o histórico guarda antes e depois de cada alteração
 function retrato(p, participantes) {
@@ -221,10 +222,9 @@ async function gravarParticipantes(conexao, idProjeto, ids) {
 
 async function listarParticipantes(conexao, idProjeto) {
   const [linhas] = await conexao.query(
-    `SELECT c.id_colaborador, c.nome, c.cargo, c.ativo, s.nome AS nome_setor
+    `SELECT c.id_colaborador, c.nome, c.cargo, c.ativo, ${nomesSetoresSql('c')} AS nome_setor
        FROM colaborador_projeto cp
        JOIN colaborador c ON c.id_colaborador = cp.id_colaborador
-       JOIN setor s       ON s.id_setor = c.id_setor
       WHERE cp.id_projeto = ?
       ORDER BY c.nome`, [idProjeto]);
   return linhas.map((l) => ({ ...l, ativo: Boolean(l.ativo) }));

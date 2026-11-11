@@ -74,6 +74,8 @@ module.exports = {
     // sem ADMIN_SENHA, o script gera uma senha provisória e a mostra uma vez
     adminSenha: process.env.ADMIN_SENHA || null,
     adminEmail: process.env.ADMIN_EMAIL || 'admin@pristino.org.br',
-    senhaUsuariosTeste: process.env.SENHA_USUARIOS_TESTE || 'Geslic2026'
+    senhaUsuariosTeste: process.env.SENHA_USUARIOS_TESTE || 'Geslic2026',
+    // conta de exemplo "operador" (só com --exemplos), no padrão da conta admin
+    operadorSenha: process.env.OPERADOR_SENHA || 'geslic123'
   }
 };

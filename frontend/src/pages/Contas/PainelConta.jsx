@@ -16,6 +16,7 @@
 // dela. Cada motivo fica no evento correspondente do histórico.
 
 import { useState } from 'react';
+import SeletorSetores from '../../components/common/SeletorSetores.jsx';
 import Campo from '../../components/common/Campo.jsx';
 import { BuscaColaborador } from '../../components/common/SeletorColaboradores.jsx';
 
@@ -46,7 +47,8 @@ function formInicial(tipo, conta, perfis) {
     // colaborador cadastrado junto com a conta
     modo_colaborador: tipo === 'nova' ? 'existente' : 'novo',
     colaborador_nome: conta?.nome ?? '',
-    colaborador_id_setor: conta?.cadastro_id_setor ?? '',
+    // o setor informado no pedido já vem marcado; o Administrador pode incluir outros
+    colaborador_ids_setores: conta?.cadastro_id_setor ? [conta.cadastro_id_setor] : [],
     colaborador_cargo: conta?.cadastro_cargo ?? '',
     confirmar_homonimo: false
   };
@@ -80,7 +82,7 @@ export default function PainelConta({
       id_colaborador: null,
       colaborador_novo: {
         nome: form.colaborador_nome || form.nome || conta?.nome,
-        id_setor: Number(form.colaborador_id_setor) || null,
+        ids_setores: form.colaborador_ids_setores,
         cargo: form.colaborador_cargo
       },
       confirmar_homonimo: form.confirmar_homonimo
@@ -133,18 +135,12 @@ export default function PainelConta({
             <input type="text" value={form.colaborador_nome} placeholder={form.nome || conta?.nome}
               onChange={mudar('colaborador_nome')} className={erros.colaborador_nome ? 'com-erro' : ''} />
           </Campo>
-          <div className="dupla">
-            <Campo rotulo="Setor *" erro={erros.colaborador_id_setor}>
-              <select value={form.colaborador_id_setor} onChange={mudar('colaborador_id_setor')}
-                className={erros.colaborador_id_setor ? 'com-erro' : ''}>
-                <option value="">Selecione</option>
-                {setores.map((s) => <option key={s.id_setor} value={s.id_setor}>{s.nome}</option>)}
-              </select>
-            </Campo>
-            <Campo rotulo="Cargo" erro={erros.colaborador_cargo}>
-              <input type="text" value={form.colaborador_cargo} maxLength={80} onChange={mudar('colaborador_cargo')} />
-            </Campo>
-          </div>
+          <Campo rotulo="Cargo" erro={erros.colaborador_cargo}>
+            <input type="text" value={form.colaborador_cargo} maxLength={80} onChange={mudar('colaborador_cargo')} />
+          </Campo>
+          <SeletorSetores setores={setores} selecionados={form.colaborador_ids_setores} erro={erros.colaborador_ids_setores}
+            dica={conta?.cadastro_id_setor ? 'O setor informado no pedido já vem marcado; marque outros, se for o caso.' : undefined}
+            aoMudar={(ids) => setForm((atual) => ({ ...atual, colaborador_ids_setores: ids }))} />
           <small className="dica">O colaborador é criado com o e-mail da conta, na mesma operação que a conta.</small>
         </>
       )}
