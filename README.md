@@ -482,26 +482,26 @@ conta responsável, a data efetiva e a data e a hora do registro.
 | RF_B3 Equipamentos | `/equipamentos`, `/:id/previa-inativacao` | etiquetas (RN20); inativar = descarte com data efetiva e motivo: as instâncias não transferíveis ficam inativas na mesma data e os vínculos delas terminam (RN08); com licença alocada ou apólice, não exclui |
 | RF_B4 Colaboradores | `/colaboradores`, `/ativos`, `/homonimos`, `/:id/previa-desligamento`, `/:id/desligamento` | homônimo avisa e permite; e-mail repetido bloqueia (RN19); desligamento só pelo Administrador, com data efetiva: encerra as utilizações nessa data e deixa as instâncias ativas e vagas (RN07); quem coordenava um setor deixa de coordenar; participação em projetos só de leitura (RN38) |
 | RF_B5 Setores | `/setores`, `/ativos` | coordenador é colaborador ativo; contagem de colaboradores, equipamentos e bens; inativação com data efetiva (também pela edição do Administrador) |
-| RF_B6 Bens seguráveis | `/bens-seguraveis` | campos por categoria (RN20): placa obrigatória e única para veículo; série, endereço, Renavam, ano/modelo, matrícula e área opcionais (Quadro 8); sem campo de projeto: apólices e projetos financiadores aparecem na listagem e no painel (RN40, CA18); equipamentos aparecem aqui, mas inativação e exclusão seguem pela RF_B3 |
+| RF_B6 Bens seguráveis | `/bens-seguraveis` | campos por categoria (RN20, ERS 2.7): obrigatórios a placa do veículo (única), o número de série do drone e do equipamento e o endereço do imóvel; Renavam, ano/modelo, matrícula e área opcionais; sem campo de projeto: apólices e projetos financiadores aparecem na listagem e no painel (RN40, CA18); equipamentos aparecem aqui, mas inativação e exclusão seguem pela RF_B3 |
 | RF_B7 Tipos de seguro e coberturas | `/tipos-seguro`, `/:id/coberturas`, `/coberturas/:id` | descrição única; coberturas incluídas, renomeadas, inativadas e reativadas no painel do tipo; cobertura usada em apólice só é inativada |
 | RF_B8 Contas e perfis | `/usuarios`, `/usuarios/transferencia-administrador`, `/perfis`, `/conta` | veja "Contas de acesso" |
 | RF_B9 Preferências de notificação | `GET/PUT /conta/preferencias` | por tipo de aviso: ativo ou não e um ou mais prazos (dias, semanas ou meses; até 5) para vencimentos, término de projeto e lembrete da autorização pendente; o aviso de conta aguardando aprovação só existe para o Administrador; padrões: seis meses e um mês nos vencimentos e no término, uma semana no lembrete (RN24) |
 | RF_B10 Solicitações de ajuste | `/solicitacoes-ajuste`: `/painel`, `/entidades`, `/opcoes`, `/:id`, `/:id/conclusao`, `/:id/presenca` | o Operador emite pelo painel ou pelo atalho no cadastro; todos acompanham; o Administrador abre o cadastro já selecionado, corrige e conclui; só Pendente e Concluída; presença "visualizando"/"atualizando" informativa, sem bloqueio (RN42); a primeira conclusão prevalece e a segunda recebe 409 com quem concluiu e quando (RN36, CA14); conclusão imutável também no banco (gatilho) |
 
-**Decisões tomadas na implementação, a confirmar com o Instituto:**
+**Decisões confirmadas na ERS 2.7** (antes eram decisões da implementação a
+confirmar com o Instituto):
 
-- **Desligamento de colaborador** só pelo Administrador, como no Protótipo 8
-  ("o desligamento, feito pelo Administrador"). As demais inativações seguem
-  permitidas ao Operador (`cadastro.inativar`).
-- **Obrigatoriedades por categoria de bem:** só a placa do veículo, a única
-  confirmada (Quadro 8). Número de série e endereço aparecem, mas são
-  opcionais até a validação.
-- **Prazos padrão** do término de projeto iguais aos dos vencimentos (seis
-  meses e um mês); os demais padrões dos novos tipos de aviso aguardam
-  confirmação (Quadro 8).
-- **Avisos:** as preferências já são gravadas e respeitam o perfil, mas a
-  emissão dos avisos (RF_F13) e a central de notificações (RF_S8) ainda não
-  existem.
+- **Desligamento de colaborador** só pelo Administrador, como no Protótipo 8.
+  As demais inativações seguem permitidas ao Operador (`cadastro.inativar`).
+- **Obrigatoriedades por categoria de bem:** placa (veículo), número de série
+  (drone e equipamento) e endereço (imóvel); Renavam, ano/modelo, matrícula e
+  área são opcionais.
+- **Prazos padrão dos avisos:** seis meses e um mês para licença, apólice e
+  término de projeto; autorização imediata e lembrete após uma semana.
+
+**Avisos:** as preferências já são gravadas e respeitam o perfil, mas a
+emissão dos avisos (RF_F13) e a central de notificações (RF_S8) ainda não
+existem.
 
 ## Revisões funcionais (lote de novembro de 2026)
 
