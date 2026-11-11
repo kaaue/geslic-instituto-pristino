@@ -783,13 +783,12 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
    Telas de autenticação (Protótipo 1)
    ========================================================= */
 
-/* Login opção 09: fundo azul da marca com brilhos em bege e marrom, faixa
-   das quatro cores da logo na borda esquerda, a marca à esquerda e o
-   formulário num cartão gelo (sem branco puro) dividido em blocos. */
+/* Login: fundo azul da marca com brilhos em bege e marrom, faixa das quatro
+   cores da logo na borda esquerda e um único cartão gelo (sem branco puro)
+   em duas partes: a marca à esquerda, num gelo um tom mais escuro, e o
+   formulário à direita, com faixa "Acesso ao sistema" e links no rodapé. */
 .pagina-autenticacao {
   --gelo: #e9edec;
-  --gelo-faixa: #dde3e2;
-  --gelo-linha: #c9d1d0;
   --gelo-campo: #f4f6f5;
   --gelo-borda-campo: #c3cccb;
   position: relative;
@@ -797,7 +796,6 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 80px;
   padding: 48px 40px 72px 50px;
   background:
     radial-gradient(circle at 15% 20%, rgba(199, 181, 112, 0.14), transparent 40%),
@@ -812,30 +810,36 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
   background: linear-gradient(#155a6c 0 25%, var(--marca-marrom) 25% 50%, var(--marca-bege) 50% 75%, var(--marca-vermelho) 75%);
 }
 
-.autenticacao-marca { width: 340px; flex-shrink: 0; color: #f1ede2; }
-.autenticacao-marca img { width: 150px; height: auto; display: block; }
-.autenticacao-marca strong { display: block; margin-top: 22px; font-size: 13px; letter-spacing: 3.5px; color: var(--marca-bege); }
-.autenticacao-marca h2 { margin: 10px 0 0; font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -0.5px; }
-.autenticacao-marca p { margin: 14px 0 0; font-size: 14.5px; line-height: 1.55; color: #c9d3d6; }
-
-.autenticacao-divisor { width: 1px; height: 380px; flex-shrink: 0; background: rgba(199, 181, 112, 0.35); }
-
-.autenticacao-formulario { width: 100%; max-width: 390px; flex-shrink: 0; }
-.pagina-autenticacao-larga .autenticacao-formulario { max-width: 600px; }
-
-.cartao-autenticacao {
+.cartao-autenticacao-duplo {
+  display: grid;
+  grid-template-columns: 330px 400px;
+  gap: 48px;
+  padding: 44px 48px;
   background: var(--gelo);
-  border-radius: 14px;
-  padding: 0 28px 24px;
+  border-radius: 16px;
   overflow: hidden;
-  color: #1f2a2d;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
 }
+.pagina-autenticacao-larga .cartao-autenticacao-duplo { grid-template-columns: 300px 580px; }
+
+.autenticacao-marca {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: #1f2a2d;
+}
+.autenticacao-marca img { width: 170px; height: auto; display: block; }
+.autenticacao-marca strong { display: block; margin-top: 26px; font-size: 13px; letter-spacing: 3.5px; color: var(--marca-azul); }
+.autenticacao-marca h2 { margin: 8px 0 0; font-size: 26px; font-weight: 600; line-height: 1.2; letter-spacing: -0.4px; }
+.autenticacao-marca p { margin: 12px 0 0; font-size: 14px; line-height: 1.55; color: #5b666a; }
+
+/* Coluna em flex: quando a marca é mais alta, os links descem até a base */
+.cartao-autenticacao { color: #1f2a2d; display: flex; flex-direction: column; }
+.cartao-autenticacao > .links-autenticacao { margin-top: auto; }
+.cartao-autenticacao > :nth-last-child(2) { margin-bottom: 22px; }
+/* Rótulo "Acesso ao sistema", sem faixa nem linha */
 .cartao-autenticacao-faixa {
-  margin: 0 -28px 22px;
-  padding: 14px 28px;
-  background: var(--gelo-faixa);
-  border-bottom: 1px solid var(--gelo-linha);
+  margin: 0 0 8px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.6px;
@@ -855,15 +859,11 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
 .formulario-autenticacao input { width: 100%; min-width: 0; }
 .formulario-autenticacao .botao-principal { padding: 11px 18px; font-size: 15px; background: var(--marca-azul); }
 
-/* Links no rodapé do cartão, numa faixa como a do topo */
+/* Links abaixo do formulário, no mesmo fundo do cartão */
 .links-autenticacao {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin: 22px -28px -24px;
-  padding: 13px 28px;
-  background: var(--gelo-faixa);
-  border-top: 1px solid var(--gelo-linha);
   font-size: 13px;
 }
 .links-autenticacao a { font-weight: 600; text-decoration: none; }
@@ -1080,12 +1080,14 @@ textarea.com-erro { border-color: var(--perigo); background: var(--perigo-claro)
   .conteudo { padding: 18px 16px 40px; }
   .titulo-area { flex-direction: column; align-items: flex-start; }
   .dupla { grid-template-columns: 1fr; }
-  .pagina-autenticacao { flex-direction: column; align-items: stretch; gap: 28px; padding: 32px 16px 64px 26px; }
-  .autenticacao-marca { width: auto; }
-  .autenticacao-marca img { width: 84px; }
-  .autenticacao-marca h2 { font-size: 24px; }
-  .autenticacao-divisor { display: none; }
-  .autenticacao-formulario, .pagina-autenticacao-larga .autenticacao-formulario { max-width: none; }
+  .pagina-autenticacao { padding: 24px 16px 64px 26px; }
+  .cartao-autenticacao-duplo, .pagina-autenticacao-larga .cartao-autenticacao-duplo { grid-template-columns: 1fr; width: 100%; }
+  .cartao-autenticacao-duplo { gap: 22px; padding: 24px 20px; }
+  .autenticacao-marca { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; align-items: center; gap: 4px 16px; }
+  .autenticacao-marca img { width: 72px; }
+  .autenticacao-marca strong { margin-top: 0; }
+  .autenticacao-marca h2 { flex-basis: 100%; font-size: 19px; }
+  .autenticacao-marca p { display: none; }
 }
 
 /* =========================================================

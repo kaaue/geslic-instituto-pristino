@@ -413,10 +413,11 @@ variáveis no início de `frontend/src/styles/global.css`.
   o símbolo sem o nome é o ícone da aba (`frontend/public/favicon.png`).
 
 - **Acesso ao sistema (Protótipo 1, opção 09 do estudo de login):** fundo
-  azul da marca com a faixa das quatro cores da logo na borda, o símbolo do
-  Instituto e o título à esquerda e o cartão "Entrar no sistema" à direita,
-  em tom gelo (sem branco puro), dividido em faixa "Acesso ao sistema",
-  formulário e links no rodapé. As outras telas públicas usam a mesma moldura.
+  azul da marca com a faixa das quatro cores da logo na borda e um único
+  cartão em tom gelo (sem branco puro) com duas partes: à esquerda, a logo
+  completa do Instituto, "GESLIC" e o título; à direita, o formulário, com a
+  faixa "Acesso ao sistema" no topo e os links no rodapé. As outras telas
+  públicas usam a mesma moldura.
 - **Menu lateral (Protótipo 2):** fundo claro, com a logo no topo e o item
   ativo no azul da marca;
   Painel, Licenças e Apólices, a entrada única e **expansível Cadastros**
