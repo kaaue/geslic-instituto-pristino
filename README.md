@@ -31,7 +31,7 @@ geslic/
 ├── backend/                     API em Node + Express
 │   ├── .env.example             modelo das variáveis de ambiente
 │   ├── scripts/                 setup-db.js, migrate-db.js e redefinir-admin.js
-│   ├── tests/                   testes automatizados (npm test)
+│   ├── tests/                   testes automatizados (npm test; também na CI, .github/workflows/ci.yml)
 │   └── src/
 │       ├── server.js            inicia o servidor e testa o banco
 │       ├── app.js               configura o Express (middlewares e rotas)
@@ -207,6 +207,20 @@ apólices (RN40, CA18), coberturas em uso, exclusão com vínculos (RN22, CA11),
 solicitações de ajuste com presença e conclusão concorrente (CA10, CA14,
 CA15), preferências de aviso (CA21, CA22) e a inatividade de dez minutos
 (RN32, CA04).
+
+**Testes automáticos no GitHub (CI).** O arquivo `.github/workflows/ci.yml`
+roda em todo push e em todo pull request para a `main`, com dois trabalhos
+em paralelo:
+
+- **Backend:** `npm ci` e `npm test` em `backend/`, contra um MySQL 8.0
+  temporário (senha só desse banco descartável). Node 26, como no
+  desenvolvimento.
+- **Frontend:** `npm ci` e `npm run build` em `frontend/`.
+
+O resultado aparece na aba Actions e no próprio pull request. Um push novo
+no mesmo branch cancela a execução anterior ainda em andamento. Como a CI usa
+`npm ci`, o `package-lock.json` precisa estar em dia com o `package.json`
+(depois de instalar um pacote, envie os dois).
 
 ## Autenticação e sessões
 
@@ -485,9 +499,9 @@ conta responsável, a data efetiva e a data e a hora do registro.
 | RF_B1 Fornecedores e seguradoras | `/fornecedores` | CNPJ obrigatório e único (14 dígitos); tipo software ou seguradora, que não muda contra os vínculos; com licenças ou apólices, não exclui |
 | RF_B2 Softwares | `/softwares`, `/softwares/categorias` | nome + versão não se repetem (RN19); observações; quantas licenças cada um tem; com licença, não exclui |
 | RF_B3 Equipamentos | `/equipamentos`, `/:id/previa-inativacao` | etiquetas (RN20); inativar = descarte com data efetiva e motivo: as instâncias não transferíveis ficam inativas na mesma data e os vínculos delas terminam (RN08); com licença alocada ou apólice, não exclui |
-| RF_B4 Colaboradores | `/colaboradores` (filtros: busca, id_setor, projeto, situacao), `/ativos`, `/homonimos`, `/:id/previa-desligamento`, `/:id/desligamento` | um ou mais setores por colaborador (`ids_setores`, ao menos um; `nome_setor` traz os nomes em ordem alfabética); filtro por setor encontra a pessoa em qualquer um dos seus setores; filtro por projeto (parte do nome ou do código); cada linha traz `participacoes` (código, nome e situação dos projetos); homônimo avisa e permite; e-mail repetido bloqueia (RN19); desligamento só pelo Administrador, com data efetiva: encerra as utilizações nessa data e deixa as instâncias ativas e vagas (RN07); quem coordenava um setor deixa de coordenar; participação em projetos só de leitura (RN38) |
+| RF_B4 Colaboradores | `/colaboradores` (filtros: busca, id_setor, projeto, situacao), `/ativos`, `/homonimos`, `/:id/previa-desligamento`, `/:id/desligamento` | um ou mais setores por colaborador (`ids_setores`, ao menos um; `nome_setor` traz os nomes em ordem alfabética); filtro por setor encontra a pessoa em qualquer um dos seus setores; filtro por projeto (parte do nome ou do código); cada linha traz `participacoes` (código, nome e situação dos projetos); homônimo avisa e permite; e-mail repetido bloqueia (RN19); desligamento só pelo Administrador, com data efetiva: encerra as utilizações nessa data e deixa as instâncias ativas e vagas (RN07); quem coordenava um setor deixa de coordenar; na correção, o Administrador também marca os projetos de que a pessoa participa (`ids_projetos`): o responsável não sai do próprio projeto, desligado não entra em projeto novo e cada projeto afetado ganha um evento no histórico (RN38) |
 | RF_B5 Setores | `/setores`, `/ativos` | coordenador é colaborador ativo; contagem de colaboradores, equipamentos e bens; inativação com data efetiva (também pela edição do Administrador) |
-| RF_B6 Bens seguráveis | `/bens-seguraveis` | campos por categoria (RN20, ERS 2.7): obrigatórios a placa do veículo (única), o número de série do drone e do equipamento e o endereço do imóvel; Renavam, ano/modelo, matrícula e área opcionais; sem campo de projeto: apólices e projetos financiadores aparecem na listagem e no painel (RN40, CA18); equipamentos aparecem aqui, mas inativação e exclusão seguem pela RF_B3 |
+| RF_B6 Bens seguráveis | `/bens-seguraveis` | campos por categoria (RN20, ERS 2.7): obrigatórios a placa do veículo (única), o número de série do drone e do equipamento e o endereço do imóvel; Renavam, ano/modelo, matrícula e área opcionais; sem campo de projeto: apólices e projetos financiadores aparecem na listagem e no painel (RN40, CA18); equipamentos da RF_B3 (computadores) são outro cadastro, não são segurados e não aparecem aqui |
 | RF_B7 Tipos de seguro e coberturas | `/tipos-seguro`, `/:id/coberturas`, `/coberturas/:id` | descrição única; coberturas incluídas, renomeadas, inativadas e reativadas no painel do tipo; cobertura usada em apólice só é inativada |
 | RF_B8 Contas e perfis | `/usuarios`, `/usuarios/transferencia-administrador`, `/perfis`, `/conta` | veja "Contas de acesso" |
 | RF_B9 Preferências de notificação | `GET/PUT /conta/preferencias` | por tipo de aviso: ativo ou não e um ou mais prazos (dias, semanas ou meses; até 5) para vencimentos, término de projeto e lembrete da autorização pendente; o aviso de conta aguardando aprovação só existe para o Administrador; padrões: seis meses e um mês nos vencimentos e no término, uma semana no lembrete (RN24) |

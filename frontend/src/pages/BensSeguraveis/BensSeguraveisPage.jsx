@@ -5,11 +5,10 @@
 // e no painel, somente para leitura, inclusive quando há vários (RN40).
 // Obrigatórios por categoria (ERS 2.7, RN20): placa do veículo, número de
 // série do drone e do equipamento e endereço do imóvel; os demais dados são
-// opcionais. Equipamentos (RF_B3) também são bens: aparecem aqui para serem
-// segurados, mas a inativação segue pela tela deles.
+// opcionais. Equipamentos (RF_B3) são outro cadastro, não são segurados e
+// não aparecem aqui.
 
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import useMensagem from '../../hooks/useMensagem';
 import useListagem from '../../hooks/useListagem';
@@ -30,7 +29,7 @@ const CATEGORIAS = { veiculo: 'Veículo', drone: 'Drone', imovel: 'Imóvel', equ
 
 // Identificação com o dado específico da categoria: "Toyota Hilux · QAB-1D23"
 function identificacaoCompleta(b) {
-  const especifico = b.placa || b.numero_serie || b.etiqueta_instituto || b.endereco;
+  const especifico = b.placa || b.numero_serie || b.endereco;
   return especifico ? `${b.identificacao} · ${especifico}` : b.identificacao;
 }
 
@@ -78,7 +77,6 @@ function FormularioBem({ registro, setores, controle, aoSalvar, ehOperador }) {
   const { erros, erroGeral, salvando, fechar } = controle;
   const comErro = (campo) => (erros[campo] ? 'com-erro' : '');
   const categoria = form.categoria;
-  const travada = registro?.e_equipamento;
 
   function enviar() {
     aoSalvar({ ...form, valor: moedaParaNumero(form.valor), id_setor: form.id_setor || null });
@@ -101,9 +99,8 @@ function FormularioBem({ registro, setores, controle, aoSalvar, ehOperador }) {
       )}
     >
       {erroGeral && <div className="mensagem mensagem-erro">{erroGeral}</div>}
-      <Campo rotulo="Categoria *" erro={erros.categoria}
-        dica={travada ? `Este bem é o equipamento ${registro.etiqueta_instituto}: etiqueta, tipo e responsável ficam no cadastro de Equipamentos.` : 'Os campos específicos mudam conforme a categoria.'}>
-        <select value={categoria} onChange={mudar('categoria')} disabled={travada} className={comErro('categoria')}>
+      <Campo rotulo="Categoria *" erro={erros.categoria} dica="Os campos específicos mudam conforme a categoria.">
+        <select value={categoria} onChange={mudar('categoria')} className={comErro('categoria')}>
           {Object.entries(CATEGORIAS).map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}
         </select>
       </Campo>
@@ -288,23 +285,17 @@ export default function BensSeguraveisPage() {
                     </td>
                     <td className="col-acoes col-acoes-varias">
                       {podeAlterar && <button type="button" className="botao-texto" onClick={() => abrir('form', b)}>Editar</button>}
-                      {b.e_equipamento ? (
-                        <Link className="botao-texto" to={`/equipamentos?abrir=${b.id_bem}`}>Ver equipamento</Link>
-                      ) : (
-                        <>
-                          {b.situacao === 'ativo' && pode('cadastro.inativar') && (
-                            <button type="button" className="botao-texto" onClick={() => abrir('inativar', b)}>Inativar</button>
-                          )}
-                          {b.situacao === 'inativo' && podeAlterar && (
-                            <button type="button" className="botao-texto" onClick={() => acaoDeLinha({
-                              confirmar: `Reativar ${b.identificacao}?`, acao: () => servico.reativar(b.id_bem),
-                              sucesso: `${b.identificacao} reativado.`, mostrarMensagem, aoConcluir: recarregar
-                            })}>Reativar</button>
-                          )}
-                          <BotaoSolicitarAjuste entidade="bem" idRegistro={b.id_bem} rotulo={`${CATEGORIAS[b.categoria]} · ${identificacaoCompleta(b)}`}
-                            aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />
-                        </>
+                      {b.situacao === 'ativo' && pode('cadastro.inativar') && (
+                        <button type="button" className="botao-texto" onClick={() => abrir('inativar', b)}>Inativar</button>
                       )}
+                      {b.situacao === 'inativo' && podeAlterar && (
+                        <button type="button" className="botao-texto" onClick={() => acaoDeLinha({
+                          confirmar: `Reativar ${b.identificacao}?`, acao: () => servico.reativar(b.id_bem),
+                          sucesso: `${b.identificacao} reativado.`, mostrarMensagem, aoConcluir: recarregar
+                        })}>Reativar</button>
+                      )}
+                      <BotaoSolicitarAjuste entidade="bem" idRegistro={b.id_bem} rotulo={`${CATEGORIAS[b.categoria]} · ${identificacaoCompleta(b)}`}
+                        aoEmitida={(r) => mostrarMensagem('sucesso', `${r.codigo} enviada ao Administrador.`)} />
                     </td>
                   </tr>
                 ))}

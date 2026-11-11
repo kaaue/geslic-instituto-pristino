@@ -18,11 +18,22 @@ function validarColaborador(corpo) {
 
   if (email && (email.length > 120 || !FORMATO_EMAIL.test(email))) erros.email = 'Informe um e-mail válido.';
 
+  // Projetos de que participa: lista de ids, sem repetição. Ausente, as
+  // participações ficam como estão (só a correção, do Administrador, as usa).
+  let idsProjetos = null;
+  if (corpo.ids_projetos !== undefined && corpo.ids_projetos !== null) {
+    idsProjetos = Array.isArray(corpo.ids_projetos) ? [...new Set(corpo.ids_projetos.map(Number))] : null;
+    if (!idsProjetos || idsProjetos.some((id) => !Number.isInteger(id) || id <= 0)) {
+      erros.ids_projetos = 'Projetos inválidos.';
+    }
+  }
+
   return {
     erros,
     dados: {
       nome,
       ids_setores: idsSetores,
+      ids_projetos: idsProjetos,
       cargo: textoLimitado(corpo.cargo, 80, erros, 'cargo', 'O cargo'),
       email
     }

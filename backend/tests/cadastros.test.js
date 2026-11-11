@@ -216,13 +216,24 @@ test('RF_B6: bem coberto por duas apólices mostra as duas e os projetos financi
   // coberto por apólice: não exclui (RN22); inativa com data efetiva
   assert.equal((await admin.delete(`/bens-seguraveis/${mavic.id_bem}`)).status, 405);
   assert.equal((await op.post(`/bens-seguraveis/${mavic.id_bem}/inativacao`, { data_efetiva: ontem() })).status, 200);
+});
 
-  // equipamentos também são bens, mas inativação e exclusão seguem pela RF_B3 (RN08)
-  const equipamento = (await op.get('/bens-seguraveis?busca=IP0101')).corpo[0];
-  assert.equal(equipamento.e_equipamento, true);
-  const r = await op.post(`/bens-seguraveis/${equipamento.id_bem}/inativacao`, { data_efetiva: ontem() });
-  assert.equal(r.status, 409);
-  assert.equal(r.corpo.codigo, 'BEM_E_EQUIPAMENTO');
+test('RF_B6: equipamentos da RF_B3 não são bens seguráveis: ficam fora da listagem, da consulta e das ações', async () => {
+  const op = await t.entrarOperador();
+  const admin = await t.entrarAdmin();
+  const bens = (await op.get('/bens-seguraveis')).corpo;
+  const equipamentos = (await op.get('/equipamentos')).corpo;
+  assert.ok(bens.length > 0 && equipamentos.length > 0);
+  const idsDeEquipamento = new Set(equipamentos.map((e) => e.id_equipamento));
+  assert.deepEqual(bens.filter((b) => idsDeEquipamento.has(b.id_bem)), []);
+  assert.deepEqual((await op.get('/bens-seguraveis?busca=IP0101')).corpo, []);
+  assert.deepEqual((await op.get('/bens-seguraveis?busca=Latitude')).corpo, []);
+
+  const id = equipamentos[0].id_equipamento;
+  assert.equal((await op.get(`/bens-seguraveis/${id}`)).status, 404);
+  assert.equal((await op.post(`/bens-seguraveis/${id}/inativacao`, { data_efetiva: ontem() })).status, 404);
+  assert.equal((await admin.put(`/bens-seguraveis/${id}`, { categoria: 'outro', identificacao: 'Virou outro bem' })).status, 404);
+  assert.equal((await op.get(`/equipamentos/${id}`)).status, 200);
 });
 
 test('RF_B7: tipos e coberturas; cobertura usada não é excluída, só inativada', async () => {

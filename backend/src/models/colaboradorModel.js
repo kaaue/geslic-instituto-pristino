@@ -7,8 +7,9 @@
 //   data e deixa as instâncias ativas e vagas (RN07). Se o colaborador
 //   coordenava um setor, o setor fica sem coordenador (o coordenador é
 //   sempre um colaborador ativo).
-// - A participação em projetos é mostrada aqui, mas gerenciada no cadastro
-//   do projeto (RN38). O cadastro não cria conta de acesso.
+// - A participação em projetos é mostrada aqui e pode ser alterada tanto no
+//   cadastro do projeto quanto na correção do colaborador (ids_projetos),
+//   pelo Administrador (RN38). O cadastro não cria conta de acesso.
 // - O colaborador pode pertencer a mais de um setor (colaborador_setor,
 //   migração 006); ao menos um é obrigatório.
 
@@ -144,6 +145,56 @@ async function incluir(dados, idUsuario) {
   });
 }
 
+// Participações do colaborador, alteradas pelo cadastro dele (o mesmo efeito
+// de alterar os participantes em cada projeto). Regras iguais às do projeto:
+// o responsável não sai do próprio projeto e colaborador desligado não
+// entra em projeto novo. Cada projeto afetado ganha um evento no histórico.
+async function gravarProjetos(conexao, colaborador, idsProjetos, idUsuario) {
+  const [atuais] = await conexao.query(
+    `SELECT p.id_projeto, p.codigo, p.nome, p.id_responsavel
+       FROM colaborador_projeto cp JOIN projeto p ON p.id_projeto = cp.id_projeto
+      WHERE cp.id_colaborador = ? FOR UPDATE`, [colaborador.id_colaborador]);
+  const idsAtuais = atuais.map((p) => p.id_projeto);
+  const retirar = atuais.filter((p) => !idsProjetos.includes(p.id_projeto));
+  const idsIncluir = idsProjetos.filter((id) => !idsAtuais.includes(id));
+
+  let incluir = [];
+  if (idsIncluir.length) {
+    [incluir] = await conexao.query(
+      'SELECT id_projeto, codigo, nome FROM projeto WHERE id_projeto IN (?) FOR UPDATE', [idsIncluir]);
+    if (incluir.length !== idsIncluir.length) throw AppError.campos({ ids_projetos: 'Selecione somente projetos cadastrados.' });
+    if (!colaborador.ativo) throw AppError.campos({ ids_projetos: 'Colaborador desligado não pode ser incluído em outro projeto.' });
+  }
+  const responsavel = retirar.filter((p) => p.id_responsavel === colaborador.id_colaborador);
+  if (responsavel.length) {
+    throw AppError.campos({
+      ids_projetos: `${colaborador.nome} é responsável por ${responsavel.map((p) => p.codigo).join(', ')}: ` +
+        'troque o responsável no cadastro do projeto antes de retirar a participação.'
+    });
+  }
+
+  const participantes = async (idProjeto) => {
+    const [linhas] = await conexao.query(
+      'SELECT id_colaborador FROM colaborador_projeto WHERE id_projeto = ? ORDER BY id_colaborador', [idProjeto]);
+    return linhas.map((l) => l.id_colaborador);
+  };
+  for (const [projetos, entra] of [[retirar, false], [incluir, true]]) {
+    for (const p of projetos) {
+      const antes = await participantes(p.id_projeto);
+      await conexao.query(entra
+        ? 'INSERT INTO colaborador_projeto (id_colaborador, id_projeto) VALUES (?, ?)'
+        : 'DELETE FROM colaborador_projeto WHERE id_colaborador = ? AND id_projeto = ?',
+      [colaborador.id_colaborador, p.id_projeto]);
+      await Historico.registrar(conexao, {
+        idUsuario, tipo: 'correcao', entidade: 'projeto', idRegistro: p.id_projeto,
+        descricao: `Projeto ${p.codigo} · ${p.nome}: ${colaborador.nome} ` +
+          `${entra ? 'incluído entre os' : 'retirado dos'} participantes (pelo cadastro do colaborador)`,
+        antes: { participantes: antes }, depois: { participantes: await participantes(p.id_projeto) }
+      });
+    }
+  }
+}
+
 async function alterar(id, dados, idUsuario) {
   return comTransacao(async (conexao) => {
     const atual = await buscarOuFalhar(conexao, id, true);
@@ -153,6 +204,7 @@ async function alterar(id, dados, idUsuario) {
       'UPDATE colaborador SET nome = ?, cargo = ?, email = ? WHERE id_colaborador = ?',
       [dados.nome, dados.cargo, dados.email, id]);
     await Setores.gravarSetores(conexao, id, dados.ids_setores);
+    if (dados.ids_projetos) await gravarProjetos(conexao, { ...atual, nome: dados.nome }, dados.ids_projetos, idUsuario);
     await Historico.registrar(conexao, {
       idUsuario, tipo: 'correcao', entidade: 'colaborador', idRegistro: id,
       descricao: `Colaborador ${dados.nome}: dados corrigidos`,

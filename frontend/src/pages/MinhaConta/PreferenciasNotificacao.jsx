@@ -19,7 +19,7 @@ function NovoPrazo({ aoIncluir }) {
   const [quantidade, setQuantidade] = useState('');
   const [unidade, setUnidade] = useState('mes');
   if (!aberto) {
-    return <button type="button" className="pilula" onClick={() => setAberto(true)}>+ prazo</button>;
+    return <button type="button" className="pilula" onClick={() => setAberto(true)}>+</button>;
   }
   const valido = Number.isInteger(Number(quantidade)) && Number(quantidade) >= 1 && Number(quantidade) <= MAXIMOS[unidade];
   return (

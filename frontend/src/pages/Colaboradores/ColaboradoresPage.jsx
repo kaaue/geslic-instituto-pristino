@@ -6,7 +6,8 @@
 // do Administrador. O desligamento exige data efetiva (RN37), encerra as
 // utilizações e deixa as instâncias ativas e vagas (RN07); o colaborador
 // desligado aparece esmaecido, com a data. A participação em projetos é
-// mostrada aqui e gerenciada no cadastro do projeto (RN38).
+// mostrada aqui; na edição, o Administrador marca os projetos de que a
+// pessoa participa (o mesmo efeito de alterar os participantes no projeto).
 // O colaborador pode estar em mais de um setor (ao menos um). Cada linha da
 // tabela abre, ao ser clicada, os projetos de que a pessoa participa, com
 // acesso ao cadastro de cada projeto.
@@ -27,6 +28,7 @@ import BotaoSolicitarAjuste from '../../components/solicitacoes/BotaoSolicitarAj
 import FaixaCorrecao from '../../components/solicitacoes/FaixaCorrecao.jsx';
 import { colaboradorCadastro as servico } from '../../services/colaboradorService';
 import { listarSetores } from '../../services/setorService';
+import { listarProjetos } from '../../services/projetoService';
 import { dataDaApi } from '../../utils/mascaras';
 
 const FILTROS = { busca: '', id_setor: '', projeto: '', situacao: '' };
@@ -36,10 +38,11 @@ const ROTULO_SITUACAO_PROJETO = { em_andamento: 'em andamento', encerrado: 'ence
 function FormularioColaborador({ registro, setores, controle, aoSalvar, ehOperador }) {
   const [form, setForm] = useState({
     nome: registro?.nome || '', ids_setores: registro?.ids_setores ? [...registro.ids_setores] : [],
-    cargo: registro?.cargo || '', email: registro?.email || ''
+    cargo: registro?.cargo || '', email: registro?.email || '',
+    ...(registro && { ids_projetos: (registro.participacoes || []).map((p) => p.id_projeto) })
   });
   const [homonimos, setHomonimos] = useState([]);
-  const [participacoes, setParticipacoes] = useState(null);
+  const [projetos, setProjetos] = useState(null);
   const mudar = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
   const { erros, erroGeral, salvando, fechar } = controle;
   const comErro = (campo) => (erros[campo] ? 'com-erro' : '');
@@ -57,9 +60,14 @@ function FormularioColaborador({ registro, setores, controle, aoSalvar, ehOperad
     return () => clearTimeout(tempo);
   }, [form.nome, registro]);
 
+  // Todos os projetos, para marcar aqueles de que a pessoa participa
   useEffect(() => {
-    if (registro) servico.buscar(registro.id_colaborador).then((c) => setParticipacoes(c.participacoes)).catch(() => {});
+    if (registro) listarProjetos({}).then(setProjetos).catch(() => setProjetos([]));
   }, [registro]);
+  const alternarProjeto = (id) => setForm((atual) => ({
+    ...atual,
+    ids_projetos: atual.ids_projetos.includes(id) ? atual.ids_projetos.filter((x) => x !== id) : [...atual.ids_projetos, id]
+  }));
 
   // Os setores atuais continuam na lista, mesmo que tenham sido inativados
   const opcoesSetor = [...setores];
@@ -103,17 +111,41 @@ function FormularioColaborador({ registro, setores, controle, aoSalvar, ehOperad
         <input type="email" value={form.email} maxLength={120} onChange={mudar('email')} className={comErro('email')} />
       </Campo>
       {registro && (
-        <div>
-          <h3 className="titulo-secao-painel">Projetos de que participa <span className="pilula">somente leitura</span></h3>
-          {participacoes === null ? <p className="bloco-pendente">Carregando...</p> : participacoes.length === 0 ? (
-            <p className="bloco-pendente">Nenhum projeto.</p>
+        <fieldset className="campo campo-setores">
+          <legend>Projetos de que participa{form.ids_projetos.length > 0 && ` (${form.ids_projetos.length})`}</legend>
+          {projetos === null ? <p className="bloco-pendente">Carregando...</p> : projetos.length === 0 ? (
+            <p className="bloco-pendente">Nenhum projeto cadastrado.</p>
           ) : (
-            <div className="pilulas" style={{ marginTop: 8 }}>
-              {participacoes.map((p) => <span key={p.id_projeto} className="pilula">{p.codigo} · {p.nome}</span>)}
-            </div>
+            <ul className={`lista-marcavel${erros.ids_projetos ? ' com-erro' : ''}`}>
+              {projetos.map((p) => {
+                const marcado = form.ids_projetos.includes(p.id_projeto);
+                const responsavel = p.id_responsavel === registro.id_colaborador;
+                // Desligado não entra em projeto novo; o responsável não sai do seu
+                const travado = (responsavel && marcado) || (!registro.ativo && !marcado);
+                return (
+                  <li key={p.id_projeto}>
+                    <label>
+                      <input type="checkbox" checked={marcado} disabled={travado} onChange={() => alternarProjeto(p.id_projeto)} />
+                      <span>
+                        {p.codigo} · {p.nome}
+                        {(responsavel || p.situacao === 'encerrado') && (
+                          <small>{[responsavel && 'responsável pelo projeto', p.situacao === 'encerrado' && 'encerrado'].filter(Boolean).join(' · ')}</small>
+                        )}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-          <p className="nota" style={{ marginTop: 8 }}>A participação é gerenciada no cadastro do projeto (RN38).</p>
-        </div>
+          {erros.ids_projetos ? <small className="erro">{erros.ids_projetos}</small> : (
+            <small className="dica">
+              {registro.ativo
+                ? 'Marque ou desmarque para incluir ou retirar a pessoa dos projetos. O responsável por um projeto só sai dele depois da troca de responsável, no cadastro do projeto.'
+                : 'Colaborador desligado: pode ser retirado dos projetos, mas não incluído em outros.'}
+            </small>
+          )}
+        </fieldset>
       )}
       <p className="nota">O desligamento, feito pelo Administrador, exige data efetiva; a data e a hora do registro são guardadas separadamente (RN37).</p>
     </PainelLateral>
@@ -332,7 +364,11 @@ export default function ColaboradoresPage() {
                             ))}
                           </ul>
                         )}
-                        <p className="nota">A participação é gerenciada no cadastro do projeto (RN38).</p>
+                        <p className="nota">
+                          {podeAlterar
+                            ? 'Para incluir ou retirar projetos, use Editar (ou o cadastro de cada projeto).'
+                            : 'Incluir ou retirar a pessoa de um projeto é do Administrador: use “Solicitar ajuste”.'}
+                        </p>
                       </td>
                     </tr>
                   )}
