@@ -23,12 +23,13 @@
   --marca-creme: #f9f7e6;   /* bege a 90% de transparência */
 
   /* Cabeçalho: azul profundo, com texto claro */
-  --cabecalho-fundo: #061823;
+  --cabecalho-fundo: #143847;
   --nav-texto: #d3dfe2;
   --nav-texto-forte: #ffffff;
   --nav-titulo: #8fa9b0;       /* textos secundários do cabeçalho */
   --nav-guia: #2c5060;         /* contornos do sino e do Sair */
-  --nav-realce: #143847;       /* fundo ao passar o mouse */
+  --nav-realce: #285a6c;       /* fundo ao passar o mouse, mais claro que o cabeçalho */
+  --nav-nome-realce: #a9dbe6;  /* nome GESLIC ao passar o mouse */
   --nav-secundario: #476871;   /* azul acinzentado médio (separadores) */
 
   /* Menu lateral claro: a logo multicolorida fica legível direto sobre ele */
@@ -40,7 +41,7 @@
   --menu-realce: #d5dfe0;      /* fundo ao passar o mouse */
   --menu-ativo: var(--marca-azul);
   --menu-ativo-texto: #ffffff;
-  --nav-ativo-marca: #14855a;  /* faixa do item ativo e realce do nome GESLIC */
+  --nav-ativo-marca: #061823;  /* faixa na borda esquerda do item ativo */
 
   /* Medidas da estrutura */
   --altura-cabecalho: 72px;
@@ -172,7 +173,7 @@ code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.92em; }
   text-decoration: none;
   flex-shrink: 0;
 }
-.marca:hover { color: var(--nav-ativo-marca); }
+.marca:hover { color: var(--nav-nome-realce); }
 
 /* Logo do Instituto direto sobre o fundo claro do menu, centralizada na
    vertical no espaço que sobra abaixo dos itens. Se faltar espaço, a lista
