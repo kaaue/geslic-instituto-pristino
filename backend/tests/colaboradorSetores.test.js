@@ -133,6 +133,60 @@ test('filtro por projeto (nome ou código) e projetos de cada colaborador na lis
   assert.deepEqual(semProjeto.participacoes, []);
 });
 
+test('correção do colaborador altera os projetos de que participa; responsável não sai e desligado não entra', async () => {
+  const admin = await t.entrarAdmin();
+  const op = await t.entrarOperador();
+  const projetos = (await admin.get('/projetos')).corpo;
+  const id = (codigo) => projetos.find((p) => p.codigo === codigo).id_projeto;
+  const codigos = async (idColaborador) =>
+    (await admin.get(`/colaboradores/${idColaborador}`)).corpo.participacoes.map((p) => p.codigo);
+
+  // Tiago (7) participa só do 1450; sem ids_projetos, nada muda
+  const tiago = (await admin.get('/colaboradores/7')).corpo;
+  assert.deepEqual(await codigos(7), ['1450']);
+  assert.equal((await admin.put('/colaboradores/7', { ...tiago, cargo: tiago.cargo })).status, 200);
+  assert.deepEqual(await codigos(7), ['1450']);
+
+  // entra no 2041 e no 1022 (encerrado) e sai do 1450, se não for o responsável dele
+  const responsavelDo1450 = projetos.find((p) => p.codigo === '1450').id_responsavel === 7;
+  const novos = [id('2041'), id('1022'), ...(responsavelDo1450 ? [id('1450')] : [])];
+  const alterado = await admin.put('/colaboradores/7', { ...tiago, ids_projetos: [...novos, id('2041')] });
+  assert.equal(alterado.status, 200);
+  assert.deepEqual(await codigos(7), responsavelDo1450 ? ['1022', '1450', '2041'] : ['1022', '2041']);
+  // o projeto mostra o novo participante e guarda o evento no histórico
+  const p2041 = (await admin.get(`/projetos/${id('2041')}`)).corpo;
+  assert.ok(p2041.lista_participantes.some((c) => c.id_colaborador === 7));
+  const eventos = await t.sql(
+    `SELECT descricao FROM movimentacao WHERE entidade = 'projeto' AND id_registro = ? AND descricao LIKE '%cadastro do colaborador%'`,
+    [id('2041')]);
+  assert.equal(eventos.length, 1);
+  assert.match(eventos[0].descricao, /incluído entre os participantes/);
+
+  // inválidos: projeto inexistente e formato errado não mudam nada
+  assert.equal((await admin.put('/colaboradores/7', { ...tiago, ids_projetos: [999999] })).status, 400);
+  assert.equal((await admin.put('/colaboradores/7', { ...tiago, ids_projetos: 'x' })).corpo.erros.ids_projetos, 'Projetos inválidos.');
+  assert.ok((await codigos(7)).includes('2041'));
+
+  // o responsável não sai do próprio projeto
+  const comResponsavel = projetos.find((p) => p.id_responsavel);
+  const responsavel = (await admin.get(`/colaboradores/${comResponsavel.id_responsavel}`)).corpo;
+  const recusa = await admin.put(`/colaboradores/${responsavel.id_colaborador}`, { ...responsavel, ids_projetos: [] });
+  assert.equal(recusa.status, 400);
+  assert.match(recusa.corpo.erros.ids_projetos, /é responsável por/);
+  assert.deepEqual(await codigos(responsavel.id_colaborador), responsavel.participacoes.map((p) => p.codigo));
+
+  // desligado: pode sair, não entra em outro projeto
+  const desligado = (await admin.get('/colaboradores')).corpo.find((c) => !c.ativo);
+  const atuais = desligado.participacoes.map((p) => p.id_projeto);
+  const outro = projetos.find((p) => !atuais.includes(p.id_projeto)).id_projeto;
+  const entrada = await admin.put(`/colaboradores/${desligado.id_colaborador}`, { ...desligado, ids_projetos: [...atuais, outro] });
+  assert.equal(entrada.status, 400);
+  assert.match(entrada.corpo.erros.ids_projetos, /desligado/);
+
+  // o Operador não corrige (pede por solicitação de ajuste)
+  assert.equal((await op.put('/colaboradores/7', { ...tiago, ids_projetos: [] })).status, 403);
+});
+
 test('solicitação de acesso: um setor no pedido; na aprovação, um ou mais setores', async () => {
   const admin = await t.entrarAdmin();
   const pedidos = (await admin.get('/usuarios?situacao=pendente')).corpo;
