@@ -1,11 +1,13 @@
 // Painel de acompanhamento, distinto por perfil (Protótipos 2.1 e 2.2; RN33).
 //
-// Implementado nesta versão: o bloco de solicitações (RF_B10) — para o
+// Implementado nesta versão: para o Administrador, as pendências de prazo
+// dos projetos (Revisão de UX/UI v0.1, OBS-07: término previsto vencido e
+// projeto ainda em andamento); e o bloco de solicitações (RF_B10) — para o
 // Operador, as solicitações de ajuste de todos os operadores e o botão
 // "Emitir solicitação de ajuste"; para o Administrador, as solicitações
 // recebidas: ajustes cadastrais e contas aguardando aprovação (RF_B8).
 // Os demais blocos dependem de funções ainda em desenvolvimento (indicadores
-// e vencimentos, RF_S1 e RF_F13; autorizações, RF_F15; notificações, RF_S8):
+// e vencimentos de licenças e apólices, RF_S1 e RF_F13; autorizações, RF_F15; notificações, RF_S8):
 // aparecem identificados, sem dados simulados.
 
 import { useState } from 'react';
@@ -14,6 +16,7 @@ import useMensagem from '../../hooks/useMensagem';
 import Mensagem from '../../components/common/Mensagem.jsx';
 import BlocoSolicitacoes from '../../components/solicitacoes/BlocoSolicitacoes.jsx';
 import ModalSolicitacaoAjuste from '../../components/solicitacoes/ModalSolicitacaoAjuste.jsx';
+import BlocoPrazosVencidos from './BlocoPrazosVencidos.jsx';
 
 function BlocoEmDesenvolvimento({ titulo, texto }) {
   return (
@@ -69,8 +72,7 @@ export default function InicioPage() {
       <div className="painel-blocos">
         {administrador ? (
           <>
-            <BlocoEmDesenvolvimento titulo="Vencimentos que exigem atenção"
-              texto="Os vencimentos de licenças e apólices e os términos de projeto, ordenados pelo prazo, entram com a RF_F13 e a RF_S1." />
+            <BlocoPrazosVencidos />
             <BlocoEmDesenvolvimento titulo="Autorizações emitidas"
               texto="A emissão de autorizações operacionais e o registro dos resultados entram com a RF_F15." />
             <BlocoSolicitacoes titulo="Solicitações recebidas" versao={versao} aoMensagem={mostrarMensagem} />

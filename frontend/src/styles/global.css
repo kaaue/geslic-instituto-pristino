@@ -1,12 +1,18 @@
 /* Estilo da interface do GESLIC com a identidade do Instituto Prístino
    (Estudo de Cores WEB da logo), no "Estilo 06 · Conteúdo em blocos
-   rotulados" escolhido na rodada 2 de estilos: menu lateral branco, com a
-   logo direto sobre o fundo, títulos de grupo em marrom e o item ativo no
-   azul da marca; conteúdo sobre um cinza bem claro, em blocos brancos com
-   borda fina e cabeçalho próprio; ação principal em azul; módulo de
-   Apólices em marrom. O vermelho da marca fica na logo e em detalhes;
-   "perigo" é um vermelho de alerta próprio, para não se confundir com a
-   marca. Fonte: DM Sans (carregada no index.html). */
+   rotulados", ajustado pela Revisão de UX/UI v0.1:
+   - cabeçalho na largura toda, em azul profundo, com o nome GESLIC, o
+     caminho de navegação, o sino, a conta e o único comando Sair;
+   - menu lateral claro, abaixo do cabeçalho, com seções (Início, Gestão,
+     Cadastros, Consultas, Sistema) ligadas por linha guia e a logo do
+     Instituto, sem alteração, centralizada no espaço livre abaixo dos itens
+     (sobre o fundo claro ela fica legível sem cartão; OBS-04). O menu claro
+     foi escolhido em teste, no lugar do menu escuro do OBS-03;
+   - área de trabalho em neutro claro (sem branco integral), com cartões,
+     tabelas e formulários em branco e bordas leves.
+   Ação principal em azul; módulo de Apólices em ferrugem. "perigo" é um
+   vermelho de alerta próprio, separado do vermelho da marca.
+   Fonte: DM Sans (carregada no index.html). */
 
 :root {
   /* Cores da logo */
@@ -16,61 +22,78 @@
   --marca-bege: #c7b570;
   --marca-creme: #f9f7e6;   /* bege a 90% de transparência */
 
-  /* Menu */
-  --menu-fundo: #ffffff;
-  --menu-texto: #4a5154;
-  --menu-titulo: var(--marca-marrom);
-  --menu-linha: #ececea;
-  --menu-realce: #eef3f4;   /* azul bem claro */
+  /* Cabeçalho: azul profundo, com texto claro */
+  --cabecalho-fundo: #061823;
+  --nav-texto: #d3dfe2;
+  --nav-texto-forte: #ffffff;
+  --nav-titulo: #8fa9b0;       /* textos secundários do cabeçalho */
+  --nav-guia: #2c5060;         /* contornos do sino e do Sair */
+  --nav-realce: #143847;       /* fundo ao passar o mouse */
+  --nav-secundario: #476871;   /* azul acinzentado médio (separadores) */
+
+  /* Menu lateral claro: a logo multicolorida fica legível direto sobre ele */
+  --menu-fundo: #e6ecec;
+  --menu-borda: #cfd8d9;
+  --menu-texto: #26323a;
+  --menu-titulo: #5b686d;
+  --menu-guia: #c3cdce;        /* linha que liga os itens de cada seção */
+  --menu-realce: #d5dfe0;      /* fundo ao passar o mouse */
   --menu-ativo: var(--marca-azul);
   --menu-ativo-texto: #ffffff;
+  --nav-ativo-marca: #14855a;  /* faixa do item ativo e realce do nome GESLIC */
 
-  /* Primária: azul da marca e suas variações de transparência */
+  /* Medidas da estrutura */
+  --altura-cabecalho: 72px;
+  --largura-menu: 232px;
+
+  /* Primária: azul da marca e suas variações */
   --primaria: #0a3642;
   --primaria-escuro: #072a33;
   --primaria-texto: #0a3642;
-  --primaria-claro: #e6ebec;
-  --primaria-borda: #c1cccf;
-  --primaria-suave: #f3f6f6;
+  --primaria-claro: #e3ecee;
+  --primaria-borda: #b9cace;
+  --primaria-suave: #f0f5f6;
 
-  /* Secundária: marrom da marca (módulo de Apólices e faixas informativas) */
-  --secundaria: #855914;
-  --secundaria-escuro: #6b4710;
-  --secundaria-texto: #6f4a10;
-  --secundaria-claro: #f3eee7;
-  --secundaria-borda: #e0d5c4;
-  --secundaria-suave: #faf7f2;
+  /* Secundária: ferrugem, entre o vermelho e o marrom da logo (módulo de
+     Apólices, títulos do menu e faixas informativas) */
+  --secundaria: #9a4320;
+  --secundaria-escuro: #7c3418;
+  --secundaria-texto: #8a3a1a;
+  --secundaria-claro: #f5e8e1;
+  --secundaria-borda: #e2c4b5;
+  --secundaria-suave: #faf3ef;
 
-  /* Superfícies e texto: neutros frios, quase brancos */
-  --fundo: #f6f7f7;
+  /* Área de trabalho: neutro claro sem branco integral; cartões, tabelas e
+     formulários em branco localizado, com bordas leves */
+  --fundo: #f3f5f4;
   --superficie: #ffffff;
-  --superficie-suave: #f8f9f9;
-  --borda: #e6e8e8;
-  --borda-suave: #f0f0ee;
-  --borda-forte: #d6dadb;
-  --texto: #1a1f21;
-  --texto-suave: #6b7275;
-  --texto-fraco: #7d8588;
-  --neutro-claro: #f1f2f2;
-  --neutro-borda: #d9dcdc;
-  --neutro-texto: #565d60;
+  --superficie-suave: #f7f8f8;
+  --borda: #dfe4e4;
+  --borda-suave: #eaeded;
+  --borda-forte: #c7cfd0;
+  --texto: #172023;
+  --texto-suave: #505b5f;
+  --texto-fraco: #6a7478;
+  --neutro-claro: #eef1f1;
+  --neutro-borda: #d3d9da;
+  --neutro-texto: #4a5356;
 
   /* Estados */
   --sucesso-texto: #0a4232;  /* análoga do azul da marca */
-  --sucesso-claro: #e5efe9;
-  --sucesso-borda: #b3cfc0;
+  --sucesso-claro: #e4f0e9;
+  --sucesso-borda: #b0cfbd;
   --perigo: #a62a15;
-  --perigo-claro: #fbeee9;
-  --perigo-borda: #ecc3b6;
-  --amarelo-texto: #665511;
-  --amarelo-claro: #f9f7e6;
-  --amarelo-borda: #e4db87;
+  --perigo-claro: #fbece7;
+  --perigo-borda: #e8bcae;
+  --amarelo-texto: #6a4700;  /* âmbar de atenção, sem o bege */
+  --amarelo-claro: #fbf0d4;
+  --amarelo-borda: #e2c67c;
   --roxo-texto: #5a1485;     /* triádica do estudo */
   --roxo-claro: #f3ecf7;
   --roxo-borda: #d9c6e6;
   --tijolo-texto: #6e2405;   /* vermelho da marca e suas variações */
-  --tijolo-claro: #f0e9e6;
-  --tijolo-borda: #dac8c0;
+  --tijolo-claro: #f5e9e5;
+  --tijolo-borda: #dfc4ba;
 
   /* Cor do módulo aberto (azul por padrão) */
   --destaque: var(--primaria);
@@ -114,134 +137,136 @@ code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.92em; }
    Estrutura: menu lateral, barra superior, conteúdo
    ========================================================= */
 
-.aplicacao { display: flex; min-height: 100vh; }
+/* Cabeçalho na largura toda, no topo; abaixo, o menu lateral e a área de
+   trabalho lado a lado */
+.aplicacao { display: flex; flex-direction: column; min-height: 100vh; }
+.corpo-aplicacao { flex: 1; display: flex; min-height: 0; }
 .area-principal { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 .menu-lateral {
-  width: 232px;
+  width: var(--largura-menu);
   flex-shrink: 0;
   background: var(--menu-fundo);
-  border-right: 1px solid var(--menu-linha);
+  border-right: 1px solid var(--menu-borda);
   color: var(--menu-texto);
   display: flex;
   flex-direction: column;
   position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
+  top: var(--altura-cabecalho);
+  height: calc(100vh - var(--altura-cabecalho));
+  overflow: hidden;
 }
 
-/* Marca: a logo do Instituto direto sobre o fundo claro do menu, como no
-   estudo de cores, e o nome do sistema logo abaixo */
+/* Nome do sistema no canto esquerdo do cabeçalho, na largura do menu
+   lateral, alinhando o caminho de navegação com a área de trabalho */
 .marca {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  margin: 0 14px 12px;
-  padding: 24px 10px 18px;
-  border-bottom: 1px solid var(--menu-linha);
-  color: var(--marca-azul);
+  width: var(--largura-menu);
+  height: 100%;
+  padding: 0 24px 0 34px;
+  color: var(--nav-texto-forte);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 9px;
   text-decoration: none;
+  flex-shrink: 0;
 }
-.marca img { width: 92px; height: auto; display: block; }
-.marca strong { font-size: 12px; font-weight: 700; letter-spacing: 3px; line-height: 1; }
+.marca:hover { color: var(--nav-ativo-marca); }
 
-.menu-lateral nav { flex: 1; padding: 0 14px 12px; }
+/* Logo do Instituto direto sobre o fundo claro do menu, centralizada na
+   vertical no espaço que sobra abaixo dos itens. Se faltar espaço, a lista
+   de itens rola e a logo continua inteira. O logotipo não é alterado
+   (OBS-04). */
+.menu-logo {
+  flex: 1 0 auto;
+  padding: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.menu-logo img { width: 112px; height: auto; display: block; }
 
-.menu-grupo { display: flex; flex-direction: column; gap: 2px; margin-bottom: 2px; }
+.menu-lateral > nav { flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 10px 14px 0; }
+
+/* Seções: título em cinza e, abaixo, os itens ligados por uma linha guia */
+.menu-grupo { display: flex; flex-direction: column; margin-top: 8px; }
+.menu-grupo:first-child { margin-top: 2px; }
 .menu-titulo {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1.6px;
+  letter-spacing: 1.4px;
   color: var(--menu-titulo);
-  padding: 16px 12px 6px;
+  padding: 0 10px 6px;
+}
+.menu-itens {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 2px solid var(--menu-guia);
 }
 
 .menu-link {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--menu-texto);
   text-decoration: none;
-  padding: 8px 12px;
+  padding: 4px 10px;
   border-radius: var(--raio-pequeno);
   font-size: 14px;
   line-height: 1.35;
   white-space: nowrap;
 }
 .menu-link:hover { background: var(--menu-realce); color: var(--marca-azul); }
-.menu-icone { width: 16px; text-align: center; font-size: 12px; opacity: 0.85; flex-shrink: 0; }
-.menu-rotulo { flex: 1; min-width: 0; }
-.menu-link-ativo, .menu-link-ativo:hover { background: var(--menu-ativo); color: var(--menu-ativo-texto); font-weight: 600; }
-.menu-link-ativo .menu-icone { opacity: 1; }
-
-.menu-rotulo { overflow: hidden; text-overflow: ellipsis; }
-
-/* Ponto das telas em desenvolvimento, com a legenda no fim do menu */
-.marca-pendente {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: 1.5px solid var(--menu-titulo);
-  flex-shrink: 0;
+.menu-rotulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Item ativo: fundo realçado e, na borda esquerda, uma faixa na altura toda
+   do item. A faixa é reta e o próprio item a recorta (overflow: hidden), então
+   ela acompanha exatamente a altura e a curva dos cantos esquerdos do item. */
+.menu-link { position: relative; }
+.menu-link-ativo, .menu-link-ativo:hover {
+  background: var(--menu-ativo);
+  color: var(--menu-ativo-texto);
+  font-weight: 600;
+  overflow: hidden;
 }
-.menu-link-ativo .marca-pendente { border-color: var(--menu-ativo-texto); }
-.menu-legenda {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 6px 10px 0;
-  font-size: 11.5px;
-  color: var(--menu-titulo);
+.menu-link-ativo::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 5px;
+  background: var(--nav-ativo-marca);
 }
 
-/* Conta no rodapé do menu (Protótipo 2) */
-.menu-conta {
-  margin: 0 12px;
-  padding: 10px 10px 12px;
-  border-top: 1px solid var(--menu-linha);
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.menu-conta strong { color: var(--texto); font-size: 13.5px; }
-.menu-conta span { font-size: 12px; color: var(--texto-suave); }
+/* Telas ainda em desenvolvimento: etiqueta discreta, sem cor de alerta */
+.menu-em-breve { font-size: 11px; color: var(--menu-titulo); font-weight: 500; }
+.menu-link-ativo .menu-em-breve { color: #b9cdd2; }
 
-.botao-sair {
-  margin-top: 10px;
-  align-self: flex-start;
-  background: transparent;
-  color: var(--menu-texto);
-  border: 1px solid var(--borda-forte);
-  border-radius: var(--raio-pequeno);
-  padding: 5px 14px;
-  font: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-.botao-sair:hover { background: var(--menu-realce); color: var(--marca-azul); border-color: var(--primaria-borda); }
-
-/* Barra superior: caminho de navegação, sino e conta */
+/* Barra superior (cabeçalho) em azul profundo, na largura toda: nome
+   GESLIC, caminho de navegação, sino, conta conectada e o único comando
+   Sair */
 .barra-superior {
-  background: var(--superficie);
-  border-bottom: 1px solid var(--borda);
-  height: 58px;
-  padding: 0 28px;
+  background: var(--cabecalho-fundo);
+  color: var(--nav-texto);
+  height: var(--altura-cabecalho);
+  padding: 0 28px 0 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 6;
 }
 
-.trilha { display: flex; align-items: center; gap: 6px; font-size: 14.5px; color: var(--texto-suave); min-width: 0; }
-.trilha strong { color: var(--texto); font-weight: 600; }
-.trilha-separador { color: var(--texto-fraco); }
+.trilha { flex: 1; margin-left: 12px; display: flex; align-items: center; gap: 6px; font-size: 14.5px; color: var(--nav-titulo); min-width: 0; }
+.trilha strong { color: var(--nav-texto-forte); font-weight: 600; }
+.trilha-separador { color: var(--nav-secundario); }
 
 .barra-direita { display: flex; align-items: center; gap: 14px; }
 
@@ -251,14 +276,15 @@ code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.92em; }
   justify-content: center;
   width: 38px;
   height: 38px;
-  border: 1px solid var(--borda);
+  border: 1px solid var(--nav-guia);
   border-radius: var(--raio);
-  color: var(--texto);
-  background: var(--superficie);
+  color: var(--nav-texto);
+  background: transparent;
 }
-.sino:hover { background: var(--superficie-suave); border-color: var(--borda-forte); }
+.sino:hover { background: var(--nav-realce); color: var(--nav-texto-forte); }
 
-.conta-atual { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--texto); }
+.conta-atual { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--nav-texto-forte); border-radius: var(--raio); padding: 4px 8px 4px 4px; }
+.conta-atual:hover { background: var(--nav-realce); }
 .avatar {
   width: 38px;
   height: 38px;
@@ -273,15 +299,19 @@ code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.92em; }
 }
 .conta-texto { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
 .conta-nome { font-size: 13.5px; }
-.conta-perfil {
-  margin-top: 2px;
-  font-size: 11.5px;
-  color: var(--primaria-texto);
-  background: var(--primaria-claro);
-  border: 1px solid var(--primaria-borda);
-  border-radius: 999px;
-  padding: 0 8px;
+.conta-perfil { margin-top: 1px; font-size: 11.5px; color: var(--nav-titulo); }
+
+.botao-sair {
+  background: transparent;
+  color: var(--nav-texto);
+  border: 1px solid var(--nav-guia);
+  border-radius: var(--raio-pequeno);
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
 }
+.botao-sair:hover { background: var(--nav-realce); color: var(--nav-texto-forte); }
 
 .conteudo { padding: 26px 28px 56px; max-width: 1440px; width: 100%; }
 .carregando-tela { text-align: center; margin-top: 30vh; color: var(--texto-suave); }
@@ -450,9 +480,9 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
   font-size: 12.5px;
   font-weight: 500;
   color: var(--texto-suave);
-  background: var(--superficie);
+  background: var(--superficie-suave);
   padding: 10px 16px;
-  border-bottom: 1px solid var(--borda-suave);
+  border-bottom: 1px solid var(--borda);
   vertical-align: bottom;
 }
 
@@ -492,7 +522,7 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
    Etiquetas em pílula (situação, tipo, prazo, perfil)
    ========================================================= */
 
-.situacao, .etiqueta-uso-geral, .etiqueta-perfil, .etiqueta-evento, .marca-prazo {
+.situacao, .etiqueta-uso-geral, .etiqueta-perfil, .etiqueta-evento, .marca-prazo, .etiqueta-prazo {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 999px;
@@ -600,7 +630,7 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
 }
 /* Título do bloco: rótulo da seção, separado do conteúdo por uma linha fina */
 .cartao h3 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
-.cartao > h3:first-child { margin: -18px -20px 14px; padding: 12px 20px; border-bottom: 1px solid var(--borda-suave); font-size: 14px; }
+.cartao > h3:first-child { margin: -18px -20px 14px; padding: 12px 20px; background: var(--superficie-suave); border-bottom: 1px solid var(--borda); font-size: 14px; }
 .cartao p { margin: 0 0 8px; }
 
 .grade-duas { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
@@ -872,23 +902,6 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
 .autenticacao-rodape { position: absolute; bottom: 22px; left: 0; right: 0; margin: 0; text-align: center; font-size: 12px; color: #9fb0b5; }
 
 /* =========================================================
-   Menu: entrada única e expansível Cadastros (seção 2.3.2)
-   ========================================================= */
-
-.menu-expansivel {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.menu-seta { font-size: 10px; opacity: 0.8; transition: transform 0.15s; }
-.menu-expansivel[aria-expanded="true"] .menu-seta { transform: rotate(90deg); }
-.menu-subitens { display: flex; flex-direction: column; gap: 1px; margin: 1px 0 4px; }
-.menu-subitens .menu-link { padding-left: 36px; font-size: 13.5px; }
-
-/* =========================================================
    Padrão dos cadastros: pesquisa acima, listagem e painel lateral
    ========================================================= */
 
@@ -975,7 +988,10 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
 /* No painel com rolagem, o conteúdo não encolhe (tabelas internas cortadas) */
 .painel-corpo > * { flex-shrink: 0; }
 
-.painel-largo { width: 560px; }
+/* Painel de edição largo (projetos): metade da janela no desktop, para os
+   pares de campos caberem em duas colunas sem rolagem excessiva (Revisão de
+   UX/UI v0.1, OBS-02); nunca menos de 560px nem mais de 960px */
+.painel-largo { width: clamp(560px, 50vw, 960px); }
 .janela-larga { width: 720px; }
 .janela .painel-corpo { overflow-y: auto; }
 textarea { width: 100%; min-height: 84px; resize: vertical; font: inherit; }
@@ -993,7 +1009,7 @@ textarea.com-erro { border-color: var(--perigo); background: var(--perigo-claro)
   box-shadow: var(--sombra);
   min-width: 0;
 }
-.bloco-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--borda-suave); }
+.bloco-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 18px; background: var(--superficie-suave); border-bottom: 1px solid var(--borda); }
 .bloco-cabecalho h3 { margin: 0; font-size: 14px; font-weight: 700; }
 .bloco-corpo { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 .bloco-secao { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 11.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto-suave); margin-top: 4px; }
@@ -1007,12 +1023,17 @@ textarea.com-erro { border-color: var(--perigo); background: var(--perigo-claro)
   border-left: 4px solid var(--amarelo-borda);
   border-radius: var(--raio-pequeno);
   padding: 10px 12px;
-  background: #fdfcf4;
+  background: var(--superficie-suave);
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
-.demanda-conta { border-left-color: var(--roxo-borda); background: #fbf8fd; }
+.demanda-conta { border-left-color: var(--roxo-borda); }
+/* Pendência de prazo de projeto (OBS-07) */
+.demanda-prazo { border-left-color: var(--perigo-borda); }
+.demanda-prazo .demanda-tipo { background: var(--perigo-claro); color: var(--perigo); }
+.contador-pendencias { min-width: 22px; padding: 0 7px; border-radius: 999px; background: var(--perigo); color: #fff; font-size: 12px; font-weight: 700; text-align: center; line-height: 20px; }
+.nota-bloco { margin: 2px 0 0; font-size: 12.5px; color: var(--texto-suave); }
 .demanda-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .demanda-codigo { font-weight: 700; font-size: 13px; color: var(--texto-suave); display: flex; gap: 6px; align-items: center; }
 .demanda-tipo { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; padding: 1px 6px; border-radius: 4px; background: var(--secundaria-claro); color: var(--secundaria-texto); }
@@ -1069,13 +1090,15 @@ textarea.com-erro { border-color: var(--perigo); background: var(--perigo-claro)
 }
 
 @media (max-width: 900px) {
-  .menu-subitens .menu-link { padding-left: 10px; }
   .painel, .painel-largo { width: 100%; }
-  .aplicacao { flex-direction: column; }
-  .menu-lateral { width: 100%; height: auto; position: static; }
-  .menu-lateral nav { display: flex; flex-wrap: wrap; gap: 4px 18px; }
-  .menu-conta { flex-direction: row; align-items: center; gap: 10px; }
-  .menu-conta .botao-sair { margin: 0 0 0 auto; }
+  .corpo-aplicacao { flex-direction: column; }
+  .marca { width: auto; height: 44px; padding: 0; }
+  .menu-logo { margin: 10px 16px 14px; }
+  .menu-logo img { width: 96px; }
+  .trilha { order: 3; flex-basis: 100%; margin-left: 0; }
+  .menu-lateral { width: 100%; height: auto; position: static; overflow: visible; }
+  .menu-lateral > nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 14px; }
+  .menu-lateral > nav .menu-grupo, .menu-lateral > nav .menu-grupo:first-child { margin-top: 10px; }
   .barra-superior { position: static; height: auto; flex-wrap: wrap; padding: 10px 16px; }
   .conteudo { padding: 18px 16px 40px; }
   .titulo-area { flex-direction: column; align-items: flex-start; }

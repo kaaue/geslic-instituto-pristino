@@ -403,13 +403,14 @@ variáveis no início de `frontend/src/styles/global.css`.
   azul `#0a3642`, mais os tons derivados do próprio estudo (variações de
   transparência e cores análogas). No tema, as cores têm papéis: `--primaria`
   (azul: ações, item ativo do menu e módulo de Licenças), `--secundaria`
-  (marrom: módulo de Apólices, títulos do menu e faixas informativas), bege
-  e creme nos avisos e no painel das telas de acesso,
+  (ferrugem `#9a4320`, entre o vermelho e o marrom da logo: módulo de
+  Apólices, títulos do menu e faixas informativas), âmbar nos avisos,
   `--sucesso` (verde análogo do azul) e `--perigo` (vermelho de alerta,
   separado do vermelho da marca, que fica na logo e em detalhes).
 - **Logo:** `frontend/src/assets/logo-pristino.png` (300 × 246, fundo
-  transparente), direto sobre o fundo claro do menu e sobre o creme do painel
-  das telas de acesso;
+  transparente), sem alteração: direto sobre o menu lateral claro,
+  centralizada no espaço livre abaixo dos itens, e no cartão das telas de
+  acesso;
   o símbolo sem o nome é o ícone da aba (`frontend/public/favicon.png`).
 
 - **Acesso ao sistema (Protótipo 1, opção 09 do estudo de login):** fundo
@@ -418,27 +419,47 @@ variáveis no início de `frontend/src/styles/global.css`.
   completa do Instituto, "GESLIC" e o título; à direita, o formulário, com a
   faixa "Acesso ao sistema" no topo e os links no rodapé. As outras telas
   públicas usam a mesma moldura.
-- **Menu lateral (Protótipo 2):** fundo claro, com a logo no topo e o item
-  ativo no azul da marca;
-  Painel, Licenças e Apólices, a entrada única e **expansível Cadastros**
-  (com Projetos), Consultas e Configurações, filtrados pelas permissões, com a conta e o botão Sair no rodapé. Um
-  ponto marca as telas em desenvolvimento. As solicitações de ajuste não têm
-  item de menu: ficam no painel.
+- **Menu lateral (Protótipo 2, Revisão de UX/UI v0.1, OBS-01):** claro
+  (`#e6ecec`), abaixo do cabeçalho (não o sobrepõe), com o item ativo em azul
+  e uma faixa verde na borda esquerda, e a logo do Instituto centralizada no
+  espaço livre abaixo dos itens. O menu claro foi escolhido em teste, no
+  lugar do menu escuro proposto no OBS-03, porque a logo fica legível sem
+  cartão. Seções com título e uma linha guia ligando os itens:
+  **Início** (Painel), **Gestão** (Licenças, Apólices), **Cadastros**
+  (Projetos, Colaboradores, Setores, Equipamentos, Bens seguráveis,
+  Softwares, Fornecedores, Seguradoras, Tipos e coberturas), **Consultas**
+  (Relatórios, Histórico) e **Sistema** (Minha conta, Usuários), filtrados
+  pelas permissões; Usuários só aparece para quem tem `usuario.gerenciar`, e
+  a API confere a mesma permissão. As telas em desenvolvimento mostram "em
+  breve" ao lado do nome. As solicitações de ajuste não têm item de menu:
+  ficam no painel.
 - **Padrão dos cadastros (Protótipos 5 a 12):** pesquisa e filtros acima,
   listagem e painel lateral à direita, aberto somente por Novo, Editar ou uma
-  ação; inativação num painel com data efetiva e "Registro: gerado ao
+  ação (o painel de projetos ocupa metade da janela, entre 560 e 960px, com
+  os campos agrupados em Dados do projeto, Responsáveis e período,
+  Participantes e Situação e vínculos); inativação num painel com data efetiva e "Registro: gerado ao
   confirmar"; registros inativos esmaecidos, com a data; para o Operador, o
   atalho "Solicitar ajuste" em cada linha.
-- **Barra superior:** caminho de navegação ("Instituto Prístino / Cadastros /
-  Equipamentos"), sino de notificações e a conta, com avatar e perfil.
-- **Módulos:** Licenças em azul e Apólices em marrom, com o rótulo do módulo
+- **Barra superior:** na largura toda, acima do menu, em azul profundo
+  (`#061823`), com o nome GESLIC à esquerda, na largura do menu, e depois o
+  caminho de navegação ("Instituto Prístino / Cadastros / Equipamentos"), o sino de
+  notificações, a conta conectada (avatar, nome e perfil, que leva a Minha
+  conta) e o único comando **Sair**.
+- **Módulos:** Licenças em azul e Apólices em ferrugem, com o rótulo do módulo
   acima do título e a cor do módulo no botão principal.
+- **Pendências de prazo (OBS-07):** no painel do Administrador, o bloco
+  "Prazos que exigem providência" lista os projetos em andamento com o término
+  previsto já vencido, com o atraso e o link "Prorrogar ou encerrar". A
+  pendência é calculada a partir do cadastro: continua enquanto o projeto não
+  for prorrogado ou encerrado, não pode ser dispensada e não se repete. O
+  sistema não prorroga nem encerra nada sozinho.
 - **Sobreposições:** clicar no fundo ou apertar Esc fecha o painel ou a janela
   de cima, um de cada vez.
-- **Conteúdo (estilo 06, "conteúdo em blocos rotulados"):** fundo cinza bem
-  claro, blocos brancos com borda fina e sem sombra, título de cada cartão
-  como cabeçalho separado por uma linha, filtros num bloco, tabelas com
-  cabeçalho branco e etiquetas em pílula para situação, prazo e perfil.
+- **Conteúdo (estilo 06, "conteúdo em blocos rotulados"):** área de trabalho
+  em neutro claro (`#f3f5f4`, sem branco integral), com cartões, tabelas e
+  formulários em branco, bordas leves e sem sombra; o cabeçalho de cada bloco,
+  cartão e tabela fica um tom abaixo do corpo. Filtros num bloco e etiquetas
+  em pílula para situação, prazo e perfil.
   Fonte DM Sans. As operações abrem em painéis laterais e janelas flutuantes.
 
 As telas foram conferidas em 1280×800. Em telas mais estreitas, as tabelas

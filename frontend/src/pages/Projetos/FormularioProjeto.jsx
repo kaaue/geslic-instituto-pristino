@@ -112,7 +112,7 @@ export default function FormularioProjeto({
             <p className="aviso-info">
               Após a criação, somente o Administrador altera os dados e os participantes. Para incluir ou retirar
               alguém, ou corrigir um dado, emita uma solicitação de ajuste (RN38). Prorrogar e encerrar ficam
-              na seção “Vigência e situação”, abaixo.
+              na seção “Situação e vínculos”, abaixo.
             </p>
             {atalhoAjuste}
           </>
@@ -178,6 +178,8 @@ export default function FormularioProjeto({
             : !somenteLeitura && <small className="dica">Texto livre; as fontes já usadas aparecem como sugestão.</small>}
         </label>
 
+        <h3 className="secao-painel">Responsáveis e período</h3>
+        <div className="dupla">
         <label className="campo">
           <span>Responsável *</span>
           <select
@@ -223,6 +225,7 @@ export default function FormularioProjeto({
               </small>
             )}
         </label>
+        </div>
 
         <div className="dupla">
           <label className="campo">
@@ -270,7 +273,7 @@ export default function FormularioProjeto({
 
         {edicao && (
           <>
-            <h3 className="secao-painel">Vigência e situação</h3>
+            <h3 className="secao-painel">Situação e vínculos</h3>
             <div className="resumo-projeto">
               <div>
                 <span>Situação</span>
