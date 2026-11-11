@@ -783,78 +783,93 @@ small.dica { color: var(--texto-suave); font-size: 12px; }
    Telas de autenticação (Protótipo 1)
    ========================================================= */
 
-.pagina-autenticacao { min-height: 100vh; display: grid; grid-template-columns: minmax(320px, 40%) 1fr; }
-
-/* Painel da marca: a logo do Instituto sobre creme, com a faixa azul da
-   marca na base */
-.autenticacao-marca {
+/* Login opção 09: fundo azul da marca com brilhos em bege e marrom, faixa
+   das quatro cores da logo na borda esquerda, a marca à esquerda e o
+   formulário num cartão gelo (sem branco puro) dividido em blocos. */
+.pagina-autenticacao {
+  --gelo: #e9edec;
+  --gelo-faixa: #dde3e2;
+  --gelo-linha: #c9d1d0;
+  --gelo-campo: #f4f6f5;
+  --gelo-borda-campo: #c3cccb;
   position: relative;
-  overflow: hidden;
-  background: linear-gradient(165deg, var(--marca-creme) 0%, #f1ecc0 100%);
-  color: var(--marca-azul);
-  padding: 48px 56px;
-  display: flex;
-  flex-direction: column;
-  gap: 12vh;
-  border-right: 6px solid var(--marca-azul);
-}
-/* Formas translúcidas, nos tons da logo */
-.autenticacao-marca::before, .autenticacao-marca::after {
-  content: "";
-  position: absolute;
-  border-radius: 48px;
-  background: rgba(199, 181, 112, 0.22);
-  transform: rotate(24deg);
-}
-.autenticacao-marca::before { width: 340px; height: 340px; right: -110px; top: 26%; }
-.autenticacao-marca::after { width: 260px; height: 260px; right: 40px; bottom: -80px; transform: rotate(10deg); }
-
-.autenticacao-logo { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; position: relative; }
-.autenticacao-logo img { width: 210px; height: auto; display: block; }
-.autenticacao-logo strong { font-size: 26px; font-weight: 800; letter-spacing: 5px; line-height: 1; }
-.autenticacao-logo span { font-size: 13.5px; color: var(--marca-vermelho); margin-top: -8px; }
-
-.autenticacao-chamada { position: relative; max-width: 440px; }
-.autenticacao-chamada h2 { margin: 0 0 16px; font-size: 38px; font-weight: 700; line-height: 1.15; }
-.autenticacao-chamada p { margin: 0; font-size: 16px; line-height: 1.6; color: #2c4a53; }
-
-.autenticacao-formulario {
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  gap: 80px;
+  padding: 48px 40px 72px 50px;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(199, 181, 112, 0.14), transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(133, 89, 20, 0.22), transparent 45%),
+    var(--marca-azul);
 }
+.pagina-autenticacao::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 10px;
+  background: linear-gradient(#155a6c 0 25%, var(--marca-marrom) 25% 50%, var(--marca-bege) 50% 75%, var(--marca-vermelho) 75%);
+}
+
+.autenticacao-marca { width: 340px; flex-shrink: 0; color: #f1ede2; }
+.autenticacao-marca img { width: 150px; height: auto; display: block; }
+.autenticacao-marca strong { display: block; margin-top: 22px; font-size: 13px; letter-spacing: 3.5px; color: var(--marca-bege); }
+.autenticacao-marca h2 { margin: 10px 0 0; font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -0.5px; }
+.autenticacao-marca p { margin: 14px 0 0; font-size: 14.5px; line-height: 1.55; color: #c9d3d6; }
+
+.autenticacao-divisor { width: 1px; height: 380px; flex-shrink: 0; background: rgba(199, 181, 112, 0.35); }
+
+.autenticacao-formulario { width: 100%; max-width: 390px; flex-shrink: 0; }
+.pagina-autenticacao-larga .autenticacao-formulario { max-width: 600px; }
 
 .cartao-autenticacao {
-  width: 100%;
-  max-width: 440px;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
+  background: var(--gelo);
   border-radius: 14px;
-  padding: 36px 40px 30px;
-  box-shadow: 0 8px 28px rgba(10, 54, 66, 0.08);
+  padding: 0 28px 24px;
+  overflow: hidden;
+  color: #1f2a2d;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
 }
-.pagina-autenticacao-larga .cartao-autenticacao { max-width: 620px; }
+.cartao-autenticacao-faixa {
+  margin: 0 -28px 22px;
+  padding: 14px 28px;
+  background: var(--gelo-faixa);
+  border-bottom: 1px solid var(--gelo-linha);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--marca-marrom);
+}
+.cartao-autenticacao h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+.cartao-autenticacao .subtitulo { margin: 0 0 18px; color: #5b666a; font-size: 13.5px; }
+.cartao-autenticacao .campo > span { color: #3f4a4e; font-weight: 500; }
+.cartao-autenticacao input:not(.com-erro), .cartao-autenticacao select:not(.com-erro), .cartao-autenticacao textarea {
+  background: var(--gelo-campo);
+  border-color: var(--gelo-borda-campo);
+}
+.cartao-autenticacao a { color: var(--marca-azul); }
 
-.cartao-autenticacao h1 { font-size: 26px; font-weight: 700; margin: 0 0 4px; }
-.cartao-autenticacao .subtitulo { margin: 0 0 18px; }
-
-.formulario-autenticacao { display: flex; flex-direction: column; gap: 15px; margin-top: 10px; }
+.formulario-autenticacao { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
 .formulario-autenticacao input { width: 100%; min-width: 0; }
-.formulario-autenticacao .botao-principal { padding: 11px 18px; font-size: 15px; text-align: left; }
+.formulario-autenticacao .botao-principal { padding: 11px 18px; font-size: 15px; background: var(--marca-azul); }
 
+/* Links no rodapé do cartão, numa faixa como a do topo */
 .links-autenticacao {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 22px;
-  padding-top: 16px;
-  border-top: 1px solid var(--borda);
-  font-size: 13.5px;
+  margin: 22px -28px -24px;
+  padding: 13px 28px;
+  background: var(--gelo-faixa);
+  border-top: 1px solid var(--gelo-linha);
+  font-size: 13px;
 }
-.links-autenticacao a { color: var(--primaria-texto); font-weight: 600; text-decoration: none; }
+.links-autenticacao a { font-weight: 600; text-decoration: none; }
 .links-autenticacao a:hover { text-decoration: underline; }
-.links-autenticacao a:hover { text-decoration: underline; }
+
+.autenticacao-rodape { position: absolute; bottom: 22px; left: 0; right: 0; margin: 0; text-align: center; font-size: 12px; color: #9fb0b5; }
 
 /* =========================================================
    Menu: entrada única e expansível Cadastros (seção 2.3.2)
@@ -1065,9 +1080,12 @@ textarea.com-erro { border-color: var(--perigo); background: var(--perigo-claro)
   .conteudo { padding: 18px 16px 40px; }
   .titulo-area { flex-direction: column; align-items: flex-start; }
   .dupla { grid-template-columns: 1fr; }
-  .pagina-autenticacao { grid-template-columns: 1fr; }
-  .autenticacao-marca { padding: 28px 24px; gap: 18px; }
-  .autenticacao-chamada h2 { font-size: 26px; }
+  .pagina-autenticacao { flex-direction: column; align-items: stretch; gap: 28px; padding: 32px 16px 64px 26px; }
+  .autenticacao-marca { width: auto; }
+  .autenticacao-marca img { width: 84px; }
+  .autenticacao-marca h2 { font-size: 24px; }
+  .autenticacao-divisor { display: none; }
+  .autenticacao-formulario, .pagina-autenticacao-larga .autenticacao-formulario { max-width: none; }
 }
 
 /* =========================================================
