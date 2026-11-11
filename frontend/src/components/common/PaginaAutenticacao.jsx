@@ -1,10 +1,9 @@
 // Moldura das telas públicas de autenticação (login, solicitação de acesso,
 // esqueci e redefinir senha), no padrão do Protótipo 1 da ERS, com o visual
-// escolhido para o login: fundo azul da marca com a faixa das quatro cores da
-// logo e um único cartão gelo dividido em duas partes. À esquerda, a logo
-// completa do Instituto (legível sobre o gelo), "GESLIC" e o título; à
-// direita, o formulário, com a faixa "Acesso ao sistema" no topo e os links
-// no rodapé.
+// escolhido para o login: fotografia de paisagem no fundo e um único cartão
+// gelo, sem divisórias, em duas partes. À esquerda, a logo completa do
+// Instituto (legível sobre o gelo), "GESLIC" e o título; à direita, o
+// rótulo "Acesso ao sistema", o formulário e os links.
 
 import logoPristino from '../../assets/logo-pristino.png';
 
